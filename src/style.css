@@ -1,0 +1,948 @@
+:root {
+  --bg: #140d08;
+  --panel: rgba(28, 18, 11, 0.9);
+  --line: rgba(217, 151, 63, 0.35);
+  --text: #f3e6d3;
+  --muted: #bfa98c;
+  --accent: #d9973f;
+  --accent-dark: #a86f27;
+  --ok: #8fd18a;
+  --error: #ff9a7a;
+  --paper: #f4eddc;
+  --ink: #2a2118;
+  --pencil: #3a4f8a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 Georgia, 'Times New Roman', serif;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-weight: normal;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+section,
+form {
+  display: grid;
+  gap: 12px;
+}
+
+p {
+  margin: 0;
+}
+
+button {
+  padding: 12px 20px;
+  font: inherit;
+  font-size: 18px;
+  color: #1c1108;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #e6a650;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: var(--accent);
+}
+
+button.secondary {
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+button.secondary:hover {
+  background: rgba(217, 151, 63, 0.12);
+}
+
+button.small {
+  padding: 4px 12px;
+  font-size: 14px;
+}
+
+.code {
+  font: 600 52px/1.2 Consolas, ui-monospace, monospace;
+  letter-spacing: 0.25em;
+  color: var(--accent);
+}
+
+input.code {
+  width: 100%;
+  padding: 8px 0 8px 0.25em;
+  text-align: center;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+input.code::placeholder {
+  color: rgba(217, 151, 63, 0.3);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 13px;
+}
+
+/* --- Spieleschrank: Titel und Beitreten unten, damit der Schrank frei bleibt --- */
+
+.room-title {
+  position: fixed;
+  left: 24px;
+  bottom: 50px;
+  font-size: 28px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+
+.room-hint {
+  position: fixed;
+  left: 24px;
+  bottom: 22px;
+  color: var(--muted);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #4fbf5a;
+}
+
+.join {
+  position: fixed;
+  right: 24px;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.join .code {
+  width: 130px;
+  padding: 2px 0 2px 0.25em;
+  font-size: 26px;
+}
+
+.join button {
+  font-size: 16px;
+  padding: 8px 16px;
+}
+
+.tip {
+  position: fixed;
+  padding: 4px 12px;
+  pointer-events: none;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--accent);
+}
+
+.side-panel {
+  position: fixed;
+  top: 50%;
+  right: 6vw;
+  transform: translateY(-50%);
+  display: grid;
+  gap: 12px;
+  width: min(340px, calc(100% - 32px));
+  padding: 28px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.message {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 8px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.message.error {
+  color: var(--error);
+}
+
+.message.info {
+  color: var(--muted);
+}
+
+/* --- Kniffel --- */
+
+.hud {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.hud.below {
+  top: auto;
+  left: auto;
+  right: 24px;
+  bottom: 20px;
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.dock {
+  position: fixed;
+  left: 0;
+  right: 340px;
+  bottom: 18px;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.dock > * {
+  pointer-events: auto;
+}
+
+.dock .muted {
+  text-shadow: 0 1px 4px #000, 0 0 10px #000;
+}
+
+#status {
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  font-size: 15px;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+#roll {
+  min-width: 220px;
+  font-size: 20px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.sheet {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: 316px;
+  overflow: auto;
+  padding: 12px 14px;
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+.sheet table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.sheet th,
+.sheet td {
+  padding: 2px 6px;
+  border-bottom: 1px solid rgba(42, 33, 24, 0.25);
+}
+
+.sheet th {
+  text-align: left;
+  font-weight: normal;
+  line-height: 1.2;
+}
+
+.sheet th small {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.1;
+  color: rgba(42, 33, 24, 0.55);
+}
+
+.sheet thead th {
+  padding-bottom: 6px;
+  text-align: center;
+  border-bottom: 2px solid var(--ink);
+}
+
+.sheet thead th.brand {
+  text-align: left;
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.sheet thead th.turn {
+  color: #fff;
+  background: #b3261e;
+  border-radius: 6px 6px 0 0;
+}
+
+.sheet td {
+  width: 64px;
+  text-align: center;
+  font: 17px/1.1 'Segoe Print', 'Comic Sans MS', cursive;
+  color: var(--pencil);
+  border-left: 1px solid rgba(42, 33, 24, 0.25);
+}
+
+.sheet td.option {
+  font: italic 15px Georgia, serif;
+  color: rgba(42, 33, 24, 0.45);
+}
+
+.sheet td.option.zero {
+  color: rgba(42, 33, 24, 0.25);
+}
+
+.sheet td.pick {
+  cursor: pointer;
+  color: #1d5a3c;
+  background: rgba(29, 90, 60, 0.08);
+}
+
+.sheet td.pick:hover {
+  color: #fff;
+  background: #1d5a3c;
+}
+
+.sheet td.new {
+  animation: ink 1.2s ease-out;
+}
+
+@keyframes ink {
+  from {
+    background: rgba(217, 151, 63, 0.6);
+  }
+}
+
+.sheet tr.sum th,
+.sheet tr.sum td {
+  background: rgba(42, 33, 24, 0.06);
+}
+
+.sheet tr.sum td small {
+  font: 11px Georgia, serif;
+  color: rgba(42, 33, 24, 0.5);
+}
+
+.sheet tr.total th,
+.sheet tr.total td {
+  font-weight: bold;
+  border-top: 2px solid var(--ink);
+  border-bottom: none;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at center, rgba(20, 13, 8, 0.35), rgba(20, 13, 8, 0.85));
+}
+
+.panel {
+  display: grid;
+  gap: 14px;
+  width: min(420px, calc(100% - 32px));
+  padding: 32px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+#confirm {
+  z-index: 10;
+}
+
+#confirm p {
+  font-size: 19px;
+}
+
+/* --- Seitenfeld am Tisch: allein gegen den Computer --- */
+
+.solo {
+  display: grid;
+  gap: 8px;
+}
+
+.or {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+select {
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+select option {
+  background: #2a1c12;
+}
+
+/* --- Schach: Partiezettel --- */
+
+.sheet.chess,
+.sheet.maumau {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chess-head,
+.mm-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 14px;
+}
+
+.chess-head .brand,
+.mm-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.chess-status,
+.mm-status {
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.chess-status.check {
+  background: #b3261e;
+}
+
+.sheet .row {
+  display: flex;
+  gap: 8px;
+}
+
+.sheet .row button {
+  flex: 1;
+}
+
+.sheet button.secondary {
+  color: var(--ink);
+  border-color: rgba(42, 33, 24, 0.35);
+}
+
+.sheet button.secondary:hover {
+  background: rgba(42, 33, 24, 0.08);
+}
+
+.oracle {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(42, 33, 24, 0.06);
+  border-radius: 6px;
+}
+
+.oracle-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.oracle-head span:first-child {
+  font-weight: bold;
+  letter-spacing: 0.06em;
+}
+
+.oracle-bar {
+  height: 10px;
+  overflow: hidden;
+  background: #2a1a12;
+  border-radius: 5px;
+}
+
+.oracle-bar div {
+  height: 100%;
+  background: #e8cd9b;
+  transition: width 0.6s;
+}
+
+.oracle-curve {
+  width: 100%;
+  height: 46px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+}
+
+.oracle-curve line {
+  stroke: rgba(42, 33, 24, 0.25);
+  stroke-width: 0.5;
+}
+
+.oracle-curve polyline {
+  fill: none;
+  stroke: #1d5a3c;
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.oracle-text {
+  min-height: 2.6em;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.best,
+.good {
+  color: #1d5a3c;
+}
+
+.ungenau {
+  color: #a8730e;
+}
+
+.fehler {
+  color: #c4501b;
+}
+
+.patzer {
+  color: #b3261e;
+}
+
+.moves {
+  flex: 1;
+  min-height: 80px;
+  overflow: auto;
+}
+
+.moves table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.moves th {
+  width: 36px;
+  padding: 2px 4px;
+  text-align: right;
+  font: 14px Georgia, serif;
+  color: rgba(42, 33, 24, 0.55);
+}
+
+.moves td {
+  padding: 2px 8px;
+  font: 17px/1.2 'Segoe Print', 'Comic Sans MS', cursive;
+  color: var(--pencil);
+  border-bottom: 1px solid rgba(42, 33, 24, 0.15);
+}
+
+.moves td b {
+  margin-left: 2px;
+  font-family: Georgia, serif;
+}
+
+.moves td.last {
+  background: rgba(255, 207, 74, 0.35);
+}
+
+.moves td.empty {
+  font: italic 14px Georgia, serif;
+  color: rgba(42, 33, 24, 0.45);
+}
+
+.chess-end,
+.mm-end {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  text-align: center;
+  background: rgba(42, 33, 24, 0.08);
+  border-radius: 6px;
+}
+
+.chess-end h3,
+.mm-end h3 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: normal;
+  color: #b3261e;
+}
+
+.chess-end p,
+.mm-end p {
+  font-size: 14px;
+}
+
+.promo-choices {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.promo-choices button {
+  display: grid;
+  padding: 8px 4px;
+}
+
+.promo-choices span {
+  font-size: 44px;
+  line-height: 1.1;
+}
+
+#promo {
+  z-index: 5;
+}
+
+/* --- Mau-Mau: Seitenfeld und Wunschfarbe --- */
+
+.sheet.maumau {
+  bottom: auto;
+  max-height: calc(100% - 24px);
+}
+
+.mm-last {
+  min-height: 2.6em;
+  font-size: 14px;
+}
+
+.mm-hint {
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.mm-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.mm-mau {
+  font-size: 22px;
+  letter-spacing: 0.04em;
+}
+
+.mm-mau.on,
+.mm-mau.on:hover {
+  color: #fff;
+  background: #4f9f4a;
+}
+
+.mm-rules {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px 8px 26px;
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.8);
+  background: rgba(42, 33, 24, 0.06);
+  border-radius: 6px;
+}
+
+.wish-choices {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.wish-choices button {
+  display: grid;
+  justify-items: center;
+  padding: 8px 4px;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.wish-choices button:hover {
+  background: #fff;
+}
+
+.wish-choices canvas {
+  width: 56px;
+  height: 56px;
+}
+
+#wish {
+  z-index: 5;
+}
+
+/* --- Einstellungen, Ansicht, FPS (oben links) --- */
+
+.tools {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+button.icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--accent);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+button.icon:hover {
+  color: #f0b868;
+  background: #3a2716;
+}
+
+button.icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* im Spiel steht die Verbindungsleiste rechts neben den beiden runden Knöpfen */
+.hud:not(.below) {
+  left: 124px;
+}
+
+.fps {
+  position: fixed;
+  top: 68px;
+  left: 16px;
+  padding: 2px 8px;
+  font: 13px/1.4 Consolas, ui-monospace, monospace;
+  color: var(--ok);
+  background: var(--panel);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+#settings {
+  z-index: 20;
+  align-items: start; /* oben fest, damit die Reiter beim Wechseln nicht springen */
+  padding-top: max(16px, 8vh);
+}
+
+#welcome {
+  z-index: 30;
+}
+
+.panel.settings {
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  overflow: auto;
+  text-align: left;
+}
+
+.panel.settings h2 {
+  text-align: center;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs button {
+  padding: 6px 16px;
+  font-size: 16px;
+  color: var(--muted);
+  background: transparent;
+  border-radius: 8px 8px 0 0;
+}
+
+.tabs button:hover {
+  color: var(--text);
+  background: rgba(217, 151, 63, 0.12);
+}
+
+.tabs button.on {
+  color: #1c1108;
+  background: var(--accent);
+}
+
+.setting {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.setting small {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.setting.check input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent);
+}
+
+.setting select {
+  min-width: 120px;
+}
+
+.levels {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.levels button {
+  padding: 8px 4px;
+  font-size: 16px;
+}
+
+.levels button.on,
+.levels button.on:hover {
+  color: #1c1108;
+  background: var(--accent);
+}
+
+.cost {
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 11.5px;
+  font-style: normal;
+  white-space: nowrap;
+  border-radius: 8px;
+}
+
+.cost.sehr-gering,
+.cost.gering {
+  color: #b9e6b5;
+  background: rgba(79, 159, 74, 0.25);
+}
+
+.cost.mittel {
+  color: #f0cf8a;
+  background: rgba(217, 151, 63, 0.25);
+}
+
+.cost.hoch {
+  color: #ffb39a;
+  background: rgba(196, 80, 27, 0.3);
+}
+
+input.name {
+  width: 100%;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 20px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.setting input.name {
+  width: 220px;
+}
+
+.error {
+  color: var(--error);
+}
+
+/* Schalter „Ohne Hilfen“ am Tisch (nur bei Spielen, die es können) */
+.free-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.free-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: #a8382a;
+}
+
+/* Knopf „Aufbauen“, wenn das Brett verschoben oder umgeworfen ist (tisch.js) */
+.tisch-aufbauen {
+  position: fixed;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  z-index: 6;
+}
+
+/* Brett umgeworfen: Spiel-Knöpfe ruhen bis „Aufbauen“ */
+.tisch-chaos [data-game] .dock,
+.tisch-chaos [data-game] aside,
+.tisch-chaos .cheat-button {
+  pointer-events: none;
+  opacity: 0.45;
+}

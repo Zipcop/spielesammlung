@@ -1,0 +1,75 @@
+/* „Ohne Hilfen“: Schild oben, Knopf „Geschummelt!“ unten in der Mitte, Meldung darüber */
+.cheat-badge {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 14px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.cheat-button {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  padding: 12px 28px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff4ec;
+  background: #a8382a;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  z-index: 6;
+}
+
+.cheat-button:hover {
+  background: #c2442f;
+}
+
+.cheat-button:disabled {
+  background: #a8382a;
+}
+
+.cheat-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%);
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 12px 20px;
+  font-size: 17px;
+  text-align: center;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 7;
+}
+
+.cheat-toast.caught {
+  border-color: #c2442f;
+}
+
+.cheat-toast.alarm {
+  border-color: var(--accent);
+}
+
+/* Kniffel ohne Hilfen: Punkte selbst eintippen */
+#sheet input.claim {
+  width: 3.4em;
+  padding: 0 2px;
+  font: inherit;
+  text-align: center;
+  color: var(--ink);
+  background: #fffaf0;
+  border: 1px solid var(--pencil);
+  border-radius: 4px;
+}

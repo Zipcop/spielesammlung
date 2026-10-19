@@ -1,0 +1,133 @@
+/* Zuganalyse: runde Abzeichen (Farbe je Einstufung über --c), Live-Schalter, Rückblick */
+
+.badge {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  margin-left: 4px;
+  vertical-align: -3px;
+  font: bold 10px/1 Arial, sans-serif;
+  letter-spacing: -0.04em;
+  color: #fff;
+  background: var(--c);
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.verdict-brillant { color: #148a85; }
+.verdict-grossartig { color: #3f6f94; }
+.verdict-best, .verdict-ausgezeichnet { color: #3f7a1f; }
+.verdict-gut { color: #5f7f53; }
+.verdict-buch { color: #7f6243; }
+.verdict-ungenau { color: #a8800e; }
+.verdict-fehler { color: #c4501b; }
+.verdict-patzer { color: #b3261e; }
+.verdict-verpasst { color: #c24d72; }
+
+.chess-opening {
+  font: italic 13px Georgia, serif;
+  color: rgba(42, 33, 24, 0.7);
+}
+
+.live {
+  display: grid;
+  gap: 4px;
+  padding: 6px 10px;
+  font-size: 14px;
+  background: rgba(42, 33, 24, 0.06);
+  border-radius: 6px;
+}
+
+.live label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.live .oracle-text:empty {
+  display: none;
+}
+
+.moves td {
+  white-space: nowrap;
+}
+
+.moves td[data-ply] {
+  cursor: pointer;
+}
+
+.moves td[data-ply]:hover {
+  background: rgba(29, 90, 60, 0.12);
+}
+
+.moves td small {
+  margin-left: 4px;
+  font: 12px Georgia, 'Cambria Math', 'Segoe UI Symbol', serif;
+  color: rgba(42, 33, 24, 0.55);
+}
+
+.moves tr.result td {
+  text-align: center;
+  font: bold 16px Georgia, serif;
+  color: var(--ink);
+}
+
+.review {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(42, 33, 24, 0.06);
+  border-radius: 6px;
+}
+
+.review .now {
+  stroke: #b3261e;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.review-move {
+  min-height: 2.6em;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.review-move b {
+  font-family: 'Cambria Math', 'Segoe UI Symbol', Georgia, serif;
+}
+
+.review .nav button {
+  font-size: 16px;
+  padding: 2px 0;
+}
+
+.sheet .review-sum {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* eigene kleine Schrift statt der Bleistiftschrift des Partiezettels */
+.sheet .review-sum td,
+.sheet .review-sum th {
+  width: auto;
+  padding: 1px 4px;
+  font: 12.5px/1.3 Georgia, serif;
+  text-align: left;
+  color: var(--ink);
+  border: none;
+}
+
+.sheet .review-sum th {
+  color: rgba(42, 33, 24, 0.6);
+}
+
+.sheet .review-sum td + td,
+.sheet .review-sum th + th {
+  width: 64px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

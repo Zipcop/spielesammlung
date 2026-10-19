@@ -1,0 +1,23 @@
+{
+  "name": "spielesammlung",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:lan": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "chess.js": "^1.4.0",
+    "peerjs": "^1.5.5",
+    "stockfish": "^19.0.1",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "vite": "^8.3.4"
+  }
+}

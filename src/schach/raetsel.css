@@ -1,0 +1,112 @@
+/* Schach-Rätsel: Modus, Thema, Wertung, Antworten bei „Bester Zug?“, Umwandlung */
+
+.pz-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.sheet .pz-modes button.active {
+  color: #fff;
+  background: #1d5a3c;
+  border-color: #1d5a3c;
+}
+
+.pz-theme {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.sheet .pz-theme select {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 14px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(42, 33, 24, 0.35);
+  border-radius: 6px;
+}
+
+.sheet .pz-theme select option {
+  background: #fff;
+}
+
+.pz-rating {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 6px 10px;
+  font-size: 14px;
+  background: rgba(42, 33, 24, 0.06);
+  border-radius: 6px;
+}
+
+.pz-rating b {
+  font: bold 26px Georgia, serif;
+}
+
+.pz-up {
+  color: #1d5a3c;
+}
+
+.pz-down {
+  color: #b3261e;
+}
+
+.chess-status.pz-good {
+  background: #1d5a3c;
+}
+
+.pz-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sheet .pz-choices button {
+  padding: 8px 4px;
+  font: 20px Georgia, 'Segoe UI Symbol', serif;
+}
+
+.sheet .pz-choices button.right,
+.sheet .pz-choices button.wrong {
+  opacity: 1;
+  color: #fff;
+}
+
+.sheet .pz-choices button.right {
+  background: #3f7a1f;
+  border-color: #3f7a1f;
+}
+
+.sheet .pz-choices button.wrong {
+  background: #b3261e;
+  border-color: #b3261e;
+}
+
+.pz-promo {
+  display: grid;
+  grid-template-columns: auto repeat(4, 1fr);
+  gap: 6px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.sheet .pz-promo button {
+  padding: 0;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.pz-info {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.pz-stats,
+.pz-source {
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.6);
+}

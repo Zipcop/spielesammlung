@@ -1,0 +1,77 @@
+/* Geführter Rundgang (tutorial.js): Karte oben links, Ring am Tisch, Markierung im Seitenfeld */
+.tut-card {
+  position: fixed;
+  top: 72px;
+  left: 16px;
+  width: min(340px, calc(100vw - 32px));
+  padding: 14px 16px 12px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  z-index: 8;
+}
+.tut-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.tut-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+  background: none;
+  border: none;
+}
+.tut-card h3 {
+  margin: 6px 0 6px;
+  font-size: 19px;
+  color: var(--accent);
+}
+.tut-card p {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.tut-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tut-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 76px;
+  height: 76px;
+  margin: -38px 0 0 -38px;
+  border: 3px solid var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 18px var(--accent);
+  pointer-events: none;
+  animation: tut-pulse 1.3s ease-in-out infinite;
+  z-index: 7;
+}
+.tut-mark {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  animation: tut-glow 1.3s ease-in-out infinite;
+}
+@keyframes tut-pulse {
+  0%, 100% { opacity: 0.95; scale: 1; }
+  50% { opacity: 0.45; scale: 1.18; }
+}
+@keyframes tut-glow {
+  0%, 100% { outline-color: var(--accent); }
+  50% { outline-color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tut-ring, .tut-mark { animation: none; }
+}

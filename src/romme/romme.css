@@ -1,0 +1,96 @@
+/* --- Rommé: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.romme {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+}
+
+.sheet.romme > * {
+  flex-shrink: 0;
+}
+
+.rm-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 14px;
+}
+
+.rm-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.rm-score {
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.7);
+}
+
+.rm-status {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.rm-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+  background: rgba(79, 159, 74, 0.16);
+  border-radius: 4px;
+}
+
+.rm-pick button {
+  padding: 2px 8px;
+}
+
+.rm-last {
+  min-height: 2.6em;
+  margin: 0;
+  font-size: 14px;
+}
+
+.rm-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.rm-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.rm-end {
+  display: grid;
+  gap: 8px;
+}
+
+.rm-end h3,
+.rm-end p {
+  margin: 0;
+}
+
+.rm-rules {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px 8px 26px;
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.8);
+  background: rgba(42, 33, 24, 0.06);
+  border-radius: 6px;
+}

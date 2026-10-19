@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spielesammlung</title>
+    <!-- Installierbare App (PWA): Manifest, Symbole, Farbe der Titelleiste -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="icons/favicon-48.png" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#140d08" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <!-- Einstellungen und Ansicht (oben links, immer erreichbar) -->
+    <div class="tools">
+      <button id="btn-settings" class="icon" title="Einstellungen" aria-label="Einstellungen">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="5.6" fill="none" stroke="currentColor" stroke-width="3.2" />
+          <g fill="currentColor">
+            <rect x="10.4" y="1.6" width="3.2" height="4.4" rx="0.8" />
+            <rect x="10.4" y="1.6" width="3.2" height="4.4" rx="0.8" transform="rotate(45 12 12)" />
+            <rect x="10.4" y="1.6" width="3.2" height="4.4" rx="0.8" transform="rotate(90 12 12)" />
+            <rect x="10.4" y="1.6" width="3.2" height="4.4" rx="0.8" transform="rotate(135 12 12)" />
+            <rect x="10.4" y="1.6" width="3.2" height="4.4" rx="0.8" transform="rotate(180 12 12)" />
+            <rect x="10.4" y="1.6" width="3.2" height="4.4" rx="0.8" transform="rotate(225 12 12)" />
+            <rect x="10.4" y="1.6" width="3.2" height="4.4" rx="0.8" transform="rotate(270 12 12)" />
+            <rect x="10.4" y="1.6" width="3.2" height="4.4" rx="0.8" transform="rotate(315 12 12)" />
+          </g>
+        </svg>
+      </button>
+      <button id="btn-view" class="icon" data-view="playing" title="Ansicht zurücksetzen" aria-label="Ansicht zurücksetzen">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12a7 7 0 1 0 2.05-4.95" />
+          <path d="M4.5 3.5v4.5h4.5" />
+        </svg>
+      </button>
+      <button id="btn-help" class="icon" data-view="playing" title="So geht’s – kurzer Rundgang durchs Spiel" aria-label="So geht’s">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8.6 9a3.5 3.5 0 1 1 5.3 3c-1.2.7-1.9 1.5-1.9 2.8v.4" />
+          <circle cx="12" cy="19" r="0.6" fill="currentColor" />
+        </svg>
+      </button>
+    </div>
+    <div id="fps" class="fps" hidden></div>
+
+    <!-- Spieleschrank -->
+    <div class="room-ui" data-view="shelf joining">
+      <h1 class="room-title">Spieleschrank</h1>
+      <p id="shelf-hint" class="room-hint"></p>
+      <form id="join-form" class="join">
+        <label for="code-input">Mitspielen per Code</label>
+        <input id="code-input" class="code" maxlength="4" autocomplete="off" spellcheck="false" placeholder="CODE" />
+        <button type="submit">Beitreten</button>
+      </form>
+    </div>
+    <div id="tip" class="tip" hidden></div>
+
+    <div class="side-panel" data-view="table hosting">
+      <h2 id="game-title">Kniffel</h2>
+      <p id="game-info" class="muted"></p>
+      <section data-view="table">
+        <label id="free-row" class="free-row" hidden><input type="checkbox" id="free-toggle"> Ohne Hilfen – Schummeln erlaubt</label>
+        <button id="btn-host">Lobby hosten</button>
+        <div id="solo" class="solo" hidden>
+          <p class="or">oder allein</p>
+          <select id="level" aria-label="Stärke des Computers"></select>
+          <button id="btn-solo">Gegen Computer</button>
+          <p id="solo-record" class="muted small"></p>
+        </div>
+        <button class="secondary" data-back>Zurück zum Schrank</button>
+      </section>
+      <section data-view="hosting">
+        <p>Dein Code:</p>
+        <div id="code" class="code">····</div>
+        <p id="host-status" class="muted">Code wird erstellt …</p>
+        <button class="secondary" data-back>Abbrechen</button>
+      </section>
+    </div>
+
+    <p id="message" class="message" hidden></p>
+
+    <!-- Verbindung (bleibt, bis jemand trennt) -->
+    <div id="hud" class="hud" hidden>
+      <span class="ok">● Verbunden mit <span id="peer-name"></span></span>
+      <span>Ping: <strong id="ping">…</strong></span>
+      <span id="role"></span>
+      <button id="hud-shelf" class="secondary small">Zum Schrank</button>
+      <button id="hud-leave" class="secondary small">Trennen</button>
+    </div>
+    <div id="confirm" class="overlay" hidden>
+      <div class="panel">
+        <p id="confirm-text"></p>
+        <button id="confirm-yes">Ja</button>
+        <button id="confirm-no" class="secondary">Nein, zurück</button>
+      </div>
+    </div>
+
+    <!-- Einstellungen: ein weiterer Bereich = Knopf in .tabs + <section data-pane> (siehe menu.js) -->
+    <div id="settings" class="overlay" hidden>
+      <div class="panel settings">
+        <h2>Einstellungen</h2>
+        <div class="tabs">
+          <button class="on" data-tab="spieler">Spieler</button>
+          <button data-tab="grafik">Grafik</button>
+          <button data-tab="effekte">Effekte</button>
+          <button data-tab="designs">Designs</button>
+        </div>
+        <section data-pane="spieler">
+          <label class="setting">
+            <span>Dein Name<small>Sieht dein Mitspieler im Spiel</small></span>
+            <input id="name-input" class="name" autocomplete="off" spellcheck="false" />
+          </label>
+          <p id="name-error" class="error small" hidden>Bitte gib einen Namen ein.</p>
+          <label class="setting check">
+            <span>Ohne Hilfen spielen<small>Gilt, wenn du hostest: keine erlaubten Züge, alles geht – wer schummelt, kann mit „Geschummelt!“ erwischt werden. Gegen den Computer gelten immer die Regeln.</small></span>
+            <input type="checkbox" data-key="free">
+          </label>
+          <p class="muted small">Alle Einstellungen gelten nur für diesen PC.</p>
+        </section>
+        <section data-pane="grafik" hidden>
+          <div class="levels">
+            <button class="secondary" data-level="niedrig">Niedrig</button>
+            <button class="secondary" data-level="mittel">Mittel</button>
+            <button class="secondary" data-level="hoch">Hoch</button>
+            <button class="secondary" data-level="ultra">Ultra</button>
+          </div>
+          <p id="level-text" class="muted small"></p>
+        </section>
+        <section data-pane="effekte" hidden>
+          <p class="muted small">Jeder Effekt einzeln abschaltbar – „Leistung“ sagt, wie sehr er bremst.</p>
+        </section>
+        <section data-pane="designs" hidden>
+          <p class="muted small">Nur das Aussehen – dein Mitspieler sieht sein eigenes Design.</p>
+        </section>
+        <button data-close>Fertig</button>
+      </div>
+    </div>
+
+    <!-- Erster Start: Name -->
+    <div id="welcome" class="overlay" hidden>
+      <form id="welcome-form" class="panel">
+        <h2>Willkommen im Spielzimmer!</h2>
+        <label for="welcome-input">Wie heißt du? Den Namen sieht dein Mitspieler.</label>
+        <input id="welcome-input" class="name" autocomplete="off" spellcheck="false" placeholder="Dein Name" />
+        <p id="welcome-error" class="error small" hidden>Bitte gib einen Namen ein.</p>
+        <button type="submit">Los geht's</button>
+        <p class="muted small">Ändern kannst du ihn jederzeit über das Zahnrad oben links.</p>
+      </form>
+    </div>
+
+    <div data-view="playing">
+      <!-- Kniffel -->
+      <div data-game="Kniffel">
+        <aside class="sheet">
+          <p id="status"></p>
+          <div id="sheet"></div>
+        </aside>
+        <div class="dock">
+          <button id="roll">Würfeln</button>
+          <p class="muted small" data-hint="Becher greifen und schütteln, loslassen = auskippen · Würfel ziehen = als Handvoll werfen · Würfel anklicken = behalten · Feld im Block anklicken = eintragen · Leertaste = würfeln" data-hint-free="Becher greifen und schütteln, loslassen = auskippen · Würfel ziehen = als Handvoll werfen · Würfel anklicken = behalten · Feld im Block anklicken und Punkte selbst eintippen"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+        </div>
+        <div id="result" class="overlay" hidden>
+          <div class="panel">
+            <h2 id="result-title"></h2>
+            <div id="result-score" class="code"></div>
+            <button id="again">Nochmal spielen</button>
+            <button id="to-room" class="secondary">Zurück zum Schrank</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schach -->
+      <div data-game="Schach">
+        <aside id="chess-panel" class="sheet chess"></aside>
+        <div class="dock">
+          <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen" data-hint-free="Eigene Figur anklicken · beliebiges Feld anklicken = ziehen (es wird nichts geprüft) · Esc = abwählen"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+        </div>
+        <div id="promo" class="overlay" hidden>
+          <div class="panel">
+            <p>Bauer umwandeln in:</p>
+            <div class="promo-choices">
+              <button data-piece="q"><span></span><small>Dame</small></button>
+              <button data-piece="r"><span></span><small>Turm</small></button>
+              <button data-piece="b"><span></span><small>Läufer</small></button>
+              <button data-piece="n"><span></span><small>Springer</small></button>
+            </div>
+            <p class="muted small">Esc oder daneben klicken = abbrechen</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schach-Rätsel (allein) – Panel und Umwandlung baut src/schach/raetsel.js -->
+      <div data-game="Schach-Rätsel">
+        <aside id="puzzle-panel" class="sheet chess"></aside>
+        <div class="dock">
+          <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+        </div>
+      </div>
+
+      <!-- Mau-Mau -->
+      <div data-game="Mau-Mau">
+        <aside id="mm-panel" class="sheet maumau"></aside>
+        <div class="dock">
+          <p class="muted small" data-hint="Eigene Karte anklicken oder auf die Ablage ziehen = legen · Stapel anklicken = ziehen · vorletzte Karte: vorher „Mau!“" data-hint-free="Jede Karte lässt sich legen – auch eine unpassende · Stapel anklicken = ziehen · vorletzte Karte: vorher „Mau!“"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+        </div>
+        <div id="wish" class="overlay" hidden>
+          <div class="panel">
+            <p>Welche Farbe wünschst du dir?</p>
+            <div class="wish-choices">
+              <button data-suit="c"><canvas width="96" height="96"></canvas><small>Kreuz</small></button>
+              <button data-suit="h"><canvas width="96" height="96"></canvas><small>Herz</small></button>
+              <button data-suit="s"><canvas width="96" height="96"></canvas><small>Pik</small></button>
+              <button data-suit="d"><canvas width="96" height="96"></canvas><small>Karo</small></button>
+            </div>
+            <p class="muted small">Esc oder daneben klicken = abbrechen</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rommé -->
+      <div data-game="Rommé">
+        <aside id="rm-panel" class="sheet romme"></aside>
+        <div class="dock">
+          <p class="muted small" data-hint="Karten anklicken = auswählen, dann „Auslegen“ · eine Karte + Figur = anlegen · eine Karte + Ablage = ablegen · Esc = Auswahl weg" data-hint-free="Alles lässt sich auslegen, anlegen und ablegen – auch Regelwidriges · Schummelt der andere, „Geschummelt!“ drücken, bevor du ziehst"></p>
+        </div>
+      </div>
+
+      <!-- Mensch ärgere dich nicht -->
+      <div data-game="Billard">
+        <aside id="bil-panel" class="sheet billard"></aside>
+        <div class="dock">
+          <p class="muted small">Maus = zielen · linke Maustaste halten = Kraft, loslassen = Stoß · Esc = abbrechen</p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+        </div>
+      </div>
+
+      <div data-game="Mensch ärgere dich nicht">
+        <aside id="md-panel" class="sheet maedn"></aside>
+        <div class="dock">
+          <p class="muted small" data-hint="Würfelteller anklicken, Würfel werfen oder Leertaste = würfeln · leuchtende Figur anklicken oder aufs Feld stellen = ziehen" data-hint-free="Würfelteller anklicken oder Leertaste = würfeln · eigene Figur anklicken, dann Zielfeld anklicken · Esc = abwählen"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

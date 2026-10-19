@@ -1,0 +1,105 @@
+/* Billard: Seitenfeld */
+.bil-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bil-players {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.bil-players li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.bil-players li.turn {
+  border-color: var(--accent);
+  background: rgba(217, 151, 63, 0.12);
+}
+
+.bil-name {
+  font-weight: 600;
+}
+
+.bil-group {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: right;
+}
+
+.bil-left {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-height: 14px;
+}
+
+.bil-ball {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: inset -2px -2px 3px rgba(0, 0, 0, 0.35);
+}
+
+.bil-ball.stripe {
+  background: linear-gradient(#f4f1e8 0 28%, var(--c) 28% 72%, #f4f1e8 72%);
+}
+
+.bil-status {
+  font-weight: 600;
+}
+
+.bil-last {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.bil-power {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.bil-power.idle {
+  opacity: 0.35;
+}
+
+.bil-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.bil-bar div {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #8fd18a, #e6c04a 60%, #d9573f);
+}
+
+.bil-rules {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.bil-end h3 {
+  margin: 8px 0 4px;
+}
