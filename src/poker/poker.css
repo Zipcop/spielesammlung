@@ -1,0 +1,212 @@
+/* --- Texas Hold'em: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.poker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+
+.sheet.poker > * {
+  flex-shrink: 0;
+}
+
+.pk-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 14px;
+}
+
+.pk-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.06em;
+  color: #1f6b3a;
+}
+
+.sheet .pk-players {
+  width: 100%;
+  font-size: 14px;
+}
+
+.sheet .pk-players td {
+  width: auto;
+  padding: 3px 4px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  border: none;
+}
+
+.pk-players tr.turn {
+  background: rgba(79, 159, 74, 0.16);
+}
+
+.pk-players tr.out {
+  color: rgba(42, 33, 24, 0.45);
+}
+
+.sheet .pk-players td.pk-arrow {
+  width: 1em;
+  color: #2f6b2a;
+}
+
+.sheet .pk-players td.pk-chips {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet .pk-players td.pk-note {
+  font-size: 12.5px;
+  color: rgba(42, 33, 24, 0.7);
+}
+
+.pk-pot {
+  margin: 0;
+  font-size: 15px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.pk-status {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.pk-mine,
+.pk-peek {
+  margin: 0;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.pk-peek {
+  color: #8a5a00;
+}
+
+.pk-acts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.pk-raise {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  background: rgba(31, 107, 58, 0.08);
+  border-radius: 4px;
+}
+
+.pk-raise .row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.pk-raise input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.pk-raise input[type='number'] {
+  width: 6em;
+  padding: 3px 4px;
+  font: inherit;
+  font-size: 14px;
+}
+
+.pk-quick {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.pk-quick button {
+  padding: 4px 0;
+  font-size: 12.5px;
+}
+
+.pk-claims {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+}
+
+.pk-claims p {
+  grid-column: span 3;
+  margin: 0;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.pk-claims button {
+  padding: 4px 2px;
+  font-size: 12.5px;
+}
+
+.pk-accuse {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  font-size: 14px;
+  background: rgba(179, 38, 30, 0.1);
+  border-radius: 4px;
+}
+
+.pk-accuse p {
+  margin: 0;
+  font-weight: bold;
+}
+
+.pk-accuse .row {
+  flex-wrap: wrap;
+}
+
+.pk-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.pk-last p {
+  margin: 0 0 3px;
+  font-size: 13.5px;
+}
+
+.pk-last p + p {
+  color: rgba(42, 33, 24, 0.6);
+}
+
+.pk-bank {
+  margin: 0;
+  padding-top: 6px;
+  font-size: 13px;
+  border-top: 1px solid rgba(42, 33, 24, 0.25);
+}
+
+.pk-rules summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.pk-rules ol {
+  margin: 4px 0 0;
+  padding-left: 22px;
+  font-size: 13px;
+}
+
+.pk-rules p {
+  margin: 4px 0 0;
+  font-size: 13px;
+}

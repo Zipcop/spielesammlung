@@ -858,6 +858,36 @@ body:has(.hud:not(.below):not([hidden])) .message {
   min-width: 120px;
 }
 
+/* Reiter „Statistik“: je Paar eine Tabelle */
+.stats-pair h3 {
+  margin: 12px 0 4px;
+  font-size: 16px;
+}
+
+table.stats {
+  width: 100%;
+  margin-bottom: 6px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+table.stats th,
+table.stats td {
+  padding: 3px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+
+table.stats th:first-child,
+table.stats td:first-child {
+  text-align: left;
+}
+
+table.stats th {
+  color: var(--muted);
+  font-weight: normal;
+}
+
 .levels {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

@@ -1,0 +1,140 @@
+/* --- Elfer raus: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.elferraus {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+
+.sheet.elferraus > * {
+  flex-shrink: 0;
+}
+
+.er-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 14px;
+}
+
+.er-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.sheet .er-players {
+  width: 100%;
+  font-size: 14px;
+}
+
+.sheet .er-players td,
+.sheet .er-list td,
+.sheet .er-list th {
+  width: auto;
+  font: inherit;
+  color: inherit;
+  border: none;
+}
+
+.sheet .er-players td {
+  padding: 3px 4px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.er-players tr.turn {
+  background: rgba(79, 159, 74, 0.16);
+}
+
+.sheet .er-players td.er-arrow {
+  width: 1em;
+  color: #2f6b2a;
+}
+
+.sheet .er-players td.er-score {
+  text-align: right;
+  font-weight: bold;
+}
+
+.er-status {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.er-last {
+  margin: 0;
+  font-size: 14px;
+}
+
+.er-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.er-end {
+  display: grid;
+  gap: 6px;
+}
+
+.er-end h3,
+.er-end p {
+  margin: 0;
+}
+
+.er-list summary,
+.er-rules summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.sheet .er-list table {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.sheet .er-list th,
+.sheet .er-list td {
+  padding: 2px 4px;
+  text-align: right;
+}
+
+.sheet .er-list td:first-child {
+  text-align: left;
+}
+
+.sheet .er-list tr.total td {
+  font-weight: bold;
+  border-top: 2px solid var(--ink);
+}
+
+.er-rules ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.er-setup {
+  display: grid;
+  gap: 6px;
+}
+
+.er-setup p {
+  margin: 0;
+}
+
+.er-actions button {
+  flex: 1;
+}

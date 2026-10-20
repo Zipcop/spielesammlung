@@ -20,15 +20,25 @@ import { createDokoBoard } from './doko/board.js';
 import { startDoko } from './doko/index.js';
 import { createVierBoard } from './viergewinnt/board.js';
 import { startVierGewinnt } from './viergewinnt/index.js';
+import { createReversiBoard } from './reversi/board.js';
+import { startReversi } from './reversi/index.js';
 import { createMuehleBoard } from './muehle/board.js';
 import { startMuehle } from './muehle/index.js';
+import { createDameBoard } from './dame/board.js';
+import { startDame } from './dame/index.js';
 import { createMaexchenBoard } from './maexchen/board.js';
 import { startMaexchen } from './maexchen/index.js';
+import { createElferBoard } from './elferraus/board.js';
+import { startElferRaus } from './elferraus/index.js';
+import { createPokerBoard } from './poker/board.js';
+import { startPoker } from './poker/index.js';
 import { unlockAudio } from './sound.js';
 import { createTisch } from './tisch.js';
 import { createTutorial } from './tutorial.js';
 import { loadSettings, saveSettings, cleanName } from './settings.js';
 import { loadSaves, storeSave, savedAt } from './saves.js';
+import { loadStats, mergeStats, entry, pairOf, ofPair, resetPair, tally, step, today, RESET } from './stats.js';
+import { OUTCOME, reverted } from './results.js';
 import { createMenu, askName } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
@@ -55,9 +65,15 @@ const GAMES = {
   Doppelkopf: { board: createDokoBoard(room.tableTop), start: startDoko, seat: 'doko' },
   // Rahmen steht aufrecht in der Mitte: Host sieht ihn von vorn (+z), Gast von hinten
   'Vier gewinnt': { board: createVierBoard(room.tableTop), start: startVierGewinnt, seat: 'vier' },
+  Reversi: { board: createReversiBoard(room.tableTop), start: startReversi, seat: 'reversi' },
   Mühle: { board: createMuehleBoard(room.tableTop), start: startMuehle, seat: 'muehle' },
+  Dame: { board: createDameBoard(room.tableTop), start: startDame, seat: 'dame' },
   // Vier Sitze wie Doppelkopf; Becherlagen gehen als 'mx' zum anderen PC
   Mäxchen: { board: createMaexchenBoard(room.tableTop, { onStream: (msg) => lobby?.send(msg) }), start: startMaexchen, seat: 'mx' },
+  // Sitze wie Doppelkopf (2–4 am Tisch, freie spielt der Computer); die Reihen liegen in der Mitte
+  'Elfer raus': { board: createElferBoard(room.tableTop), start: startElferRaus, seat: 'elfer' },
+  // Sechs Plätze: Host, Gast gegenüber, die freien spielt der Computer; Spielgeld-Konto je PC (spielgeld.js)
+  "Texas Hold'em": { board: createPokerBoard(room.tableTop), start: startPoker, seat: 'poker' },
 };
 for (const [n, g] of Object.entries(GAMES)) g.board.group.visible = n === 'Kniffel'; // nur ein Spiel liegt auf dem Tisch
 // Brett greifen, schieben, umwerfen, aufbauen – für alle Spiele gleich
@@ -103,6 +119,49 @@ function showNames() {
   $('peer-name').textContent = otherName();
   if (host === null) $('shelf-hint').innerHTML = 'Spiel anklicken · <span class="dot"></span> = spielbar';
   else $('shelf-hint').textContent = host ? 'Such das nächste Spiel aus – ihr landet beide am Tisch' : `${otherName()} sucht das nächste Spiel aus …`;
+  showScore();
+}
+
+// --- Statistik zu zweit (stats.js): der Host zählt, meldet dem Gast; beim Verbinden gleichen beide ab ---
+const pair = () => pairOf(settings.name, peerName); // null = Name fehlt oder beide gleich – dann zählt nichts
+
+// Stand dieser Sitzung in der Verbindungsleiste, z. B. „Heute: Nico 3 – Denisa 2“
+function showScore() {
+  const p = pair();
+  const t = p && view === 'playing' && OUTCOME[table] ? tally(loadStats(today), p)[table] ?? { wins: { [p[0]]: 0, [p[1]]: 0 }, draws: 0 } : null;
+  $('hud-score').hidden = !t;
+  if (t) $('hud-score').textContent = `Heute: ${settings.name} ${t.wins[settings.name]} – ${peerName} ${t.wins[peerName]}${t.draws ? ` · Remis ${t.draws}` : ''}`;
+}
+
+function record(e) {
+  if (!e) return;
+  mergeStats([e]);
+  mergeStats([e], today);
+  showScore();
+}
+
+// Ergebnis vom anderen PC: nur für unser Paar und bekannte Spiele (oder die Rücksetz-Marke)
+const ours = (e) => {
+  const p = pair();
+  return !!p && e?.a === p[0] && e?.b === p[1] && (Object.hasOwn(GAMES, e.game) || e.game === RESET);
+};
+
+// In Stücken zu je 40 (höchstens ~12 kB): PeerJS verwirft JSON-Nachrichten ab 16 300 Byte ohne Meldung
+function sendStats() {
+  const list = pair() ? ofPair(loadStats(), pair()) : [];
+  for (let i = 0; i < list.length; i += 40) lobby?.send({ t: 'stats', list: list.slice(i, i + 40) });
+}
+
+// Host: Spielstand → Runde verfolgen, Ergebnis festhalten und dem Gast melden. Gibt den neuen track zurück.
+function countResult(name, track, state) {
+  const id = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const { report, ...next } = step(track, OUTCOME[name](state), reverted(state), id);
+  if (report === undefined) return next;
+  const winner = report === 'void' ? null : report === null ? '' : report === 0 ? settings.name : peerName;
+  const e = entry({ id: next.id, game: name, me: settings.name, other: peerName, winner });
+  record(e);
+  if (e) lobby?.send({ t: 'result', entry: e });
+  return next;
 }
 
 // Was auf dem Tisch liegt (Würfelschale, Schachbrett …)
@@ -171,7 +230,8 @@ function ask(text, onYes, onNo, noText = 'Nein, zurück') {
 }
 
 // level gesetzt = allein gegen den Computer (ohne Verbindung) · resume = gespeicherter Stand (nur Host)
-function startGame(name, me, level, resume) {
+// track = Statistik-Stand dazu (saves.js) – fehlt er (alter Speicherstand), gilt ein schon beendetes Spiel als gezählt
+function startGame(name, me, level, resume, track) {
   game?.stop();
   $('confirm').hidden = true; // offene Rückfrage gehörte zur alten Partie
   setTable(name);
@@ -181,9 +241,11 @@ function startGame(name, me, level, resume) {
   const free = settings.free && !!PLAYABLE.get(name).free; // allein oder zu zweit; zu zweit entscheidet der Host
   // Zu zweit merkt sich der Host jeden Spielstand (saves.js) – für Neuverbinden und „Fortsetzen“
   latest = null;
+  track ??= { id: null, w: resume && OUTCOME[name] ? OUTCOME[name](resume) : undefined };
   const save = level === undefined && me === 0 ? (state) => {
-    latest = { name, state };
-    storeSave(name, state);
+    if (OUTCOME[name]) track = countResult(name, track, state); // Statistik zu zweit
+    latest = { name, state, track };
+    storeSave(name, state, undefined, undefined, track);
   } : undefined;
   // Bedienhinweis je nach Modus – der Gast erfährt „ohne Hilfen“ erst mit dem ersten Spielstand, deshalb fragt das Spiel nach.
   // Vor dem Start zurücksetzen: Der Host zeichnet schon beim Start und stellt dabei den Hinweis für „ohne Hilfen“ ein.
@@ -239,7 +301,8 @@ function startLobby(role) {
       lobby.send({ t: 'name', name: settings.name });
       if (!host) return; // der Gast wartet, welches Spiel der Host aufgemacht hat
       lobby.send({ t: 'game', id: table });
-      startGame(table, 0, undefined, resumeNext ? loadSaves()[table]?.state : undefined);
+      const saved = resumeNext ? loadSaves()[table] : undefined;
+      startGame(table, 0, undefined, saved?.state, saved?.track);
     })
     // Verbindung kurz weg: Spiel bleibt stehen, Lobby verbindet neu (net.js)
     .on('reconnecting', () => {
@@ -254,7 +317,7 @@ function startLobby(role) {
       // Host schickt das Spiel neu, mit dem letzten Stand – was während der Pause passiert ist, kommt so beim Gast an
       if (host && view === 'playing' && latest?.name === table) {
         lobby.send({ t: 'game', id: table });
-        startGame(table, 0, undefined, latest.state);
+        startGame(table, 0, undefined, latest.state, latest.track);
       } else if (host && view !== 'playing') lobby.send({ t: 'shelf' }); // „Zum Schrank“ während der Pause ging verloren
     })
     .on('ping', (ms) => ($('ping').textContent = ms < 1 ? '< 1 ms' : `${Math.round(ms)} ms`))
@@ -267,6 +330,16 @@ function startLobby(role) {
         peerName = cleanName(msg.name);
         showNames();
         game?.refresh();
+        sendStats(); // Abgleich: jeder schickt seine Liste fürs Paar, beide nehmen dazu, was fehlt
+      } else if (msg.t === 'result') {
+        if (!host && ours(msg.entry)) record(msg.entry); // nur der Host zählt
+      } else if (msg.t === 'stats') {
+        if (!Array.isArray(msg.list)) return;
+        const list = msg.list.filter(ours);
+        mergeStats(list);
+        const todays = new Set(loadStats(today).map((e) => e.id)); // „Heute“: nur Berichtigungen von Runden dieser Sitzung und Zurücksetzen
+        mergeStats(list.filter((e) => todays.has(e.id) || e.game === RESET), today);
+        showScore();
       } else game?.handle(msg);
     })
     .on('error', (text) => show(role === 'host' ? 'table' : 'shelf', text))
@@ -305,13 +378,13 @@ canvas.addEventListener('click', (e) => {
   tip(e, '');
   if (host && PLAYABLE.get(name).alone) return notice(`${name} übt jeder allein – erst die Verbindung trennen.`);
   if (host) {
-    const play = (resume) => {
+    const play = (resume, track) => {
       lobby.send({ t: 'game', id: name }); // schon verbunden → beide direkt an den Tisch
-      startGame(name, 0, undefined, resume);
+      startGame(name, 0, undefined, resume, track);
     };
     const saved = loadSaves()[name];
     if (!saved) return play();
-    return ask(`Letzte Partie ${name} (${savedAt(saved.at)}) fortsetzen?`, () => play(saved.state), () => play(), 'Nein, neue Partie');
+    return ask(`Letzte Partie ${name} (${savedAt(saved.at)}) fortsetzen?`, () => play(saved.state, saved.track), () => play(), 'Nein, neue Partie');
   }
   setTable(name);
   room.shelf.setTaken(name); // Schachtel kommt auf den Tisch
@@ -362,9 +435,19 @@ function changeSettings(next) {
   if (!renamed) return;
   lobby?.send({ t: 'name', name: settings.name });
   game?.refresh();
+  sendStats();
+  showScore();
 }
 
-const menu = createMenu({ get: () => settings, onChange: changeSettings });
+// Statistik eines Paars zurücksetzen – der andere PC zieht beim Abgleich mit
+function resetStats([a, b]) {
+  resetPair(a, b);
+  resetPair(a, b, today);
+  sendStats();
+  showScore();
+}
+
+const menu = createMenu({ get: () => settings, onChange: changeSettings, onReset: resetStats });
 $('btn-settings').onclick = () => menu.open();
 $('btn-view').onclick = () => room.resetView();
 $('btn-help').onclick = $('btn-rules').onclick = () => tutorial.show(table);

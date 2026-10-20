@@ -15,8 +15,12 @@ export const PLAYABLE = new Map([
   ['Rommé', { info: 'Kartenspiel mit 110 Karten und 6 Jokern – zu zweit oder gegen den Computer', solo: true, free: true }],
   ['Doppelkopf', { info: 'Turnierregeln, vier am Tisch – zu zweit mit 2 Computer-Spielern oder allein gegen 3', solo: true, free: true }],
   ['Mühle', { info: 'Je 9 Steine: setzen, ziehen, springen – zu zweit oder gegen den Computer (3 Stufen)', solo: true, free: true }],
+  ['Dame', { info: 'Deutsche Dame auf 8 × 8 mit fliegender Dame – zu zweit oder gegen den Computer (3 Stufen)', solo: true, free: true }],
   ['Vier gewinnt', { info: 'Vier in einer Reihe – zu zweit oder gegen den Computer (4 Stufen)', solo: true, free: true }],
+  ['Reversi', { info: 'Einschließen und umdrehen auf 8 × 8 – zu zweit oder gegen den Computer (4 Stufen)', solo: true, free: true }],
   ['Mäxchen', { info: 'Bluffen mit Becher und zwei Würfeln – zu zweit mit 2 Computer-Spielern oder allein gegen 3', solo: true, free: true }],
+  ['Elfer raus', { info: 'Zahlenreihen ab der 11 auf- und abwärts – 2 bis 4 am Tisch, freie Plätze spielt der Computer', solo: true, free: true }],
+  ["Texas Hold'em", { info: 'No-Limit-Poker an 6 Plätzen mit deinem Spielgeld-Konto – freie Plätze spielt der Computer', solo: true, free: true }],
 ]);
 
 export const SHELF = [

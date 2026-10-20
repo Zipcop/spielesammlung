@@ -44,12 +44,24 @@ const VIEWS = {
   // Mühle: Brett 32 cm, die eigenen Steine liegen davor – Blick etwas nach rechts, links neben das Seitenfeld
   muehle0: [[0, TABLE_TOP + 0.55, 0.5], [0.08, TABLE_TOP, 0.03]],
   muehle1: [[0, TABLE_TOP + 0.55, -0.5], [-0.08, TABLE_TOP, -0.03]],
+  // Dame: Brett 36 cm, Geschlagene rechts daneben, Vorrat-Turm links – Blick etwas nach rechts, neben das Seitenfeld
+  dame0: [[0, TABLE_TOP + 0.58, 0.52], [0.08, TABLE_TOP, 0.03]],
+  dame1: [[0, TABLE_TOP + 0.58, -0.52], [-0.08, TABLE_TOP, -0.03]],
   // Vier gewinnt: Rahmen steht aufrecht – Blick flacher von vorn (Gast von hinten), Stapel rechts mit im Bild
   vier0: [[0.02, TABLE_TOP + 0.3, 0.55], [0.08, TABLE_TOP + 0.1, 0]],
   vier1: [[-0.02, TABLE_TOP + 0.3, -0.55], [-0.08, TABLE_TOP + 0.1, 0]],
+  // Reversi: Brett 35 cm, die Steintürme rechts daneben – Blick etwas nach rechts, links neben das Seitenfeld
+  reversi0: [[0, TABLE_TOP + 0.56, 0.5], [0.09, TABLE_TOP, 0.03]],
+  reversi1: [[0, TABLE_TOP + 0.56, -0.5], [-0.09, TABLE_TOP, -0.03]],
   // Mäxchen: Becher in der Mitte, Lebenswürfel vor allen vier Plätzen – Blick etwas nach rechts, neben das Seitenfeld
   mx0: [[0.05, TABLE_TOP + 0.56, 0.5], [0.1, TABLE_TOP, 0.01]],
   mx1: [[-0.05, TABLE_TOP + 0.56, -0.5], [-0.1, TABLE_TOP, -0.01]],
+  // Elfer raus: Reihen in der Mitte, vier Hände rundum wie Doppelkopf – hoch genug für die seitlichen Fächer
+  elfer0: [[0.08, TABLE_TOP + 0.84, 0.72], [0.12, TABLE_TOP, 0.07]],
+  elfer1: [[-0.08, TABLE_TOP + 0.84, -0.72], [-0.12, TABLE_TOP, -0.07]],
+  // Texas Hold'em: runder Tisch mit sechs Plätzen – hoch genug, dass alle Stapel und die Mitte ins Bild passen
+  poker0: [[0.06, TABLE_TOP + 0.86, 0.8], [0.1, TABLE_TOP, 0.1]],
+  poker1: [[-0.06, TABLE_TOP + 0.86, -0.8], [-0.1, TABLE_TOP, -0.1]],
 };
 
 export function createRoom(canvas) {

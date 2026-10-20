@@ -16,10 +16,11 @@ export function loadSaves(storage) {
   }
 }
 
-export function storeSave(name, state, storage, now = Date.now()) {
+// track = Stand der Statistik zu dieser Partie (stats.js step) – damit ein Fortsetzen nichts doppelt zählt
+export function storeSave(name, state, storage, now = Date.now(), track) {
   try {
     storage ??= localStorage;
-    storage.setItem(KEY, JSON.stringify({ ...loadSaves(storage), [name]: { state, at: now } }));
+    storage.setItem(KEY, JSON.stringify({ ...loadSaves(storage), [name]: { state, at: now, ...(track && { track }) } }));
   } catch {
     // ohne Speicher lässt sich die Partie eben nicht fortsetzen
   }

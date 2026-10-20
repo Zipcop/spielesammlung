@@ -100,6 +100,10 @@ const cache = new Map();
 
 // Vorderseite einer Karte (wird beim ersten Mal gezeichnet und dann wiederverwendet)
 export function cardFace(card) {
+  if (isNumberCard(card)) {
+    if (!cache.has(card)) cache.set(card, canvasTexture(FACE.w, FACE.h, (g, w, h) => drawNumber(g, card, w, h)));
+    return cache.get(card);
+  }
   if (!isCard(card) && !isJoker(card)) return cardBack();
   if (!cache.has(card)) cache.set(card, canvasTexture(FACE.w, FACE.h, (g, w, h) => (isJoker(card) ? drawJoker(g, card, w, h) : drawFace(g, card, w, h))));
   return cache.get(card);
@@ -523,4 +527,68 @@ export function paintSuit(canvas, suit) {
   g.clearRect(0, 0, canvas.width, canvas.height);
   g.fillStyle = inkOf(suit);
   drawSuit(g, suit, canvas.width / 2, canvas.height / 2, canvas.height * 0.9);
+}
+
+// Zahlenkarten für Elfer raus: 'r11' = Rot 11 (r, y, g, b = Rot, Gelb, Grün, Blau; 1–20). Großes Farbfeld mit der
+// Zahl, kleine Zahlen in zwei Ecken (von beiden Seiten lesbar); 6 und 9 mit Strich darunter, damit man sie nicht
+// verwechselt, wenn die Karte auf dem Kopf liegt.
+const NUMBER_INK = { r: RED, y: '#d99a06', g: '#2c7f37', b: '#1f4fa8' };
+export const isNumberCard = (card) => typeof card === 'string' && /^[rygb]([1-9]|1\d|20)$/.test(card);
+export const numberInk = (card) => NUMBER_INK[card[0]];
+
+function drawNumber(g, card, w, h) {
+  const ink = NUMBER_INK[card[0]];
+  const text = card.slice(1);
+  g.fillStyle = '#fbf8f1';
+  g.fillRect(0, 0, w, h);
+  frame(g, w, h);
+  // Farbfeld in der Mitte mit goldenem Innenrand
+  const box = { x: 62, y: 70, w: w - 124, h: h - 140 };
+  roundRect(g, box.x, box.y, box.w, box.h, 26);
+  g.fillStyle = ink;
+  g.fill();
+  g.strokeStyle = GOLD;
+  g.lineWidth = 5;
+  roundRect(g, box.x + 10, box.y + 10, box.w - 20, box.h - 20, 18);
+  g.stroke();
+  // helle Raute hinter der Zahl
+  g.beginPath();
+  g.moveTo(w / 2, box.y + 34);
+  g.lineTo(box.x + box.w - 26, h / 2);
+  g.lineTo(w / 2, box.y + box.h - 34);
+  g.lineTo(box.x + 26, h / 2);
+  g.closePath();
+  g.fillStyle = 'rgba(255, 255, 255, 0.16)';
+  g.fill();
+  // große Zahl, weiß mit dunkler Kante
+  g.save();
+  g.translate(w / 2, h / 2 + 8);
+  if (text.length > 1) g.scale(0.82, 1);
+  g.font = 'bold 190px Georgia, serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.lineWidth = 10;
+  g.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+  g.strokeText(text, 0, 0);
+  g.fillStyle = '#fffaf0';
+  g.fillText(text, 0, 0);
+  g.restore();
+  if (text === '6' || text === '9') {
+    g.fillStyle = '#fffaf0';
+    g.fillRect(w / 2 - 34, h / 2 + 92, 68, 9);
+  }
+  // Ecken: Zahl in der Kartenfarbe, oben links und gedreht unten rechts
+  for (const flip of [false, true]) {
+    g.save();
+    if (flip) {
+      g.translate(w, h);
+      g.rotate(Math.PI);
+    }
+    g.fillStyle = ink;
+    g.font = 'bold 50px Georgia, serif';
+    g.textAlign = 'left';
+    g.textBaseline = 'alphabetic';
+    g.fillText(text, 18, 56);
+    g.restore();
+  }
 }

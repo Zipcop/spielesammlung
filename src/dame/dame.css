@@ -1,0 +1,131 @@
+/* --- Dame: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.dame {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+}
+
+.sheet.dame > * {
+  flex-shrink: 0;
+}
+
+.da-head {
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.da-head .brand {
+  font: bold 19px Georgia, serif;
+  letter-spacing: 0.04em;
+  color: #b3261e;
+}
+
+.da-players {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.da-players li {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 14px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+}
+
+.da-players li.turn {
+  border-color: var(--accent);
+  background: rgba(217, 151, 63, 0.16);
+}
+
+.da-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2a1a12;
+  box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(42, 33, 24, 0.5);
+}
+
+.da-dot.light {
+  background: #ecd3a4;
+}
+
+.da-count {
+  font-size: 12.5px;
+  color: rgba(42, 33, 24, 0.75);
+}
+
+.da-status {
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.da-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.da-actions button {
+  font-size: 17px;
+}
+
+.da-level {
+  font-size: 14px;
+}
+
+.da-log {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-height: 4.2em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13.5px;
+}
+
+.da-log li:first-child {
+  font-weight: bold;
+}
+
+.da-log li:not(:first-child) {
+  color: rgba(42, 33, 24, 0.65);
+}
+
+.da-end {
+  display: grid;
+  gap: 8px;
+}
+
+.da-end h3,
+.da-end p {
+  margin: 0;
+}
+
+.da-end h3 {
+  color: #b3261e;
+}
+
+.da-rules {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px 8px 26px;
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.8);
+  background: rgba(42, 33, 24, 0.06);
+  border-radius: 6px;
+}

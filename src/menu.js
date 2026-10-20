@@ -2,6 +2,8 @@
 // Ein weiterer Bereich (z. B. „Designs“) = ein Knopf in .tabs plus ein <section data-pane> in index.html.
 // Dazu das Fenster beim ersten Start, das nach dem Namen fragt. Alles gilt nur für diesen PC (settings.js).
 import { OPTIONS, cleanName, levelOf, withLevel, NAME_MAX } from './settings.js';
+import { loadStats, tally, pairs } from './stats.js';
+import { PLAYABLE } from './games.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -40,8 +42,52 @@ const EFFECTS = [
   ['confetti', 'Sieg-Konfetti', 'Konfetti fliegt, wenn du gewinnst', 'sehr gering'],
 ];
 
-// get = aktuelle Einstellungen, onChange(neue) bei jeder Änderung
-export function createMenu({ get, onChange }) {
+// Kleines Element bauen – Namen kommen vom anderen PC, deshalb nur textContent
+function el(tag, text, cls) {
+  const e = document.createElement(tag);
+  if (text !== undefined) e.textContent = text;
+  if (cls) e.className = cls;
+  return e;
+}
+
+// Reiter „Statistik“: je Paar eine Tabelle (Spiel, Siege je Name, Remis, letzte Partie), dazu „Zurücksetzen“ mit Rückfrage
+function fillStats(me, onReset) {
+  const list = loadStats();
+  const box = $('stats-list');
+  const all = pairs(list, me);
+  if (!all.length) return box.replaceChildren(el('p', 'Noch keine Partie gezählt – spielt ein Spiel zu zweit bis zum Ende.', 'muted'));
+  box.replaceChildren(...all.map((pair) => {
+    const [a, b] = pair.includes(me) ? [me, pair.find((n) => n !== me)] : pair; // eigener Name zuerst
+    const t = tally(list, pair);
+    const table = el('table', undefined, 'stats');
+    const head = table.createTHead().insertRow();
+    ['Spiel', a, b, 'Remis', 'Zuletzt'].forEach((h) => head.append(el('th', h)));
+    const body = table.createTBody();
+    for (const game of [...PLAYABLE.keys()].filter((g) => t[g])) {
+      const row = body.insertRow();
+      const day = new Date(t[game].last).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      [game, t[game].wins[a], t[game].wins[b], t[game].draws, day].forEach((x) => row.append(el('td', String(x))));
+    }
+    const reset = el('button', 'Zurücksetzen', 'secondary small');
+    reset.onclick = () => {
+      const sure = el('span', `Alles von ${a} und ${b} löschen – auch auf dem anderen PC? `, 'small');
+      const yes = el('button', 'Ja, löschen', 'small');
+      const no = el('button', 'Nein', 'secondary small');
+      yes.onclick = () => {
+        onReset(pair);
+        fillStats(me, onReset);
+      };
+      no.onclick = () => fillStats(me, onReset);
+      reset.replaceWith(sure, yes, no);
+    };
+    const section = el('div', undefined, 'stats-pair');
+    section.append(el('h3', `${a} gegen ${b}`), table, reset);
+    return section;
+  }));
+}
+
+// get = aktuelle Einstellungen, onChange(neue) bei jeder Änderung, onReset([a, b]) = Statistik eines Paars zurücksetzen
+export function createMenu({ get, onChange, onReset }) {
   const root = $('settings');
   const pane = (name) => root.querySelector(`[data-pane="${name}"]`);
 
@@ -81,6 +127,7 @@ export function createMenu({ get, onChange }) {
     root.querySelectorAll('input[type=checkbox][data-key]').forEach((el) => (el.checked = s[el.dataset.key]));
     $('name-input').value = s.name;
     $('name-error').hidden = true;
+    fillStats(s.name, onReset);
   }
 
   function saveName() {

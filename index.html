@@ -88,6 +88,7 @@
       <span id="hud-link" class="ok">● Verbunden mit <span id="peer-name"></span></span>
       <span>Ping: <strong id="ping">…</strong></span>
       <span id="role"></span>
+      <strong id="hud-score" hidden></strong>
       <button id="hud-shelf" class="secondary small">Zum Schrank</button>
       <button id="hud-leave" class="secondary small">Trennen</button>
     </div>
@@ -108,6 +109,7 @@
           <button data-tab="grafik">Grafik</button>
           <button data-tab="effekte">Effekte</button>
           <button data-tab="designs">Designs</button>
+          <button data-tab="statistik">Statistik</button>
         </div>
         <section data-pane="spieler">
           <label class="setting">
@@ -135,6 +137,10 @@
         </section>
         <section data-pane="designs" hidden>
           <p class="muted small">Nur das Aussehen – dein Mitspieler sieht sein eigenes Design.</p>
+        </section>
+        <section data-pane="statistik" hidden>
+          <p class="muted small">Jede Partie zu zweit übers Netz – auf beiden PCs gleich, zugeordnet über die Namen.</p>
+          <div id="stats-list"></div>
         </section>
         <button data-close>Fertig</button>
       </div>
@@ -267,10 +273,28 @@
           <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
       </div>
+
+      <!-- Dame -->
+      <div data-game="Dame">
+        <aside id="da-panel" class="sheet dame"></aside>
+        <div class="dock">
+          <p class="muted small" data-hint="Eigenen Stein anklicken, dann leuchtendes Feld = ziehen · bei Schlagzwang leuchten die Steine, die schlagen müssen · mehrere Sprünge: Feld für Feld anklicken · oder Stein mit der Maus hinstellen · Esc = abwählen" data-hint-free="Eigenen Stein anklicken, dann ein Feld auf der Schräge (es wird nichts geprüft) · nach einem Sprung: weiterspringen, „Zur Dame machen“ oder Leertaste = Zug beenden · Esc = abwählen"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
+        </div>
+      </div>
       <div data-game="Vier gewinnt">
         <aside id="vg-panel" class="sheet viergewinnt"></aside>
         <div class="dock">
           <p class="muted small" data-hint="Spalte anklicken = Stein einwerfen · oder einen Stein vom Stapel mit der Maus über den Rahmen halten und loslassen" data-hint-free="Spalte anklicken = Stein einwerfen (jederzeit – ob du dran warst, prüft der andere) · oder einen Stein von einem Stapel über den Rahmen halten und loslassen"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
+        </div>
+      </div>
+
+      <!-- Reversi -->
+      <div data-game="Reversi">
+        <aside id="rv-panel" class="sheet reversi"></aside>
+        <div class="dock">
+          <p class="muted small" data-hint="Feld mit Punkt anklicken = Stein setzen, die eingeschlossenen drehen sich von selbst um · oder einen Stein vom Turm mit der Maus aufs Feld stellen" data-hint-free="Freies Feld anklicken = Stein setzen (es wird nichts geprüft) · Steine anklicken = umdrehen, gesetzten Stein anklicken = zurücknehmen · Leertaste oder „Zug beenden“"></p>
           <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
       </div>
@@ -280,6 +304,24 @@
         <aside id="mx-panel" class="sheet maexchen"></aside>
         <div class="dock">
           <p class="muted small" data-hint="Becher packen und schütteln, loslassen = auf den Tisch knallen · „Würfeln“ oder Leertaste · Ansagen, Glauben und Aufdecken rechts im Seitenfeld" data-hint-free="Jede Ansage geht, auch eine niedrigere · „Nochmal würfeln“ und „Unter den Becher linsen“ gehen auch – merkt es jemand, kostet es ein Leben · Schummelt wer? „Geschummelt!“ drücken und den Spieler wählen"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
+        </div>
+      </div>
+
+      <!-- Elfer raus -->
+      <div data-game="Elfer raus">
+        <aside id="er-panel" class="sheet elferraus"></aside>
+        <div class="dock">
+          <p class="muted small" data-hint="Karte anklicken oder zu den Reihen legen = anlegen · abgedunkelte Karten passen nicht · nichts passt: Stapel anklicken oder zu dir ziehen · „Fertig“ = Zug beenden" data-hint-free="Jede Karte lässt sich anlegen, ziehen und „Fertig“ gehen immer – es wird nichts geprüft · Hat jemand geschummelt? „Geschummelt!“ drücken, bevor der Nächste etwas tut"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
+        </div>
+      </div>
+
+      <!-- Texas Hold'em -->
+      <div data-game="Texas Hold'em">
+        <aside id="pk-panel" class="sheet poker"></aside>
+        <div class="dock">
+          <p class="muted small" data-hint="Passen, Schieben, Mitgehen und Erhöhen rechts im Seitenfeld · eigene Karten in die Mitte schieben = passen · Chip vom eigenen Stapel in die Mitte = mitgehen" data-hint-free="Jeder Betrag geht, auch zu wenig – und Schieben trotz Einsatz · „Nächste Karte ansehen“ linst heimlich · beim Showdown sagt jeder seine Hand selbst an · Bluffen ist kein Schummeln · Hat wer geschummelt? „Geschummelt!“ drücken und den Spieler wählen, bevor die nächste Hand kommt"></p>
           <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
       </div>
