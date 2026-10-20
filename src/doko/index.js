@@ -59,7 +59,7 @@ export function startDoko({ room, board, canvas, me, send, onLeave, ask, level, 
       picking = !picking;
       render();
     },
-    hint: document.querySelector('[data-game="Doppelkopf"] [data-hint]'),
+    hint: document.querySelector('[data-game="Doppelkopf"] .dock [data-hint]'),
   });
 
   function apply(type, seat, arg) {

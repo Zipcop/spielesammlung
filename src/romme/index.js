@@ -65,7 +65,7 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
     onAgain: () => act('again'),
     onLeave: (confirm) => (confirm && mine?.winner === null ? ask('Spiel beenden und zurück zum Schrank?', onLeave) : onLeave()),
   });
-  const cheat = createCheatUI({ onAccuse: () => act('accuse'), hint: document.querySelector('[data-game="Rommé"] [data-hint]') });
+  const cheat = createCheatUI({ onAccuse: () => act('accuse'), hint: document.querySelector('[data-game="Rommé"] .dock [data-hint]') });
 
   function apply(type, player, arg) {
     if (type === 'draw') return draw(state, player, arg?.from);

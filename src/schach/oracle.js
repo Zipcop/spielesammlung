@@ -5,6 +5,10 @@
 //   bis 0,20 Fehler, darüber Patzer. chess.com rechnet die erwarteten Punkte zusätzlich mit der Elo-Zahl –
 //   die kennen wir nicht, deshalb nehmen wir die Lichess-Gewinnchance. Brillant, Großartig und Verpasster Gewinn
 //   beschreibt chess.com nur in Worten; die Umsetzung unten ist unsere eigene Auslegung davon.
+//   Zum Vergleich Lichess (lila modules/tree/src/main/Advice.scala): Verlust an winningChances (−1…+1)
+//   ab 0,1 Ungenauigkeit, ab 0,2 Fehler, ab 0,3 Patzer – in erwarteten Punkten (halbe Spanne) 0,05 / 0,10 / 0,15
+//   (gleichwertig innerhalb ±10 Bauern; Lichess deckelt dort und bewertet Matt gesondert).
+//   Ungenauigkeit und Fehler beginnen also gleich wie bei chess.com, nur der Patzer kommt bei Lichess früher.
 // - Stellungssymbole: verbreitete Grenzen 0,3 / 0,7 / 1,5 Bauern (Lichess-Blog „Understanding chess engines'
 //   evaluations“; ChessBase nutzt ähnliche). Eine feste Norm dafür gibt es nicht.
 // Bewertung immer aus Sicht eines Spielers: { cp } = Hundertstel-Bauern (+ = gut für ihn),
@@ -112,6 +116,14 @@ export function isSacrifice(fen, uci) {
   return after <= exposed(new Chess(pass.join(' '))) - 2;
 }
 
+// Bewertung als kurzer Text aus Sicht von Weiß (score ebenso): '+0,4', '−1,2', '0,0',
+// '#3' = Weiß setzt in 3 Zügen matt, '#−2' = Schwarz setzt in 2 Zügen matt
+export function scoreText(score) {
+  if (score.mate !== undefined) return score.mate > 0 ? `#${score.mate}` : `#−${-score.mate}`;
+  const pawns = (Math.abs(score.cp) / 100).toFixed(1).replace('.', ',');
+  return pawns === '0,0' ? '0,0' : `${score.cp > 0 ? '+' : '−'}${pawns}`;
+}
+
 // Stellungssymbol aus Sicht von Weiß (score = Bewertung aus Sicht von Weiß)
 export function positionSymbol(score) {
   if (score.mate !== undefined) return score.mate > 0 ? '+−' : '−+';
@@ -121,4 +133,60 @@ export function positionSymbol(score) {
   if (size <= 0.7) return pawns > 0 ? '⩲' : '⩱';
   if (size <= 1.5) return pawns > 0 ? '±' : '∓';
   return pawns > 0 ? '+−' : '−+';
+}
+
+// --- Genauigkeit in % wie bei Lichess (lila modules/analyse/src/main/AccuracyPercent.scala, scalalib Maths) ---
+// Gewinnchancen hier immer in Prozent (0–100), wie winPercent().
+
+// Genauigkeit eines Zugs aus der Gewinnchance des Ziehenden davor und danach (100 = nichts verloren).
+// Lichess hat die Kurve an Stichproben angepasst; +1 ist dort ein Bonus für die unvollkommene Analyse.
+export function moveAccuracy(before, after) {
+  if (after >= before) return 100;
+  const raw = 103.1668100711649 * Math.exp(-0.04354415386753951 * (before - after)) - 3.166924740191411;
+  return Math.max(0, Math.min(100, raw + 1));
+}
+
+const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;
+const deviation = (a) => Math.sqrt(mean(a.map((x) => (x - mean(a)) ** 2))); // Standardabweichung der Grundgesamtheit
+
+// Genauigkeit der ganzen Partie je Seite: wins = Gewinnchance von Weiß nach 0, 1, 2 … Halbzügen (null = unbekannt).
+// Jeder Zug zählt mit dem Gewicht, wie unruhig die Partie um ihn herum war (Standardabweichung der Gewinnchance
+// in einem Fenster, 0,5–12); Ergebnis = Mittel aus gewichtetem und harmonischem Mittel. Ohne Züge: null.
+export function gameAccuracy(wins) {
+  const n = wins.length;
+  const size = Math.max(2, Math.min(8, Math.floor((n - 1) / 10)));
+  // die ersten Züge bekommen das erste volle Fenster, danach rückt es Halbzug für Halbzug weiter
+  const windows = Array(Math.max(0, Math.min(size, n) - 2)).fill(wins.slice(0, size));
+  for (let k = 0; k + size <= n; k++) windows.push(wins.slice(k, k + size));
+  const moves = { w: [], b: [] };
+  for (let i = 0; i + 1 < n; i++) {
+    const [p, q, win] = [wins[i], wins[i + 1], windows[i]];
+    if (p === null || q === null || win.includes(null)) continue;
+    const weight = Math.max(0.5, Math.min(12, deviation(win)));
+    if (i % 2 === 0) moves.w.push([moveAccuracy(p, q), weight]); // Weiß zieht bei geraden Halbzügen
+    else moves.b.push([moveAccuracy(100 - p, 100 - q), weight]);
+  }
+  const total = (list) => {
+    if (!list.length) return null;
+    const weighted = list.reduce((s, [a, w]) => s + a * w, 0) / list.reduce((s, [, w]) => s + w, 0);
+    const harmonic = list.length / list.reduce((s, [a]) => s + 1 / Math.max(1, a), 0);
+    return (weighted + harmonic) / 2;
+  };
+  return { w: total(moves.w), b: total(moves.b) };
+}
+
+// Wendepunkt: der Fehler, Patzer oder verpasste Gewinn (beider Seiten), der die Gewinnchance am stärksten
+// verschoben hat. wins wie oben, verdicts = Einstufung je Zug, mine = 'w'/'b'.
+// Ergebnis { index: Zug, from, to: meine Gewinnchance davor/danach } oder null (keine solchen Züge).
+const TURNS = new Set(['fehler', 'patzer', 'verpasst']);
+export function turningPoint(wins, verdicts, mine) {
+  let best = null;
+  verdicts.forEach((v, i) => {
+    if (!TURNS.has(v) || wins[i] == null || wins[i + 1] == null) return;
+    const swing = Math.abs(wins[i + 1] - wins[i]);
+    if (!best || swing > best.swing) best = { index: i, swing };
+  });
+  if (!best) return null;
+  const my = (w) => (mine === 'w' ? w : 100 - w);
+  return { index: best.index, from: my(wins[best.index]), to: my(wins[best.index + 1]) };
 }

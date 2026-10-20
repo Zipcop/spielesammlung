@@ -14,6 +14,9 @@ export const PLAYABLE = new Map([
   ['Mensch ärgere dich nicht', { info: 'Vier Farben – zu zweit mit 2 Computer-Spielern oder allein gegen 3', solo: true, free: true }],
   ['Rommé', { info: 'Kartenspiel mit 110 Karten und 6 Jokern – zu zweit oder gegen den Computer', solo: true, free: true }],
   ['Doppelkopf', { info: 'Turnierregeln, vier am Tisch – zu zweit mit 2 Computer-Spielern oder allein gegen 3', solo: true, free: true }],
+  ['Mühle', { info: 'Je 9 Steine: setzen, ziehen, springen – zu zweit oder gegen den Computer (3 Stufen)', solo: true, free: true }],
+  ['Vier gewinnt', { info: 'Vier in einer Reihe – zu zweit oder gegen den Computer (4 Stufen)', solo: true, free: true }],
+  ['Mäxchen', { info: 'Bluffen mit Becher und zwei Würfeln – zu zweit mit 2 Computer-Spielern oder allein gegen 3', solo: true, free: true }],
 ]);
 
 export const SHELF = [

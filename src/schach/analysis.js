@@ -1,13 +1,14 @@
 // Zuganalyse wie bei chess.com: Stockfish (volle Stärke, die zwei besten Varianten) bewertet jede Stellung;
 // daraus werden Abzeichen für jeden Zug (oracle.js), Buchzüge mit Eröffnungsname und Stellungssymbole.
-// Live rechnet sie die aktuelle Stellung nebenher, nach der Partie auf Wunsch alle („Analyse“).
+// Live rechnet sie die aktuelle Stellung nebenher, nach der Partie auf Wunsch alle („Partie analysieren“).
 // Jeder PC rechnet für sich – übers Netz geht dafür nichts. Nicht für „Ohne Hilfen“ (regelwidrige Stellungen).
 import { Chess } from 'chess.js';
 import { createEngine } from './engine.js';
-import { classify, expected, flip, isSacrifice, positionSymbol, winPercent } from './oracle.js';
+import { classify, expected, flip, gameAccuracy, isSacrifice, positionSymbol, turningPoint, winPercent } from './oracle.js';
 import { NEGATIVE } from './badges.js';
 
 const GO = 'depth 14';
+const LINE = 6; // so viele Halbzüge der besten Fortsetzung zeigt der Rückblick
 const key = (fen) => fen.split(' ').slice(0, 2).join(' '); // Figuren + Seite am Zug, wie in openings.json
 const sideOf = (fen) => fen.split(' ')[1];
 const parse = (uci) => ({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
@@ -19,6 +20,7 @@ export function createAnalyst({ onChange }) {
   let running = null; // Stellung, die Stockfish gerade rechnet (immer nur eine)
   const done = new Map(); // FEN → { best, score, lines } (Bewertung aus Sicht der Seite am Zug)
   const verdicts = new Map(); // fertig eingestufte Züge – ändern sich nicht mehr
+  const lineCache = new Map(); // FEN → beste Fortsetzung (aus done, ändert sich also auch nicht)
   let state = null;
   let fens = []; // Stellung nach 0, 1, 2 … Halbzügen
   let stopped = false;
@@ -97,15 +99,25 @@ export function createAnalyst({ onChange }) {
     return v;
   }
 
-  // Was Stockfish an Stelle von Zug i vorgeschlagen hätte (Kurzschrift, z. B. 'Nf3')
-  function better(i) {
-    const best = done.get(fens[i])?.best;
-    try {
-      return best ? new Chess(fens[i]).move(parse(best)).san : null;
-    } catch {
-      return null;
+  // Was Stockfish an Stelle von Zug i vorgeschlagen hätte: beste Fortsetzung [{ uci, san }, …] oder null
+  function line(i) {
+    if (lineCache.has(fens[i])) return lineCache.get(fens[i]);
+    const a = done.get(fens[i]);
+    if (!a?.best) return null;
+    const pv = a.lines[0]?.pv[0] === a.best ? a.lines[0].pv : [a.best];
+    const chess = new Chess(fens[i]);
+    const out = [];
+    for (const uci of pv.slice(0, LINE)) {
+      try {
+        out.push({ uci, san: chess.move(parse(uci)).san });
+      } catch {
+        break; // sollte nicht vorkommen – dann nur der gültige Anfang
+      }
     }
+    lineCache.set(fens[i], out.length ? out : null);
+    return lineCache.get(fens[i]);
   }
+  const better = (i) => line(i)?.[0].san ?? null; // nur der erste Zug, Kurzschrift wie 'Nf3'
 
   return {
     // Neuer Spielstand. live = aktuelle Stellung gleich rechnen (dazu die drei davor, falls die
@@ -134,12 +146,19 @@ export function createAnalyst({ onChange }) {
       const named = openings ? fens.map((f) => openings[key(f)]).filter(Boolean) : [];
       const lastMine = state.moves.findLastIndex((_, i) => mover(i) === mine);
       const counted = fens.filter((f, k) => !terminal(k));
+      const lines = verdictsNow.map((v, i) => (v ? line(i) : null)); // beste Variante je eingestuftem Zug
+      const white = fens.map((_, k) => scoreAt(k, 'w')); // Bewertung aus Sicht von Weiß
+      const wins = white.map((sc) => (sc ? winPercent(sc) : null));
       return {
         mine,
         verdicts: verdictsNow,
-        better: verdictsNow.map((v, i) => (NEGATIVE.has(v) ? better(i) : null)),
+        arrows: lines.map((l, i) => (l && l[0].uci !== state.moves[i] ? l[0].uci : null)), // Stockfishs Zug als Pfeil, wenn anders gespielt
+        lines, // beste Variante zum Anzeigen und Vorspielen
+        evals: white, // Bewertung je Stellung aus Sicht von Weiß ({ cp } / { mate }) oder null
         curve: fens.map((_, k) => scoreAt(k, mine)).map((sc) => (sc ? winPercent(sc) : null)), // meine Gewinnchance
-        symbols: fens.map((_, k) => scoreAt(k, 'w')).map((sc) => (sc ? positionSymbol(sc) : null)),
+        symbols: white.map((sc) => (sc ? positionSymbol(sc) : null)),
+        accuracy: gameAccuracy(wins), // { w, b } in %
+        turning: turningPoint(wins, verdictsNow, mine),
         opening: named.at(-1) ?? '',
         last: lastMine >= 0 ? { index: lastMine, kind: verdictsNow[lastMine], better: NEGATIVE.has(verdictsNow[lastMine]) ? better(lastMine) : null } : null,
         hint: !state.result && sideOf(state.fen) === mine ? done.get(state.fen)?.best ?? null : null,

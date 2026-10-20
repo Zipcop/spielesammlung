@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { winningChances, winPercent, expected, flip, classify, isSacrifice, positionSymbol } from '../src/schach/oracle.js';
+import { winningChances, winPercent, expected, flip, classify, isSacrifice, positionSymbol, moveAccuracy, gameAccuracy, turningPoint, scoreText } from '../src/schach/oracle.js';
 
 const near = (a, b, eps = 0.05) => assert.ok(Math.abs(a - b) < eps, `${a} ≈ ${b}`);
 
@@ -126,4 +126,86 @@ test('Eröffnungsbuch (Lichess-Liste): Stellung → Name, Zwischenstellungen zä
   assert.equal(book[key('e4')], "King's Pawn Game");
   assert.ok(key('e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4') in book);
   assert.equal(book[key('a3 h6 h3 a6')], undefined); // Unsinn steht nicht im Buch
+});
+
+test('Schwellen: Ungenauigkeit ab 0,05 und Fehler ab 0,10 erwarteten Punkten (= Lichess 0,1 / 0,2 winningChances)', () => {
+  // vorher +100 cp (0,5910); Zug kostet genau so viel, dass knapp unter / knapp über der Grenze verloren wird
+  const cpFor = (e) => Math.log(e / (1 - e)) / 0.00368208; // Umkehrung von expected()
+  const lose = (loss) => kind({ before: { cp: 100 }, second: { cp: 80 }, after: { cp: cpFor(expected({ cp: 100 }) - loss) } });
+  assert.equal(lose(0.049), 'gut');
+  assert.equal(lose(0.051), 'ungenau');
+  assert.equal(lose(0.099), 'ungenau');
+  assert.equal(lose(0.101), 'fehler');
+  assert.equal(lose(0.199), 'fehler');
+  assert.equal(lose(0.201), 'patzer'); // chess.com: Patzer erst ab 0,20 (Lichess schon ab 0,15)
+  // Lichess-Skala: winningChances-Verlust = doppelter Verlust an erwarteten Punkten
+  near(winningChances(100) - winningChances(cpFor(expected({ cp: 100 }) - 0.05)), 0.1, 1e-9);
+});
+
+test('Genauigkeit je Zug: Lichess-Kurve, 100 ohne Verlust, nie unter 0', () => {
+  // 103,1668 · e^(−0,043544 · Δ) − 3,1669 + 1: Δ 0 → 101 → gedeckelt 100; Δ 10: 103,1668 · 0,64698 − 2,1669 = 64,58; Δ 50: 103,1668 · 0,11336 − 2,1669 = 9,53
+  assert.equal(moveAccuracy(50, 60), 100);
+  assert.equal(moveAccuracy(50, 50), 100);
+  near(moveAccuracy(60, 50), 103.1668100711649 * Math.exp(-0.4354415386753951) - 2.166924740191411, 1e-9);
+  near(moveAccuracy(60, 50), 64.58, 0.01);
+  near(moveAccuracy(80, 30), 9.53, 0.01);
+  assert.equal(moveAccuracy(100, 0), 0);
+});
+
+test('Genauigkeit der Partie: fehlerlos 100 %, Patzer drücken nur die eigene Seite', () => {
+  assert.deepEqual(gameAccuracy([50]), { w: null, b: null });
+  const steady = Array(21).fill(50);
+  assert.deepEqual(gameAccuracy(steady), { w: 100, b: 100 });
+  // Weiß patzt im 5. Halbzug (Index 4): seine Gewinnchance fällt von 50 auf 10, danach bleibt es so
+  const wins = steady.map((v, k) => (k <= 4 ? 50 : 10));
+  const acc = gameAccuracy(wins);
+  assert.equal(acc.b, 100);
+  assert.ok(acc.w < 90 && acc.w > 20, `Weiß ${acc.w}`);
+  // Probe von Hand: 21 Stellungen → Fenster 2; Zug 4 hat Gewicht σ(50, 10) = 20 → 12 (gedeckelt), die anderen 0,5.
+  // Weiß: Züge 0, 2, 4 … 18 = 10 Züge, einer mit a = moveAccuracy(50, 10), Rest 100.
+  const a = moveAccuracy(50, 10);
+  const weighted = (9 * 100 * 0.5 + a * 12) / (9 * 0.5 + 12);
+  const harmonic = 10 / (9 / 100 + 1 / a);
+  near(acc.w, (weighted + harmonic) / 2, 1e-9);
+  // unbekannte Bewertung: dieser Zug fällt weg, kein Absturz
+  assert.equal(gameAccuracy([50, null, 50]).w, null);
+  assert.equal(gameAccuracy([50, null, 50]).b, null);
+});
+
+test('Wendepunkt: größte Verschiebung durch Fehler/Patzer, aus meiner Sicht', () => {
+  const wins = [50, 52, 48, 80, 78, 20, 22];
+  const verdicts = ['best', 'gut', 'patzer', 'gut', 'patzer', 'best'];
+  assert.deepEqual(turningPoint(wins, verdicts, 'w'), { index: 4, from: 78, to: 20 }); // 58 Punkte > 32
+  assert.deepEqual(turningPoint(wins, verdicts, 'b'), { index: 4, from: 22, to: 80 });
+  assert.equal(turningPoint(wins, verdicts.map(() => 'ungenau'), 'w'), null); // nur Ungenauigkeiten → kein Wendepunkt
+  assert.equal(turningPoint([50, null, 40], ['fehler', 'patzer'], 'w'), null);
+});
+
+test('Genauigkeit der Partie: längere Partie (Fenster 4) und Patzer von Schwarz', () => {
+  // 41 Stellungen → Fenster (41 − 1) / 10 = 4, die ersten 2 Züge bekommen das erste Fenster mit
+  const wins = Array(41).fill(50).map((v, k) => (k <= 7 ? 50 : 90)); // Schwarz patzt mit Halbzug 8 (Index 7): 50 → 90 für Weiß
+  const acc = gameAccuracy(wins);
+  assert.equal(acc.w, 100);
+  // Probe von Hand: Gewicht von Zug 7 = σ des Fensters wins[7..10] = (50, 90, 90, 90) → Mittel 80, σ = √((900 + 3 · 100) / 4) = √300 ≈ 17,3 → 12.
+  // Übrige schwarze Züge: Fenster ohne Sprung → σ 0 → 0,5; oder mit Sprung (Fenster ab 5, 6) → auch 12.
+  const deviation = (a) => Math.sqrt(a.reduce((s, x) => s + (x - a.reduce((t, y) => t + y, 0) / a.length) ** 2, 0) / a.length);
+  const windows = [wins.slice(0, 4), wins.slice(0, 4), ...Array.from({ length: 38 }, (_, k) => wins.slice(k, k + 4))];
+  const black = [];
+  for (let i = 1; i < 40; i += 2) black.push([moveAccuracy(100 - wins[i], 100 - wins[i + 1]), Math.max(0.5, Math.min(12, deviation(windows[i])))]);
+  assert.equal(black.length, 20);
+  assert.equal(black[3][1], 12); // Zug 7
+  const weighted = black.reduce((s, [a, w]) => s + a * w, 0) / black.reduce((s, [, w]) => s + w, 0);
+  const harmonic = 20 / black.reduce((s, [a]) => s + 1 / Math.max(1, a), 0);
+  near(acc.b, (weighted + harmonic) / 2, 1e-9);
+  assert.ok(acc.b < 80, `Schwarz ${acc.b}`);
+});
+
+test('Bewertung als Text: Bauern mit Komma, Vorzeichen, Matt', () => {
+  assert.equal(scoreText({ cp: 43 }), '+0,4');
+  assert.equal(scoreText({ cp: -125 }), '−1,3'); // 1,25 → 1,3 (toFixed rundet hier auf)
+  assert.equal(scoreText({ cp: 0 }), '0,0');
+  assert.equal(scoreText({ cp: -4 }), '0,0'); // kein „−0,0“
+  assert.equal(scoreText({ cp: 1000 }), '+10,0');
+  assert.equal(scoreText({ mate: 3 }), '#3');
+  assert.equal(scoreText({ mate: -2 }), '#−2');
 });

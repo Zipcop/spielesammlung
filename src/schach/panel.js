@@ -1,8 +1,10 @@
 // Partiezettel rechts (HTML): Spieler, Status, Eröffnung, Zugliste mit Abzeichen, Ende der Partie.
 // Allein zusätzlich das Orakel (Gewinnchance, Verlauf, Tipp, Zug zurück); zu zweit ein Schalter für die
-// Live-Bewertung. Nach der Partie der Rückblick „Analyse“: alle Züge mit Abzeichen, Stellungssymbol, Blättern.
+// Live-Bewertung. Nach der Partie der Rückblick „Partie analysieren“: alle Züge mit Abzeichen, Stellungssymbol, Blättern,
+// Genauigkeit, Wendepunkt, anklickbare Kurve und beste Fortsetzung zum Vorspielen.
 import './analyse.css';
-import { BADGES } from './badges.js';
+import { BADGES, NEGATIVE } from './badges.js';
+import { scoreText } from './oracle.js';
 
 const GERMAN = { N: 'S', B: 'L', R: 'T', Q: 'D' }; // Springer, Läufer, Turm, Dame
 // Text kommt beim Gast vom Host → spitze Klammern usw. entfernen, damit nichts als HTML gilt
@@ -16,6 +18,7 @@ const SYMBOL_TEXT = {
 
 const badge = (kind) => (kind ? `<span class="badge" style="--c:${BADGES[kind].color}" title="${BADGES[kind].label}">${BADGES[kind].symbol}</span>` : '');
 const verdictText = (kind) => `${badge(kind)} <span class="verdict-${kind}">${BADGES[kind].label}</span>`;
+const DOTS = new Set(['fehler', 'patzer', 'verpasst']); // diese Züge bekommen einen Punkt auf der Kurve
 const moveNo = (i) => `${Math.floor(i / 2) + 1}${i % 2 ? '…' : '.'}`; // Zug i (0 = erster weißer Zug)
 
 // Ergebnis aus Sicht von Weiß: 1-0, 0-1 oder ½-½
@@ -31,7 +34,7 @@ const curvePoints = (curve) => {
   return curve.map((v, k) => (v === null ? null : `${(k / n) * 100},${30 - v * 0.3}`)).filter(Boolean).join(' ');
 };
 
-export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLeave, onLive, onReview, onPly, onCloseReview }) {
+export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLeave, onLive, onReview, onPly, onLine, onCloseReview }) {
   root.innerHTML = `
     <div class="chess-head"><span class="brand">Schach</span><span data-players></span></div>
     <p class="chess-status" data-status></p>
@@ -56,11 +59,18 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
     <div class="moves" data-scroll><table><tbody data-moves></tbody></table></div>
     <section class="review" data-review hidden>
       <div class="oracle-head"><span>Analyse</span><span data-progress></span></div>
-      <svg class="oracle-curve" viewBox="0 0 100 30" preserveAspectRatio="none">
-        <line x1="0" y1="15" x2="100" y2="15" /><polyline data-review-curve /><line class="now" data-now y1="0" y2="30" />
+      <p class="review-turn" data-turn></p>
+      <svg class="oracle-curve review-curve" data-curve-click viewBox="0 0 100 30" preserveAspectRatio="none">
+        <title>Klick springt zu diesem Zug</title>
+        <line x1="0" y1="15" x2="100" y2="15" /><polyline data-review-curve /><g data-dots></g><line class="now" data-now y1="0" y2="30" />
       </svg>
       <p class="review-move" data-review-move></p>
-      <div class="row nav">
+      <div class="row nav" data-line-nav hidden>
+        <button class="secondary small" data-line-to="prev" title="Zug zurück (←)">◀</button>
+        <button class="secondary small" data-line-to="next" title="Nächster Zug (→)">▶</button>
+        <button class="secondary small" data-line-to="stop">Zur Partie</button>
+      </div>
+      <div class="row nav" data-game-nav>
         <button class="secondary small" data-ply-to="first" title="Anfang">⏮</button>
         <button class="secondary small" data-ply-to="prev" title="Zug zurück (←)">◀</button>
         <button class="secondary small" data-ply-to="next" title="Zug vor (→)">▶</button>
@@ -72,7 +82,7 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
     <div class="chess-end" data-end hidden>
       <h3 data-end-title></h3>
       <p data-end-text></p>
-      <button class="secondary" data-analyse>Analyse</button>
+      <button class="secondary" data-analyse>Partie analysieren</button>
       <button data-again>Revanche</button>
       <button class="secondary" data-leave>Zurück zum Schrank</button>
     </div>
@@ -83,8 +93,13 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
 
   const q = (name) => root.querySelector(`[data-${name}]`);
   root.onclick = (e) => {
-    const cell = e.target.closest('td[data-ply]');
+    const cell = e.target.closest('[data-ply]'); // Zug in der Liste oder der Wendepunkt
     if (cell) return onPly(Number(cell.dataset.ply));
+    const curve = e.target.closest('[data-curve-click]');
+    if (curve) {
+      const r = curve.getBoundingClientRect();
+      return onPly(Math.round(((e.clientX - r.left) / r.width) * plies));
+    }
     const b = e.target.closest('button');
     if (!b || b.disabled) return;
     if ('tip' in b.dataset) onTip();
@@ -94,10 +109,12 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
     else if ('analyse' in b.dataset) onReview();
     else if ('reviewClose' in b.dataset) onCloseReview();
     else if ('plyTo' in b.dataset) onPly(b.dataset.plyTo);
+    else if ('lineTo' in b.dataset) onLine(b.dataset.lineTo);
     else if ('leave' in b.dataset || 'shelf' in b.dataset) onLeave(!('leave' in b.dataset));
   };
   if (!solo) q('live').onchange = (e) => onLive(e.target.checked);
   let scrolledAt = null; // Zugzahl und Rückblick-Stellung beim letzten Scrollen
+  let plies = 0; // Halbzüge der Partie – für den Klick auf die Kurve
 
   return {
     // analysis = analysis.view() oder null · live = { available, on } (zu zweit) · review = { ply } oder null
@@ -139,7 +156,8 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
         q('analyse').hidden = !canReview;
       }
       q('resign').disabled = !canResign;
-      if (review) renderReview(state, analysis, review.ply, other);
+      plies = state.moves.length;
+      if (review) renderReview(state, analysis, review, other);
 
       if (!solo) {
         q('live-box').hidden = !live.available || !!state.result;
@@ -170,26 +188,76 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
     return `${move}: ${verdictText(last.kind)}${withBetter && last.better ? ` – besser war <b>${german(last.better)}</b>` : ''}`;
   }
 
-  function renderReview(state, analysis, ply, other) {
+  // Beste Fortsetzung ab Zug i mit Zugnummern; step = nächster Zug beim Vorspielen (fett), davor grau
+  function lineText(i, line, step) {
+    return line.map((m, j) => {
+      const k = i + j;
+      const text = `${k % 2 === 0 || j === 0 ? `${moveNo(k)} ` : ''}${german(m.san)}`;
+      return j === step ? `<b>${text}</b>` : j < step ? `<span class="done">${text}</span>` : text;
+    }).join(' ');
+  }
+
+  function renderReview(state, analysis, review, other) {
+    const { ply } = review;
     const { done, total } = analysis.progress;
     q('progress').textContent = done < total ? `Stockfish rechnet … ${done}/${total}` : 'fertig';
     q('review-curve').setAttribute('points', curvePoints(analysis.curve));
-    const x = (ply / Math.max(analysis.curve.length - 1, 1)) * 100;
+    const n = Math.max(analysis.curve.length - 1, 1);
+    const x = (ply / n) * 100;
     q('now').setAttribute('x1', x);
     q('now').setAttribute('x2', x);
+    // Punkte auf der Kurve: Fehler, Patzer, verpasster Gewinn (beider Seiten)
+    q('dots').innerHTML = analysis.verdicts.map((v, k) => {
+      const y = analysis.curve[k + 1];
+      if (!DOTS.has(v) || y === null) return '';
+      const [px, py] = [((k + 1) / n) * 100, 30 - y * 0.3];
+      return `<line class="dot" x1="${px}" y1="${py}" x2="${px}" y2="${py}" style="stroke:${BADGES[v].color}" />`;
+    }).join('');
+
+    // Wendepunkt – erst, wenn alles gerechnet ist (sonst springt er noch)
+    const t = analysis.turning;
+    const mover = (k) => (k % 2 === 0 ? 'w' : 'b');
+    q('turn').innerHTML = done < total ? '' : t
+      ? `Wendepunkt: <span class="jump" data-ply="${t.index + 1}">${moveNo(t.index)} <b>${german(state.san[t.index])}</b>${badge(analysis.verdicts[t.index])}</span>`
+        + ` (${mover(t.index) === analysis.mine ? 'du' : plain(other)}) – deine Gewinnchance ${t.to < t.from ? 'fiel' : 'stieg'} von ${Math.round(t.from)} % auf ${Math.round(t.to)} %`
+      : 'Kein Wendepunkt – keine Fehler, Patzer oder verpassten Gewinne.';
 
     const i = ply - 1; // Zug, der zu dieser Stellung geführt hat
     const symbol = analysis.symbols[ply];
     const kind = i >= 0 ? analysis.verdicts[i] : null;
-    q('review-move').innerHTML = (i < 0 ? 'Ausgangsstellung' : `${moveNo(i)} <b>${german(state.san[i])}</b> ${kind ? verdictText(kind) : '· rechnet …'}`)
-      + (analysis.better[i] ? ` – besser war <b>${german(analysis.better[i])}</b>` : '')
-      + (symbol ? `<br>Stellung: <b>${symbol}</b> ${SYMBOL_TEXT[symbol]}` : '')
-      + (ply === state.moves.length ? ` · Ergebnis <b>${resultText(state)}</b>` : '');
+    const line = analysis.lines[i];
+    const same = !!line && line[0].uci === state.moves[i]; // Stockfish hätte genauso gezogen
+    // Bewertung der Stellung nach k Halbzügen (Sicht von Weiß); nach dem Mattzug steht „Matt“
+    const evalAt = (k) => (k === state.moves.length && state.result?.reason === 'matt' ? '<b>Matt</b>'
+      : analysis.evals[k] ? `<span class="eval" title="Bewertung in Bauern, + = Weiß besser">${scoreText(analysis.evals[k])}</span>` : '…');
+    const playing = review.line !== undefined && !!line;
+    q('line-nav').hidden = !playing;
+    q('game-nav').hidden = playing;
+    if (playing) {
+      const head = same ? `Stockfish-Variante ab ${moveNo(i)} (wie gespielt)` : NEGATIVE.has(kind)
+        ? `Statt ${moveNo(i)} <b>${german(state.san[i])}</b>${badge(kind)} besser` : `Stockfish-Variante ab ${moveNo(i)}`;
+      q('review-move').innerHTML = `${head} ${evalAt(i)}:<br>${lineText(i, line, review.line)}`
+        + `<br><small>${review.line < line.length ? `Zug ${review.line + 1} von ${line.length} – blauer Pfeil` : 'Ende der Vorschau'}</small>`;
+    } else {
+      // jeder Zug: Stockfishs beste Variante mit Bewertung – war der Zug selbst der beste, steht das dabei
+      const variant = !line ? '' : same
+        ? `<br>Stockfish spielt das auch: ${lineText(i, line, -1)} ${evalAt(i)}`
+        : NEGATIVE.has(kind) ? `<br>Besser war ${lineText(i, line, 0)} ${evalAt(i)} (blauer Pfeil) · gespielt ${evalAt(i + 1)}`
+          : `<br>Stockfish: ${lineText(i, line, 0)} ${evalAt(i)} (blauer Pfeil)`; // „gespielt“ nur bei ?!/?/??/✗ – sonst können zwei getrennte Suchen den Zug minimal besser aussehen lassen
+      q('review-move').innerHTML = (i < 0 ? 'Ausgangsstellung' : `${moveNo(i)} <b>${german(state.san[i])}</b> ${kind ? verdictText(kind) : '· rechnet …'}`)
+        + variant
+        + (line?.length > 1 ? ` <button class="secondary small" data-line-to="start">▶ Vorspielen</button>` : '')
+        + (symbol ? `<br>Stellung: <b>${symbol}</b> ${SYMBOL_TEXT[symbol]}` : '')
+        + (ply === state.moves.length ? ` · Ergebnis <b>${resultText(state)}</b>` : '');
+    }
 
     // Zusammenfassung wie bei chess.com: wie oft welches Abzeichen, je Spieler
     const mine = state.moves.length && analysis.mine;
     const count = (kind, me) => analysis.verdicts.filter((v, k) => v === kind && (k % 2 === (mine === 'w' ? 0 : 1)) === me).length;
+    const percent = (v) => (done < total ? '…' : v === null ? '–' : `${Math.round(v)} %`);
+    const theirs = analysis.mine === 'w' ? 'b' : 'w';
     q('summary').innerHTML = `<tr><th></th><th>Du</th><th>${plain(other)}</th></tr>`
+      + `<tr class="accuracy" title="Genauigkeit wie bei Lichess: 100 % = immer der beste Zug"><td>Genauigkeit</td><td>${percent(analysis.accuracy[analysis.mine])}</td><td>${percent(analysis.accuracy[theirs])}</td></tr>`
       + Object.keys(BADGES).filter((kind) => analysis.verdicts.includes(kind)) // nur, was vorkommt – spart Platz
         .map((kind) => `<tr><td>${badge(kind)} ${BADGES[kind].label}</td><td>${count(kind, true)}</td><td>${count(kind, false)}</td></tr>`).join('');
   }

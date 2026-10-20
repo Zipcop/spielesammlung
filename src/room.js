@@ -41,6 +41,15 @@ const VIEWS = {
   // Gast an der Fußseite (+x). Das Blickziel folgt dann der weißen Kugel (billard/index.js → room.focus).
   billard0: [[-1.15, TABLE_TOP + 0.75, 0], [-0.3, TABLE_TOP + 0.03, 0]],
   billard1: [[1.15, TABLE_TOP + 0.75, 0], [0.3, TABLE_TOP + 0.03, 0]],
+  // Mühle: Brett 32 cm, die eigenen Steine liegen davor – Blick etwas nach rechts, links neben das Seitenfeld
+  muehle0: [[0, TABLE_TOP + 0.55, 0.5], [0.08, TABLE_TOP, 0.03]],
+  muehle1: [[0, TABLE_TOP + 0.55, -0.5], [-0.08, TABLE_TOP, -0.03]],
+  // Vier gewinnt: Rahmen steht aufrecht – Blick flacher von vorn (Gast von hinten), Stapel rechts mit im Bild
+  vier0: [[0.02, TABLE_TOP + 0.3, 0.55], [0.08, TABLE_TOP + 0.1, 0]],
+  vier1: [[-0.02, TABLE_TOP + 0.3, -0.55], [-0.08, TABLE_TOP + 0.1, 0]],
+  // Mäxchen: Becher in der Mitte, Lebenswürfel vor allen vier Plätzen – Blick etwas nach rechts, neben das Seitenfeld
+  mx0: [[0.05, TABLE_TOP + 0.56, 0.5], [0.1, TABLE_TOP, 0.01]],
+  mx1: [[-0.05, TABLE_TOP + 0.56, -0.5], [-0.1, TABLE_TOP, -0.01]],
 };
 
 export function createRoom(canvas) {

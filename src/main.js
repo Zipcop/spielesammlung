@@ -18,6 +18,12 @@ import { createRommeBoard } from './romme/board.js';
 import { startRomme } from './romme/index.js';
 import { createDokoBoard } from './doko/board.js';
 import { startDoko } from './doko/index.js';
+import { createVierBoard } from './viergewinnt/board.js';
+import { startVierGewinnt } from './viergewinnt/index.js';
+import { createMuehleBoard } from './muehle/board.js';
+import { startMuehle } from './muehle/index.js';
+import { createMaexchenBoard } from './maexchen/board.js';
+import { startMaexchen } from './maexchen/index.js';
 import { unlockAudio } from './sound.js';
 import { createTisch } from './tisch.js';
 import { createTutorial } from './tutorial.js';
@@ -47,6 +53,11 @@ const GAMES = {
   Rommé: { board: createRommeBoard(room.tableTop), start: startRomme, seat: 'romme' },
   // Vier Sitze: Host, Gast gegenüber, die freien spielt der Computer
   Doppelkopf: { board: createDokoBoard(room.tableTop), start: startDoko, seat: 'doko' },
+  // Rahmen steht aufrecht in der Mitte: Host sieht ihn von vorn (+z), Gast von hinten
+  'Vier gewinnt': { board: createVierBoard(room.tableTop), start: startVierGewinnt, seat: 'vier' },
+  Mühle: { board: createMuehleBoard(room.tableTop), start: startMuehle, seat: 'muehle' },
+  // Vier Sitze wie Doppelkopf; Becherlagen gehen als 'mx' zum anderen PC
+  Mäxchen: { board: createMaexchenBoard(room.tableTop, { onStream: (msg) => lobby?.send(msg) }), start: startMaexchen, seat: 'mx' },
 };
 for (const [n, g] of Object.entries(GAMES)) g.board.group.visible = n === 'Kniffel'; // nur ein Spiel liegt auf dem Tisch
 // Brett greifen, schieben, umwerfen, aufbauen – für alle Spiele gleich
@@ -174,13 +185,14 @@ function startGame(name, me, level, resume) {
     latest = { name, state };
     storeSave(name, state);
   } : undefined;
+  // Bedienhinweis je nach Modus – der Gast erfährt „ohne Hilfen“ erst mit dem ersten Spielstand, deshalb fragt das Spiel nach.
+  // Vor dem Start zurücksetzen: Der Host zeichnet schon beim Start und stellt dabei den Hinweis für „ohne Hilfen“ ein.
+  document.querySelectorAll('[data-hint]').forEach((el) => (el.textContent = el.dataset.hint));
   game = g.start({ room, board: g.board, canvas, me, level, ask, names, free, resume, save, send: (msg) => lobby?.send(msg), onLeave });
   room.shelf.setHover(null);
   room.shelf.setTaken(name);
   room.setView(g.seat + me);
   document.querySelectorAll('[data-game]').forEach((el) => (el.hidden = el.dataset.game !== name));
-  // Bedienhinweis je nach Modus – der Gast erfährt „ohne Hilfen“ erst mit dem ersten Spielstand, deshalb fragt das Spiel nach
-  document.querySelectorAll('[data-hint]').forEach((el) => (el.textContent = el.dataset.hint));
   show('playing');
 }
 

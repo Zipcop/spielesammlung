@@ -131,3 +131,48 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Rückblick: Wendepunkt, große Kurve mit Punkten (anklickbar), beste Fortsetzung, Genauigkeit */
+.review-turn {
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+
+.review-turn:empty {
+  display: none;
+}
+
+.review .jump {
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+
+.review-curve {
+  height: 72px;
+  cursor: pointer;
+}
+
+.review .dot {
+  stroke-width: 7px;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.review-move .done {
+  color: rgba(42, 33, 24, 0.5);
+}
+
+.review-move button {
+  margin-left: 4px;
+  padding: 1px 8px;
+}
+
+.sheet .review-sum tr.accuracy td {
+  font-weight: bold;
+}
+
+.review-move .eval {
+  font: bold 12.5px 'Segoe UI', Arial, sans-serif;
+  color: rgba(42, 33, 24, 0.75);
+  white-space: nowrap;
+}

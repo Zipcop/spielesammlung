@@ -2,7 +2,7 @@
 // Zu zweit: Der Host hält den Spielstand und schickt ihn nach jeder Änderung komplett an den Gast;
 // der Gast schickt nur Wünsche (Zug, Aufgeben, Revanche) – der Host prüft sie mit chess.js.
 // Allein (level gesetzt): Spieler 1 ist Stockfish (solo.js), dazu das Orakel mit Zuganalyse (analysis.js).
-// Zu zweit: Live-Bewertung der eigenen Züge (abschaltbar) und nach der Partie der Rückblick „Analyse“ –
+// Zu zweit: Live-Bewertung der eigenen Züge (abschaltbar) und nach der Partie der Rückblick „Partie analysieren“ –
 // jeder PC rechnet für sich. free = „Ohne Hilfen“ (zu zweit und allein): keine erlaubten Felder, jede eigene Figur
 // darf überallhin, „Geschummelt!“-Knopf – und keine Analyse, kein Orakel, kein Zurücknehmen.
 import { newGame, move, resign, takeBack, again, accuse, waive, anyMove, turnOf, colorOf, legalMoves, positionAt, REASONS, MAX_STRIKES } from './game.js';
@@ -48,7 +48,8 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
   let showHint = false;
   let round = 0; // zählt die Partien, damit eine alte Rückfrage nicht die Revanche trifft
   let liveOn = loadLive(); // zu zweit: eigene Züge gleich bewerten
-  let review = null; // Rückblick nach der Partie: { ply } = gezeigte Stellung nach so vielen Halbzügen
+  let review = null; // Rückblick nach der Partie: { ply } = gezeigte Stellung nach so vielen Halbzügen;
+  // line = Schritt beim Vorspielen der besten Fortsetzung statt Zug ply (0 = Stellung vor dem Zug), sonst fehlt es
   let analyst = null; // Stockfish-Analyse, startet erst bei Bedarf
 
   const panel = createPanel($('chess-panel'), {
@@ -88,6 +89,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
       review = { ply: Math.max(0, Math.min(n, ply)) };
       render();
     },
+    onLine: stepLine,
     onCloseReview: () => {
       review = null;
       render();
@@ -171,6 +173,15 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     }
   }
 
+  // Rückblick: beste Fortsetzung vorspielen – 'start', 'next', 'prev' oder 'stop' (zurück zur Partie)
+  function stepLine(to) {
+    const len = review && analyst?.view(colorOf(state, me), true).lines[review.ply - 1]?.length;
+    if (!len) return;
+    if (to === 'stop') review = { ply: review.ply };
+    else review = { ply: review.ply, line: Math.max(0, Math.min(len, to === 'start' ? 0 : (review.line ?? 0) + (to === 'next' ? 1 : -1))) };
+    render();
+  }
+
   // Allein: meinen letzten Zug zurücknehmen (und die Antwort des Computers, falls er schon gezogen hat)
   const myMoves = () => (state ? Math.floor((state.moves.length + (colorOf(state, me) === 'w' ? 1 : 0)) / 2) : 0);
   function takeMyMoveBack() {
@@ -190,11 +201,15 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     if (!state) return board.sync(state);
     const mine = colorOf(state, me);
     const view = analyst && !state.free ? analyst.view(mine, !!review) : null;
-    board.sync(review ? positionAt(state, review.ply) : state);
+    // Vorspielen: Partie bis vor den Zug, dann so viele Züge der besten Fortsetzung
+    const line = review?.line !== undefined ? view?.lines[review.ply - 1] : null;
+    const shown = line ? [...state.moves.slice(0, review.ply - 1), ...line.slice(0, review.line).map((m) => m.uci)] : null;
+    board.sync(!review ? state : line ? positionAt({ ...state, moves: shown }, shown.length) : positionAt(state, review.ply));
     const opponent = solo ? `Computer (${LEVELS[level].name})` : names.other();
-    board.setMarks(review ? { selected: null, targets: [] } : { selected, targets, arrow: showHint && myTurn() ? view?.hint : null });
+    // im Rückblick zeigt der Pfeil den besseren Zug (aus der Stellung vor dem gezeigten Zug)
+    board.setMarks(review ? { selected: null, targets: [], arrow: (line ? line[review.line]?.uci : view?.arrows[review.ply - 1]) ?? null } : { selected, targets, arrow: showHint && myTurn() ? view?.hint : null });
     // Plakette: im Rückblick über dem gezeigten Zug, live über meinem letzten Zug
-    const badgeAt = review ? review.ply - 1 : liveActive() ? view?.last?.index ?? -1 : -1;
+    const badgeAt = line ? -1 : review ? review.ply - 1 : liveActive() ? view?.last?.index ?? -1 : -1;
     board.setBadge(badgeAt >= 0 ? state.moves[badgeAt].slice(2, 4) : null, view?.verdicts[badgeAt]);
     const won = state.result?.winner === me;
     if (won && !cheered) room.celebrate(me);
@@ -338,10 +353,12 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
   const onKey = (e) => {
     if (review && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
+      if (review.line !== undefined) return stepLine(e.key === 'ArrowLeft' ? 'prev' : 'next');
       review = { ply: Math.max(0, Math.min(state.moves.length, review.ply + (e.key === 'ArrowLeft' ? -1 : 1))) };
       return render();
     }
     if (e.key !== 'Escape') return;
+    if (review?.line !== undefined) return stepLine('stop');
     if (promotion) return closePromotion(null);
     clearSelection();
     render();

@@ -1,0 +1,158 @@
+/* --- Mäxchen: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.maexchen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+
+.sheet.maexchen > * {
+  flex-shrink: 0;
+}
+
+.mx-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 14px;
+}
+
+.mx-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.sheet .mx-players {
+  width: 100%;
+  font-size: 14px;
+}
+
+.sheet .mx-players td {
+  width: auto;
+  padding: 3px 4px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  border: none;
+}
+
+.mx-players tr.turn {
+  background: rgba(79, 159, 74, 0.16);
+}
+
+.mx-players tr.out {
+  color: rgba(42, 33, 24, 0.45);
+}
+
+.sheet .mx-players td.mx-arrow {
+  width: 1em;
+  color: #2f6b2a;
+}
+
+.sheet .mx-players td.mx-lives {
+  text-align: right;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.mx-status {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.mx-says,
+.mx-mine {
+  margin: 0;
+  font-size: 15px;
+}
+
+.mx-mine {
+  font-weight: bold;
+}
+
+.mx-acts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.mx-claims {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.mx-claims button {
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.mx-claims button[data-claim='21'] {
+  grid-column: span 7;
+}
+
+.mx-claims button:disabled {
+  opacity: 0.3;
+}
+
+.mx-accuse {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  font-size: 14px;
+  background: rgba(179, 38, 30, 0.1);
+  border-radius: 4px;
+}
+
+.mx-accuse p {
+  margin: 0;
+  font-weight: bold;
+}
+
+.mx-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.mx-last p {
+  margin: 0 0 3px;
+  font-size: 13.5px;
+}
+
+.mx-last p + p {
+  color: rgba(42, 33, 24, 0.6);
+}
+
+.mx-end {
+  display: grid;
+  gap: 6px;
+}
+
+.mx-end h3,
+.mx-end p {
+  margin: 0;
+}
+
+.mx-rules summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.mx-rules ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}

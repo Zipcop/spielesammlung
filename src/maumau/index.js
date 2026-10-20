@@ -40,7 +40,7 @@ export function startMauMau({ room, board, canvas, me, send, onLeave, ask, level
     onAgain: () => act('again'),
     onLeave: (confirm) => (confirm && mine?.winner === null ? ask('Spiel beenden und zurück zum Schrank?', onLeave) : onLeave()),
   });
-  const cheat = createCheatUI({ onAccuse: () => act('accuse'), hint: document.querySelector('[data-game="Mau-Mau"] [data-hint]') });
+  const cheat = createCheatUI({ onAccuse: () => act('accuse'), hint: document.querySelector('[data-game="Mau-Mau"] .dock [data-hint]') });
 
   function apply(type, player, arg) {
     if (type === 'play') return play(state, player, arg);
