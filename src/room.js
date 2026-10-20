@@ -62,6 +62,9 @@ const VIEWS = {
   // Texas Hold'em: runder Tisch mit sechs Plätzen – hoch genug, dass alle Stapel und die Mitte ins Bild passen
   poker0: [[0.06, TABLE_TOP + 0.86, 0.8], [0.1, TABLE_TOP, 0.1]],
   poker1: [[-0.06, TABLE_TOP + 0.86, -0.8], [-0.1, TABLE_TOP, -0.1]],
+  // Kartenduell: Matte 80 × 58 cm, die eigene Hand vorn – Blick etwas nach rechts, neben das Seitenfeld
+  kd0: [[0.08, TABLE_TOP + 0.84, 0.74], [0.12, TABLE_TOP, 0.11]],
+  kd1: [[-0.08, TABLE_TOP + 0.84, -0.74], [-0.12, TABLE_TOP, -0.11]],
 };
 
 export function createRoom(canvas) {

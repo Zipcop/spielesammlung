@@ -49,6 +49,8 @@ export const OUTCOME = {
     const [host, guest] = [s.payout[0], s.payout[s.humans[1]]];
     return host > 0 || guest > 0 ? better(-host, -guest) : undefined;
   },
+  // Je Duell: Host Sitz 0, Gast Sitz 1; beide gleichzeitig auf 0 LP = Remis
+  Kartenduell: (s) => (s.phase === 'over' ? s.winner : undefined),
 };
 
 // Kam der Stand von einem erwischten Schummelzug? Dann ist ein Spielende zurückgenommen, die Runde läuft weiter.

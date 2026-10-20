@@ -21,6 +21,7 @@ export const PLAYABLE = new Map([
   ['Mäxchen', { info: 'Bluffen mit Becher und zwei Würfeln – zu zweit mit 2 Computer-Spielern oder allein gegen 3', solo: true, free: true }],
   ['Elfer raus', { info: 'Zahlenreihen ab der 11 auf- und abwärts – 2 bis 4 am Tisch, freie Plätze spielt der Computer', solo: true, free: true }],
   ["Texas Hold'em", { info: 'No-Limit-Poker an 6 Plätzen mit deinem Spielgeld-Konto – freie Plätze spielt der Computer', solo: true, free: true }],
+  ['Kartenduell', { info: 'Sammelkarten-Duell mit Monstern, Zaubern und Fallen – 3 feste Decks oder dein eigenes, zu zweit oder gegen den Computer', solo: true, free: true }],
 ]);
 
 export const SHELF = [
@@ -49,7 +50,7 @@ export const SHELF = [
     games: [
       'Mau-Mau', 'Uno-artig', 'Rommé', 'Schwimmen', 'Skat', 'Doppelkopf', 'Solitär', 'Sechsundsechzig', '6 nimmt!-artig',
       'Wizard-artig', 'Skip-Bo-artig', 'Kakerlakenpoker-artig', 'Hearts', 'Canasta', 'Schafkopf', 'Elfer raus',
-      'Schwarzer Peter', 'Durak', 'Phase-10-artig',
+      'Schwarzer Peter', 'Durak', 'Phase-10-artig', 'Kartenduell',
     ],
   },
   {

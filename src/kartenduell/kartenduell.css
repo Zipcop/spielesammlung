@@ -1,0 +1,358 @@
+/* --- Kartenduell: Seitenfeld (baut auf .sheet aus style.css auf) und Deckbau --- */
+
+.sheet.kartenduell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+
+.sheet.kartenduell > * {
+  flex-shrink: 0;
+}
+
+.kd-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 14px;
+}
+
+.kd-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #8a4b16;
+}
+
+.sheet .kd-players {
+  width: 100%;
+  font-size: 14px;
+}
+
+.sheet .kd-players td {
+  width: auto;
+  padding: 3px 4px 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  border: none;
+  white-space: nowrap;
+}
+
+.sheet .kd-players tr.sub td {
+  padding: 0 4px 4px 22px;
+  font-size: 12px;
+}
+
+.kd-players tr.turn {
+  background: rgba(196, 140, 60, 0.18);
+}
+
+.sheet .kd-players td.kd-arrow {
+  width: 1em;
+  color: #8a4b16;
+}
+
+.sheet .kd-players td.kd-lp {
+  text-align: right;
+  font: bold 17px Georgia, serif;
+}
+
+.kd-steps {
+  display: flex;
+  gap: 3px;
+}
+
+.kd-steps span {
+  flex: 1;
+  padding: 3px 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--muted);
+  background: rgba(42, 33, 24, 0.08);
+  border-radius: 3px;
+}
+
+.kd-steps span.on {
+  color: var(--paper);
+  font-weight: bold;
+  background: #8a4b16;
+}
+
+.kd-status {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.kd-phase {
+  gap: 4px;
+}
+
+.kd-phase button {
+  flex: 1;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.kd-setup p {
+  margin: 0 0 6px;
+}
+
+.kd-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.kd-deck {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.kd-deck span {
+  font-size: 12px;
+  font-weight: normal;
+  opacity: 0.8;
+}
+
+.kd-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.kd-card canvas {
+  width: 206px;
+  height: 288px;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.kd-stats {
+  margin: 0;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.kd-acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+}
+
+.kd-hint {
+  margin: 0;
+  padding: 5px 8px;
+  font-size: 14px;
+  background: rgba(196, 140, 60, 0.2);
+  border-left: 3px solid #8a4b16;
+}
+
+.kd-last {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.kd-end {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(196, 140, 60, 0.16);
+  border-radius: 4px;
+}
+
+.kd-end h3 {
+  margin: 0;
+  font: bold 18px Georgia, serif;
+}
+
+.kd-end p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.kd-rules {
+  font-size: 13px;
+}
+
+.kd-rules ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.kd-rules li {
+  margin-bottom: 3px;
+}
+
+/* --- Deckbau: Fenster über allem --- */
+
+.kd-builder {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 5, 3, 0.72);
+}
+
+.kd-builder[hidden] {
+  display: none;
+}
+
+.kd-builder .box {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 14px;
+  width: min(1240px, calc(100vw - 32px));
+  height: min(820px, calc(100vh - 32px));
+  padding: 14px;
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.kd-builder .pool {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.kd-builder button.secondary {
+  color: var(--ink);
+  background: rgba(42, 33, 24, 0.06);
+  border: 1px solid rgba(42, 33, 24, 0.35);
+}
+
+.kd-builder button.secondary:hover {
+  background: rgba(196, 140, 60, 0.2);
+}
+
+.kd-builder .tabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.kd-builder .tabs button.on {
+  color: var(--paper);
+  background: #8a4b16;
+}
+
+.kd-builder .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 8px;
+  padding: 2px 4px 8px 2px;
+  overflow-y: auto;
+}
+
+.kd-builder .tile {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.kd-builder .tile canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 512 / 716;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.kd-builder .tile.full canvas {
+  opacity: 0.55;
+}
+
+.kd-builder .tile .n {
+  position: absolute;
+  top: 20%;
+  right: 6px;
+  min-width: 24px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  padding: 2px 6px;
+  font: bold 14px system-ui, sans-serif;
+  text-align: center;
+  color: #fff;
+  background: #8a4b16;
+  border-radius: 12px;
+}
+
+.kd-builder .tile .n:empty {
+  display: none;
+}
+
+.kd-builder .side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.kd-builder .side canvas {
+  align-self: center;
+  width: 220px;
+  height: 308px;
+  border-radius: 9px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.kd-builder .count {
+  margin: 0;
+  font: bold 16px Georgia, serif;
+}
+
+.kd-builder .count.ok {
+  color: #2f6b2a;
+}
+
+.kd-builder .list {
+  flex: 1;
+  min-height: 60px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  font-size: 13px;
+  list-style: none;
+}
+
+.kd-builder .list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(42, 33, 24, 0.1);
+}
+
+.kd-builder .list li:hover {
+  background: rgba(196, 140, 60, 0.18);
+}
+
+.kd-builder .why {
+  margin: 0;
+  font-size: 13px;
+  color: #a3261e;
+}
+
+.kd-builder input {
+  width: 100%;
+  box-sizing: border-box;
+}

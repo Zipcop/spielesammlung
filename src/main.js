@@ -32,6 +32,8 @@ import { createElferBoard } from './elferraus/board.js';
 import { startElferRaus } from './elferraus/index.js';
 import { createPokerBoard } from './poker/board.js';
 import { startPoker } from './poker/index.js';
+import { createDuelBoard } from './kartenduell/board.js';
+import { startKartenduell } from './kartenduell/index.js';
 import { unlockAudio } from './sound.js';
 import { createTisch } from './tisch.js';
 import { createTutorial } from './tutorial.js';
@@ -74,6 +76,8 @@ const GAMES = {
   'Elfer raus': { board: createElferBoard(room.tableTop), start: startElferRaus, seat: 'elfer' },
   // Sechs Plätze: Host, Gast gegenüber, die freien spielt der Computer; Spielgeld-Konto je PC (spielgeld.js)
   "Texas Hold'em": { board: createPokerBoard(room.tableTop), start: startPoker, seat: 'poker' },
+  // Zwei Plätze: Host (+z), Gast bzw. Computer gegenüber; Spielmatte mit Zonen in der Mitte
+  Kartenduell: { board: createDuelBoard(room.tableTop), start: startKartenduell, seat: 'kd' },
 };
 for (const [n, g] of Object.entries(GAMES)) g.board.group.visible = n === 'Kniffel'; // nur ein Spiel liegt auf dem Tisch
 // Brett greifen, schieben, umwerfen, aufbauen – für alle Spiele gleich

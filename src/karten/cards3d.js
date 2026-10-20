@@ -22,14 +22,15 @@ export function flat(x, y, z, turn = 0, faceUp = true) {
 }
 
 // Karte i von n im Fächer. at = Mitte des Fächers für den Platz auf der +z-Seite, side = Drehung zum
-// Platz (0 oder π), tilt = wie weit die Karten zum Spieler aufgestellt sind, raise = Karte angehoben
-export function fan(i, n, { at, side = 0, tilt = 0.6, gap = 3.3, width = 28, angle = 0.075, raise = 0 }) {
+// Platz (0 oder π), tilt = wie weit die Karten zum Spieler aufgestellt sind, raise = Karte angehoben,
+// depth = Abstand der Karten zum Spieler hin (cm)
+export function fan(i, n, { at, side = 0, tilt = 0.6, gap = 3.3, width = 28, angle = 0.075, raise = 0, depth = 0.05 }) {
   const k = i - (n - 1) / 2;
   const dx = Math.min(gap, width / Math.max(n - 1, 1));
   const da = Math.min(angle, 0.8 / Math.max(n - 1, 1));
   const frame = new THREE.Quaternion().setFromAxisAngle(UP, side).multiply(new THREE.Quaternion().setFromAxisAngle(ACROSS, tilt));
   // in der Kartenebene: x = rechts, −z = oben; y = zum Spieler (spätere Karten liegen vorne)
-  const local = new THREE.Vector3(k * dx, i * 0.05, (k * dx) ** 2 * 0.01 - raise); // äußere Karten etwas tiefer (Bogen)
+  const local = new THREE.Vector3(k * dx, i * depth, (k * dx) ** 2 * 0.01 - raise); // äußere Karten etwas tiefer (Bogen)
   return {
     pos: local.applyQuaternion(frame).add(at.clone().applyAxisAngle(UP, side)),
     quat: frame.clone().multiply(new THREE.Quaternion().setFromAxisAngle(UP, -k * da)),
