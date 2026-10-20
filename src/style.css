@@ -764,9 +764,9 @@ button.icon svg {
   height: 24px;
 }
 
-/* im Spiel steht die Verbindungsleiste rechts neben den beiden runden Knöpfen */
+/* im Spiel steht die Verbindungsleiste rechts neben den drei runden Knöpfen (16 + 3 × 44 + 2 × 8 + 12 Abstand) */
 .hud:not(.below) {
-  left: 124px;
+  left: 176px;
 }
 
 .fps {

@@ -16,6 +16,8 @@ import { createBillardBoard } from './billard/table.js';
 import { startBillard } from './billard/index.js';
 import { createRommeBoard } from './romme/board.js';
 import { startRomme } from './romme/index.js';
+import { createDokoBoard } from './doko/board.js';
+import { startDoko } from './doko/index.js';
 import { unlockAudio } from './sound.js';
 import { createTisch } from './tisch.js';
 import { createTutorial } from './tutorial.js';
@@ -42,6 +44,8 @@ const GAMES = {
   Billard: { board: createBillardBoard(room.tableTop, { onStream: (msg) => lobby?.send(msg) }), start: startBillard, seat: 'billard' },
   'Mensch ärgere dich nicht': { board: createMaednBoard(room.tableTop, { onStream: (msg) => lobby?.send(msg) }), start: startMaedn, seat: 'maedn' },
   Rommé: { board: createRommeBoard(room.tableTop), start: startRomme, seat: 'romme' },
+  // Vier Sitze: Host, Gast gegenüber, die freien spielt der Computer
+  Doppelkopf: { board: createDokoBoard(room.tableTop), start: startDoko, seat: 'doko' },
 };
 for (const [n, g] of Object.entries(GAMES)) g.board.group.visible = n === 'Kniffel'; // nur ein Spiel liegt auf dem Tisch
 // Brett greifen, schieben, umwerfen, aufbauen – für alle Spiele gleich

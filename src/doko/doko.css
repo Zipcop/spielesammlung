@@ -1,0 +1,196 @@
+/* --- Doppelkopf: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.doko {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+
+.sheet.doko > * {
+  flex-shrink: 0;
+}
+
+.dk-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 14px;
+}
+
+.dk-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.sheet .dk-players {
+  width: 100%;
+  font-size: 14px;
+}
+
+.sheet .dk-players td,
+.sheet .dk-list td,
+.sheet .dk-list th {
+  width: auto;
+  font: inherit;
+  color: inherit;
+  border: none;
+}
+
+.sheet .dk-players td {
+  padding: 3px 4px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dk-players tr.turn {
+  background: rgba(79, 159, 74, 0.16);
+}
+
+.sheet .dk-players td.dk-arrow {
+  width: 1em;
+  color: #2f6b2a;
+}
+
+.sheet .dk-players td.dk-score {
+  text-align: right;
+  font-weight: bold;
+}
+
+.dk-party.re {
+  color: #b3261e;
+  font-weight: bold;
+}
+
+.dk-party.kontra {
+  color: #24476b;
+  font-weight: bold;
+}
+
+.dk-status {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.dk-reserve {
+  display: grid;
+  gap: 6px;
+}
+
+.dk-reserve p {
+  margin: 0;
+}
+
+.dk-solos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.dk-says {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.dk-ann {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dk-ann button {
+  padding: 3px 9px;
+}
+
+.dk-accuse {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  font-size: 14px;
+  background: rgba(179, 38, 30, 0.1);
+  border-radius: 4px;
+}
+
+.dk-accuse p {
+  margin: 0;
+  font-weight: bold;
+}
+
+.dk-last,
+.dk-trick {
+  margin: 0;
+  font-size: 14px;
+}
+
+.dk-trick {
+  color: rgba(42, 33, 24, 0.75);
+}
+
+.dk-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.dk-end {
+  display: grid;
+  gap: 6px;
+}
+
+.dk-end h3,
+.dk-end p {
+  margin: 0;
+}
+
+.dk-lines {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+}
+
+.dk-list summary,
+.dk-rules summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.sheet .dk-list table {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.sheet .dk-list th,
+.sheet .dk-list td {
+  padding: 2px 4px;
+  text-align: right;
+}
+
+.sheet .dk-list td:first-child {
+  text-align: left;
+}
+
+.sheet .dk-list tr.total td {
+  font-weight: bold;
+  border-top: 2px solid var(--ink);
+}
+
+.dk-rules ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}

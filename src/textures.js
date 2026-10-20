@@ -280,8 +280,11 @@ export function glowTexture() {
 }
 
 // Vorderseite einer Spielschachtel: Name groß, Kategorie klein, spielbare mit grünem Punkt
+// 384 px breit reicht auch auf 4K-Bildschirmen und spart bei ~80 Schachteln Grafikspeicher – gezeichnet wird in 512er-Maßen
 export function boxLabelTexture(name, category, color, playable, aspect) {
-  return canvasTexture(512, Math.round(512 / aspect), (g, w, h) => {
+  return canvasTexture(384, Math.round(384 / aspect), (g) => {
+    g.scale(384 / 512, 384 / 512);
+    const [w, h] = [512, 512 / aspect];
     g.fillStyle = color;
     g.fillRect(0, 0, w, h);
     const shade = g.createLinearGradient(0, 0, 0, h);

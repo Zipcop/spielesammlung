@@ -17,7 +17,7 @@ const LAMP_Y = 1.72; // Glühbirne der Hängelampe über dem Tisch
 // Kamera: [Position, Blickziel]. Start vor dem Schrank; „table“ zeigt den Tisch mit dem Schrank im Hintergrund.
 // Am Platz etwas nach rechts schauen, damit rechts Raum für den Block bleibt. An den Plätzen frei drehbar (camera.js).
 const VIEWS = {
-  shelf: [[-0.25, 1.0, 0], [-2.6, 0.66, 0]],
+  shelf: [[-0.15, 1.0, 0], [-2.6, 0.72, 0]],
   table: [[1.85, 1.45, 1.2], [-0.3, 0.62, -0.25]],
   seat0: [[0, TABLE_TOP + 0.38, 0.36], [0.06, TABLE_TOP, 0.04]],
   seat1: [[0, TABLE_TOP + 0.38, -0.36], [-0.06, TABLE_TOP, -0.04]],
@@ -28,6 +28,9 @@ const VIEWS = {
   // Rommé: höher und steiler, damit Hand, Stapel und beide Auslagen ins Bild passen (rechts das Seitenfeld)
   romme0: [[0.1, TABLE_TOP + 0.7, 0.64], [0.15, TABLE_TOP, 0.08]],
   romme1: [[-0.1, TABLE_TOP + 0.7, -0.64], [-0.15, TABLE_TOP, -0.08]],
+  // Doppelkopf: vier Hände rund um den Tisch – hoch genug, dass die Fächer links und rechts mit ins Bild passen
+  doko0: [[0.08, TABLE_TOP + 0.84, 0.72], [0.12, TABLE_TOP, 0.07]],
+  doko1: [[-0.08, TABLE_TOP + 0.84, -0.72], [-0.12, TABLE_TOP, -0.07]],
   // MÄDN: Würfelteller liegt rechts neben dem Brett (+x) → Blick so verschoben, dass Brett und Teller neben das Seitenfeld passen
   maedn0: [[0.1, TABLE_TOP + 0.6, 0.56], [0.19, TABLE_TOP, -0.02]],
   maedn1: [[0, TABLE_TOP + 0.6, -0.56], [0.02, TABLE_TOP, 0.02]],

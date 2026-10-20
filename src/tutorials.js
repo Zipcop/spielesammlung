@@ -57,4 +57,12 @@ export const TUTORIALS = {
     { title: 'Joker tauschen', text: 'Nach dem Herauskommen: Hast du genau die Karte, für die ein ausgelegter Joker steht, Karte anklicken, dann den Joker. Er kommt auf deine Hand und muss im selben Zug wieder ausgelegt oder angelegt werden.' },
     { title: 'Ablegen und Rundenende', text: 'Karte anklicken, dann die Ablage oder „Ablegen“ – oder hinziehen. „Zug zurücksetzen“ nimmt Auslegen, Anlegen und Tauschen zurück, gezogen bleibt gezogen. Ist der Stapel zum zweiten Mal leer, bekommt wer weniger Restpunkte hat die Differenz.' },
   ],
+  Doppelkopf: [
+    { title: 'Worum geht’s?', text: 'Vier am Tisch, zwei Parteien: Re sind die beiden mit einer Kreuz-Dame, Kontra die anderen – wer zu wem gehört, ist geheim. Im Spiel sind 240 Augen; Re braucht 121, Kontra 120. Zu zweit spielen zwei Computer mit, allein drei. Gespielt wird nach den Turnierregeln.', img: 'doko-tisch.webp' },
+    { title: 'Trumpf', text: 'Von hoch nach tief: Herz-10, die Damen, die Buben (je Kreuz, Pik, Herz, Karo), dann Karo Ass, 10, König, 9. Kreuz und Pik: Ass, 10, König, 9 – Herz: Ass, König, 9. Liegen zwei gleiche Karten im Stich, gewinnt die zuerst gelegte.', img: 'doko-truempfe.webp' },
+    { title: 'Spielen', text: 'Karte anklicken oder in die Tischmitte legen. Bedienen ist Pflicht: Trumpf auf Trumpf, Farbe auf Farbe. Wer nicht bedienen kann, sticht mit Trumpf oder wirft ab. Abgedunkelte Karten passen gerade nicht. Augen: Ass 11, Zehn 10, König 4, Dame 3, Bube 2.' },
+    { title: 'Vorbehalt: Hochzeit und Solo', text: 'Vor dem ersten Stich sagt jeder „gesund“ oder meldet einen Vorbehalt. Hochzeit (beide Kreuz-Damen): Partner wird, wer in den ersten drei Stichen zuerst einen Stich macht. Solo: allein gegen drei, zählt dreifach – Farb-, Damen-, Bubensolo oder Fleischloser.' },
+    { title: 'Ansagen', text: 'Rechts im Seitenfeld: „Re“ bzw. „Kontra“ (solange du noch 11 Karten hast) bringt dem Gewinner 2 Punkte mehr. Mit „keine 90“, „keine 60“, „keine 30“ oder „schwarz“ (bis 10, 9, 8, 7 Karten) legst du nach – dann musst du das aber auch schaffen.', img: 'doko-ansage.webp' },
+    { title: 'Abrechnung', text: 'Gewonnen +1, je 30 Augen Vorsprung (Gegner unter 90, 60, 30, schwarz) +1, dazu die Ansagen. Sonderpunkte: Fuchs (Karo Ass) gefangen, Doppelkopf (Stich mit 40 Augen), Karlchen (Kreuz-Bube) macht den letzten Stich, gegen die Kreuz-Damen gewonnen. Die Punkte laufen in der Spielliste weiter.', img: 'doko-abrechnung.webp' },
+  ],
 };

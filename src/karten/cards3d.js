@@ -8,6 +8,8 @@ import { cardFace, cardBack } from './faces.js';
 
 export const CARD = { w: 6.3, h: 8.8, t: 0.03, r: 0.35 }; // Poker-Maß, 0,3 mm dick
 const FLY_S = 0.42;
+const GLARE = 0.4; // flach liegende Vorderseiten so viel dunkler – sonst überstrahlt die Hängelampe sie (Bild weiß, Farben blass)
+const normal = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 const ACROSS = new THREE.Vector3(1, 0, 0);
 const FACE_DOWN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
@@ -83,6 +85,7 @@ export function createCards(parent) {
   const edgeMat = new THREE.MeshStandardMaterial({ color: 0xe9e3d6, roughness: 0.8, side: THREE.DoubleSide });
   let anims = [];
   let clock = 0;
+  const all = [];
 
   // Neue Karte, zunächst unbekannt (beidseitig Rückseite – so verrät sie nichts)
   function make() {
@@ -90,7 +93,8 @@ export function createCards(parent) {
     const mesh = new THREE.Mesh(geometry, [front, backMat, edgeMat]);
     mesh.castShadow = mesh.receiveShadow = true;
     group.add(mesh);
-    const card = { mesh, id: null, target: null };
+    const card = { mesh, id: null, target: null, level: 1 };
+    all.push(card);
     mesh.userData.card = card;
     return card;
   }
@@ -137,6 +141,10 @@ export function createCards(parent) {
       }
     }
     anims = anims.filter((a) => !a.done);
+    for (const c of all) {
+      const up = Math.max(0, normal.set(0, 1, 0).applyQuaternion(c.mesh.quaternion).y); // 1 = liegt offen flach, Hand ≈ 0,6
+      c.mesh.material[0].color.setScalar(c.level * (1 - GLARE * up ** 4));
+    }
   }
 
   // Alle Flüge sofort beenden (instant = true: ohne Geräusch)
@@ -166,7 +174,7 @@ export function createCards(parent) {
     },
     // Karte abdunkeln (z. B. passt gerade nicht)
     shade(card, level) {
-      card.mesh.material[0].color.setScalar(level);
+      card.level = level;
     },
   };
 }
