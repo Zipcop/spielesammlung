@@ -23,7 +23,7 @@ const fields = (n) => (n === 1 ? '1 Feld' : `${n} Felder`);
 const forGuest = (s) => (s.free ? { ...s, tainted: false, cheat: s.cheat && { player: s.cheat.player } } : s);
 
 // names = { me(), other() } aus main.js (Spielernamen, können sich während der Partie ändern)
-export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level, names, free = false }) {
+export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level, names, free = false, resume, save }) {
   const solo = level !== undefined;
   const isHost = me === 0;
   let mine = me === 0 ? 0 : 2; // mein Sitz – beim Gast erst nach der Farbwahl sicher
@@ -78,7 +78,7 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
     const changed = fresh || next.seq !== state?.seq; // derselbe Stand nochmal (z. B. nach ungültigem Wunsch) → kein neuer Verlauf
     state = next;
     if (next.humans) mine = me === 0 ? 0 : next.humans[1];
-    if (fresh && mine !== viewSeat) { // Gast hat eine Farbe neben der des Hosts → Kamera an seine Seite
+    if (mine !== viewSeat) { // Gast hat eine Farbe neben der des Hosts → Kamera an seine Seite (auch bei fortgesetzter Partie)
       viewSeat = mine;
       room.setView(VIEW[mine]);
     }
@@ -89,6 +89,7 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
   function commit(next) {
     setState(next);
     send({ t: 'state', state: forGuest(state) });
+    save?.(state); // zu zweit: Host merkt sich die Partie (saves.js)
     render();
     schedule();
   }
@@ -266,10 +267,13 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
     const named = (seat) => (state.humans.includes(seat) ? who(seat) : label(seat));
     if (caught.length) {
       const n = state.events.filter((e) => e.type === 'home').length;
-      const out = state.events.some((e) => e.type === 'sitout') ? ' und setzt einmal aus' : ''; // „Weiter“ trotz möglichem Zug
+      const mineCaught = caught.some((e) => e.player === mine);
+      const out = state.events.some((e) => e.type === 'sitout') ? ` – ${mineCaught ? 'du setzt' : `${named(caught[0].player)} setzt`} einmal aus` : ''; // „Weiter“ trotz möglichem Zug
       const back = n === 1 ? ' – die Figur muss zurück ins Haus' : n > 1 ? ` – ${n} Figuren müssen zurück ins Haus` : out;
-      const guilty = caught.some((e) => e.player === mine) ? 'Du hast' : `${caught.map((e) => named(e.player)).join(' und ')} ${caught.length > 1 ? 'haben' : 'hat'}`;
-      cheat.say(key, `Erwischt! ${guilty} geschummelt${back}.`, true);
+      const guilty = mineCaught ? 'Du hast' : `${caught.map((e) => named(e.player)).join(' und ')} ${caught.length > 1 ? 'haben' : 'hat'}`;
+      // was falsch war (Nico 20.10.2026) – bei mehreren Computern je Farbe
+      const why = caught.length > 1 ? ` (${caught.map((e) => `${name(e.player)}: ${e.why}`).join('; ')})` : caught[0].why ? `: ${caught[0].why}` : '';
+      cheat.say(key, `Erwischt! ${guilty} geschummelt${why}${back}.`, true);
     } else if (alarm) {
       const penalty = state.phase === 'over' ? 'hat sich geirrt.' : 'einmal aus.'; // nach Spielende gibt es nichts mehr auszusetzen
       cheat.say(key, `Fehlalarm! ${alarm.player === mine ? `Du ${state.phase === 'over' ? 'hast' : 'setzt'}` : `${named(alarm.player)} ${state.phase === 'over' ? 'hat' : 'setzt'}`} ${penalty}`, false);
@@ -298,7 +302,7 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
       } else if (e.type === 'hit') parts.push(`${name(e.by)} schlägt ${n}!`);
       else if (e.type === 'six') parts.push('Sechs – nochmal!');
       else if (e.type === 'finish') parts.push(`${n} ist fertig – Platz ${e.place}!`);
-      else if (e.type === 'caught') parts.push(`${name(e.by)} ruft „Geschummelt!“ – ${n} ist erwischt!`);
+      else if (e.type === 'caught') parts.push(`${name(e.by)} ruft „Geschummelt!“ – ${n} ist erwischt${e.why ? ` (${e.why})` : ''}!`);
       else if (e.type === 'home') parts.push(`${n} muss zurück ins Haus.`);
       else if (e.type === 'back') parts.push(`${n} kommt zurück aufs Feld.`);
       else if (e.type === 'fehlalarm') parts.push(`${n} ruft „Geschummelt!“ – Fehlalarm.`);
@@ -438,7 +442,7 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
     wasBusy = busy;
   });
 
-  if (isHost) commit(newPick({ players: solo ? 1 : 2, starter: Math.floor(Math.random() * 4), free }));
+  if (isHost) commit(resume ?? newPick({ players: solo ? 1 : 2, starter: Math.floor(Math.random() * 4), free }));
 
   return {
     handle,

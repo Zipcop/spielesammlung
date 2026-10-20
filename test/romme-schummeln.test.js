@@ -100,7 +100,7 @@ test('regelwidriger Zug erwischt: ganzer Zug zurück, 2 Strafkarten, der Schumml
   assert.equal(c.opened[0], false);
   assert.equal(c.hands[0].length, s0.hands[0].length + CHEAT_PENALTY);
   assert.ok(['h2a', 's9a', 'cKa', 'd7a', 'd3b'].every((x) => c.hands[0].includes(x)));
-  assert.deepEqual(c.events[0], { type: 'caught', player: 0, by: 1 });
+  assert.deepEqual(c.events[0], { type: 'caught', player: 0, by: 1, why: 'Herz 2, Pik 9, Kreuz König ist keine Figur' });
   assert.equal(c.events.filter((e) => e.why === 'strafe').length, CHEAT_PENALTY);
   assert.equal(c.cheat, null);
   assert.deepEqual(all(c), DECK);
@@ -354,4 +354,145 @@ test('allein ohne Hilfen: Computer schummelt und ruft – Runden enden, keine Ka
     assert.equal(rematchBlocked(s, 0) || rematchBlocked(s, 1), false);
   }
   assert.ok(seen.cheats > 0 && seen.caught > 0, JSON.stringify(seen));
+});
+
+// Vorgabe 20.10.2026 („Dann soll auch erklärt werden was falsch war“): Der Grund bleibt beim Host, bis „Geschummelt!“
+// trifft – dann steht er im caught-Ereignis (why). Höchstens zwei Gründe, mit „ und “ verbunden.
+const whyOf = (s, card = 'd9a') => discard(s, 0, card).cheat.why;
+
+test('Grund: ungültige Figur – Lücke, zweimal dieselbe Farbe/Karte, gemischte Farben/Werte, über das Ass, zu viele, nur Joker', () => {
+  const fig = (cards) => whyOf(meld(setup({ hands: [[...cards, 'd9a'], ['c3a']] }), 0, cards));
+  assert.equal(fig(['h7a', 'h4a', 'h5a']), 'Reihe Herz 4-5-7 hat eine Lücke');
+  assert.equal(fig(['h4a', 'xr1', 'h8a']), 'Reihe Herz 4-8-Joker hat eine Lücke');
+  assert.equal(fig(['sKa', 'hKa', 'sKb']), 'Satz König mit zweimal Pik');
+  assert.equal(fig(['h5a', 'h6a', 'h5b']), 'Reihe Herz 5-5-6 hat zweimal Herz 5');
+  assert.equal(fig(['h4a', 'h5a', 's6a']), 'Reihe Herz 4, Herz 5, Pik 6 hat verschiedene Farben');
+  assert.equal(fig(['hKa', 'sKa', 'cQa']), 'Satz Herz König, Pik König, Kreuz Dame hat verschiedene Werte');
+  assert.equal(fig(['h2a', 's9a', 'cKa']), 'Herz 2, Pik 9, Kreuz König ist keine Figur');
+  assert.equal(fig(['hKa', 'hAa', 'h2a']), 'Herz König-Ass-2 ist keine Reihe');
+  assert.equal(fig(['hKa', 'sKa', 'cKa', 'dKa', 'xr1']), 'Satz König mit 5 statt höchstens 4 Karten');
+  assert.equal(fig(['xr1', 'xb2', 'xr3']), 'Figur nur aus Jokern');
+  // gültig gelegt (auch ungeordnet) = kein Grund
+  assert.equal(whyOf(meld(setup({ hands: [['h7a', 'h5a', 'h6a', 'd9a'], ['c3a']] }), 0, ['h7a', 'h5a', 'h6a'])), null);
+});
+
+test('Grund: Herauskommen unter 30 (Joker zählt wie die ersetzte Karte), erste Runde, vor dem Herauskommen angelegt', () => {
+  const out = { opened: [false, true] };
+  // Herz 5-6-Joker-8: Joker = Herz 7 → 26 Punkte
+  assert.equal(whyOf(meld(setup({ hands: [['h5a', 'h6a', 'xr1', 'h8a', 'd9a'], ['c3a']], ...out }), 0, ['h5a', 'h6a', 'xr1', 'h8a'])),
+    'erstes Auslegen hat nur 26 statt 30 Punkte');
+  // 21 Punkte gültig, dann eine Schummel-Figur: zwei Gründe
+  let s = meld(setup({ hands: [['h7a', 's7a', 'c7b', 'h2a', 's9a', 'cKa', 'd9a'], ['c3a']], ...out }), 0, ['h7a', 's7a', 'c7b']);
+  s = meld(s, 0, ['h2a', 's9a', 'cKa']);
+  assert.equal(whyOf(s), 'Herz 2, Pik 9, Kreuz König ist keine Figur und erstes Auslegen hat nur 21 statt 30 Punkte');
+  // erste Runde: nur ziehen und ablegen – mehr als zwei Gründe werden gekürzt, gleiche nur einmal genannt
+  const first = { opened: [false, false], turns: 1 };
+  assert.equal(whyOf(meld(setup({ hands: [['h2a', 's9a', 'cKa', 'd9a'], ['c3a']], ...first }), 0, ['h2a', 's9a', 'cKa'])),
+    'in der ersten Runde schon ausgelegt und Herz 2, Pik 9, Kreuz König ist keine Figur');
+  let f = meld(setup({ hands: [['h7a', 's7a', 'c7b', 'h2a', 's9a', 'cKa', 'd9a'], ['c3a']], ...first }), 0, ['h7a', 's7a', 'c7b']);
+  f = meld(f, 0, ['h2a', 's9a', 'cKa']);
+  assert.equal(f.faults.length, 3);
+  assert.equal(whyOf(f), 'in der ersten Runde schon ausgelegt und erstes Auslegen hat nur 21 statt 30 Punkte');
+  const table = [run(1, 'h', 5, ['h5a', 'h6a', 'h7a'])];
+  assert.equal(whyOf(layoff(setup({ hands: [['h4a', 'd9a'], ['c3a']], melds: table, ...first }), 0, 'h4a', 0)), 'in der ersten Runde schon angelegt');
+  assert.equal(whyOf(layoff(setup({ hands: [['h4a', 'd9a'], ['c3a']], melds: table, ...out }), 0, 'h4a', 0)), 'vor dem Herauskommen angelegt');
+  // vorläufiger Satz Neunen (27) durch regelwidriges Anlegen auf 36 – dann ist nur das Anlegen falsch, nicht die Punkte
+  const nines = meld(setup({ hands: [['h9a', 's9a', 'c9a', 'd9b', 'd9a'], ['c3a']], ...out }), 0, ['h9a', 's9a', 'c9a']);
+  assert.equal(whyOf(layoff(nines, 0, 'd9b', 0)), 'vor dem Herauskommen angelegt');
+});
+
+test('Grund: unpassend angelegt, falscher Joker-Tausch, Ablagekarte gleich wieder abgelegt, eingetauschter Joker behalten', () => {
+  const runTable = [run(1, 'h', 4, ['h4a', 'h5a', 'h6a'])];
+  const setTable = [{ owner: 1, kind: 'set', cards: ['sKa', 'hKa', 'xr1'] }];
+  assert.equal(whyOf(layoff(setup({ hands: [['s9a', 'd9a'], ['c3a']], melds: runTable }), 0, 's9a', 0)), 'Pik 9 passt nicht an Herz 4 bis 6');
+  assert.equal(whyOf(layoff(setup({ hands: [['s9a', 'd9a'], ['c3a']], melds: setTable }), 0, 's9a', 0, 'low')), 'Pik 9 passt nicht an Satz König');
+  // Joker vorn = Herz 4, hinten = Herz 7: Herz 7 auf den vorderen getippt
+  const m = meld(setup({ hands: [['xr1', 'h5a', 'h6a', 'xb2', 'h7a', 'd9a'], ['c3a']] }), 0, ['xr1', 'h5a', 'h6a', 'xb2']);
+  const wrong = swap(m, 0, 'h7a', 0, 'xr1');
+  assert.equal(whyOf(layoff(wrong, 0, 'xr1', 0, 'high')), 'Herz 7 ersetzt den Joker für Herz 4 nicht');
+  assert.equal(whyOf(wrong), 'Herz 7 ersetzt den Joker für Herz 4 nicht und eingetauschter Joker nicht im selben Zug ausgelegt');
+  // Satz: falscher Wert bzw. Farbe schon da
+  assert.equal(whyOf(swap(setup({ hands: [['cQa', 'd9a', 'c2a'], ['c3a']], melds: setTable }), 0, 'cQa', 0, 'xr1'), 'c2a'),
+    'Kreuz Dame ersetzt den Joker im Satz König nicht und eingetauschter Joker nicht im selben Zug ausgelegt');
+  assert.match(whyOf(swap(setup({ hands: [['sKb', 'd9a'], ['c3a']], melds: setTable }), 0, 'sKb', 0, 'xr1')), /^Pik König liegt schon im Satz König und /);
+  // richtig getauscht, aber den Joker abgelegt bzw. behalten
+  const right = swap(m, 0, 'h7a', 0, 'xb2');
+  assert.equal(right.clean, true);
+  assert.equal(whyOf(right, 'xb2'), 'eingetauschter Joker nicht im selben Zug ausgelegt');
+  assert.equal(whyOf(right), 'eingetauschter Joker nicht im selben Zug ausgelegt');
+  // von der Ablage genommen und gleich wieder abgelegt
+  const base = { ...newGame(1, Math.random, { free: true }), hands: [['h2a', 'cKa'], ['c3a']], melds: [], turn: 0, phase: 'draw', pile: ['d2b', 'sQa'], talon: makeDeck().filter((c) => !['h2a', 'cKa', 'c3a', 'd2b', 'sQa'].includes(c)), opened: [true, true], turns: 6 };
+  assert.equal(discard(draw(base, 0, 'pile'), 0, 'sQa').cheat.why, 'die genommene Ablagekarte gleich wieder abgelegt');
+});
+
+test('Grund nur beim Host und erst im caught-Ereignis; „Zug zurücksetzen“ löscht ihn; auch der Computer bekommt einen', () => {
+  const m = meld(setup({ hands: [['h2a', 's9a', 'cKa', 'd9a'], ['c3a']] }), 0, ['h2a', 's9a', 'cKa']);
+  assert.deepEqual(m.faults, ['Herz 2, Pik 9, Kreuz König ist keine Figur']);
+  const s = discard(m, 0, 'd9a');
+  for (const v of [viewFor(m, 0), viewFor(m, 1), viewFor(s, 0), viewFor(s, 1)]) assert.ok(!JSON.stringify(v).includes('keine Figur'));
+  assert.deepEqual(viewFor(s, 1).cheat, { player: 0 });
+  const c = accuse(s, 1, seeded(4));
+  assert.equal(c.events[0].why, 'Herz 2, Pik 9, Kreuz König ist keine Figur');
+  assert.deepEqual(c.faults, []);
+  assert.equal(discard(undo(m, 0), 0, 'd9a').cheat.why, null);
+  // Computer schummelt mit zu wenig Punkten (Satz Zweien)
+  let a = setup({ hands: [['c2a', 's2a', 'h2a', 'dKa', 's9b'], ['h4a']], opened: [false, true] });
+  for (const step of cheatMoves(viewFor(a, 0), 0)) a = apply(a, 0, step);
+  assert.equal(a.cheat.why, 'erstes Auslegen hat nur 6 statt 30 Punkte');
+});
+
+// Jeder erwischte Zug hat einen Grund – Zufallszüge ohne Hilfen (auch Unsinn): Grund nie leer, höchstens zwei
+test('Zufallszüge ohne Hilfen: regelwidrig ⇔ Grund vorhanden, nie mehr als zwei, erwischt trägt ihn', () => {
+  let caught = 0;
+  for (let seed = 1; seed <= 25; seed++) {
+    const rng = seeded(seed);
+    const pick = (list) => list[Math.floor(rng() * list.length)];
+    let s = newGame(seed % 2, rng, { free: true });
+    for (let k = 0; k < 400 && s.winner === null; k++) {
+      const p = s.turn;
+      if (s.cheat && s.cheat.player !== p && rng() < 0.3) {
+        const c = accuse(s, p, rng);
+        if (c.events[0].type === 'caught') {
+          caught++;
+          assert.equal(c.events[0].why, s.cheat.why);
+        }
+        s = c;
+        continue;
+      }
+      if (s.phase === 'draw') {
+        s = draw(s, p, rng() < 0.3 ? 'pile' : 'talon', rng) ?? draw(s, p, 'talon', rng) ?? draw(s, p, 'pile', rng);
+        continue;
+      }
+      const hand = s.hands[p];
+      const r = rng();
+      let next = null;
+      if (r < 0.2) next = meld(s, p, [...hand].sort(() => rng() - 0.5).slice(0, 3 + Math.floor(rng() * 2)));
+      else if (r < 0.4 && s.melds.length) next = layoff(s, p, pick(hand), Math.floor(rng() * s.melds.length), pick(['low', 'high']));
+      else if (r < 0.5 && s.melds.length) {
+        const i = Math.floor(rng() * s.melds.length);
+        next = swap(s, p, pick(hand), i, s.melds[i].cards.find((c) => c[0] === 'x') ?? null);
+      } else if (r < 0.55) next = undo(s, p);
+      else {
+        next = discard(s, p, pick(hand));
+        if (next) {
+          const { legal, why } = next.cheat;
+          if (legal) assert.equal(why, null);
+          else assert.ok(typeof why === 'string' && why.length && why.split(' und ').length <= 2, why);
+        }
+      }
+      if (next) s = next;
+    }
+    assert.deepEqual(all(s), DECK);
+  }
+  assert.ok(caught > 20, `erwischt: ${caught}`);
+});
+
+// Prüfung 20.10.2026: Spielstand von vor den Gründen (ohne faults) – Fortsetzen darf nicht abstürzen
+test('alter Spielstand ohne faults: ablegen geht weiter – auch wenn der Zug schon geschummelt war', () => {
+  const s = setup({ hands: [['h5a', 'h6a', 'h7a', 'cKa'], ['c3a']] });
+  const { faults, ...old } = s;
+  assert.equal(discard(old, 0, 'cKa').cheat.legal, true);
+  const dirty = discard({ ...old, clean: false }, 0, 'cKa'); // vor dem Speichern schon regelwidrig gespielt
+  assert.equal(dirty.cheat.legal, false);
+  assert.equal(typeof dirty.cheat.why, 'string');
 });

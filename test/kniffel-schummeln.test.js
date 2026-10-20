@@ -32,7 +32,7 @@ test('ohne Hilfen: falsch angesagter Zusatz-Kniffel ist Schummeln – erwischt: 
   const caught = kniffel.accuse(s, 1);
   assert.equal(caught.cards[0].sechser, 0);
   assert.equal(caught.extra[0], 0);
-  assert.deepEqual(caught.verdict, { caught: true, player: 0, by: 1, field: 'sechser', extra: true });
+  assert.deepEqual(caught.verdict, { caught: true, player: 0, by: 1, field: 'sechser', extra: true, why: 'kein Zusatz-Kniffel' });
 
   const missed = kniffel.applyRoll(s, 1, [1, 2, 3, 4, 5]); // nicht erwischt → die 50 bleiben
   assert.equal(missed.extra[0], 1);
@@ -50,6 +50,29 @@ test('ohne Hilfen: die Ansage muss true oder false sein (der Gast schickt sie an
   for (const bad of ['true', 1, null, {}]) assert.equal(kniffel.scoreField(s, 0, 'sechser', 30, bad), null);
   const sent = JSON.parse(JSON.stringify({ field: 'sechser', claim: 30, extra: true })); // so kommt die Nachricht an
   assert.equal(kniffel.scoreField(s, 0, sent.field, sent.claim, sent.extra).extra[0], 1);
+});
+
+// Grund (Vorgabe 20.10.2026): Erwischt, sehen beide, WAS falsch war – vorher steht er nur versteckt im cheat beim Host
+const caughtWhy = (s) => kniffel.accuse(s, 1).verdict.why;
+const fourRolls = (dice) => [1, 2, 3].reduce((s) => kniffel.applyRoll(s, 0, dice), rolled(dice));
+
+test('ohne Hilfen: erwischt – der Grund nennt falsche Punkte mit Feldnamen', () => {
+  const s = kniffel.scoreField(rolled([6, 6, 4, 3, 2]), 0, 'chance', 17);
+  assert.equal(s.cheat.why, 'Chance: 17 statt 21 Punkte');
+  assert.equal(caughtWhy(s), 'Chance: 17 statt 21 Punkte');
+  assert.equal(caughtWhy(kniffel.scoreField(rolled([1, 2, 3, 4, 6]), 0, 'einser', 0)), 'Einser: 0 statt 1 Punkt');
+});
+
+test('ohne Hilfen: erwischt – zu viele Würfe; mehrere Verstöße höchstens zwei, mit „und“', () => {
+  assert.equal(caughtWhy(kniffel.scoreField(fourRolls([6, 6, 4, 3, 2]), 0, 'chance', 21)), '4 Würfe statt höchstens 3');
+  assert.equal(caughtWhy(kniffel.scoreField(rolled([6, 6, 4, 3, 2]), 0, 'chance', 17, true)), 'Chance: 17 statt 21 Punkte und kein Zusatz-Kniffel');
+  assert.equal(caughtWhy(kniffel.scoreField(fourRolls([6, 6, 4, 3, 2]), 0, 'chance', 17, true)), 'Chance: 17 statt 21 Punkte und 4 Würfe statt höchstens 3');
+});
+
+test('ohne Hilfen: Fehlalarm hat keinen Grund', () => {
+  const fair = kniffel.scoreField(rolled([6, 6, 4, 3, 2]), 0, 'chance', 21);
+  assert.equal(fair.cheat.why, '');
+  assert.equal('why' in kniffel.accuse(fair, 1).verdict, false);
 });
 
 test('mit Hilfen: Zusatz-Kniffel wird weiter automatisch gutgeschrieben, eine Ansage ändert nichts', () => {

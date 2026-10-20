@@ -35,7 +35,7 @@ function loadLive() {
 // Was der Gast sehen darf: ob der letzte Zug regelwidrig war, muss er selbst merken
 const forGuest = (s) => (s.free ? { ...s, cheat: s.cheat && { player: s.cheat.player } } : s);
 
-export function startSchach({ room, board, canvas, me, send, onLeave, ask, level, names, free = false }) {
+export function startSchach({ room, board, canvas, me, send, onLeave, ask, level, names, free = false, resume, save }) {
   const solo = level !== undefined;
   const isHost = me === 0;
   const other = () => (solo ? 'Der Computer' : names.other()); // Name kann sich während der Partie ändern
@@ -140,6 +140,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     setState(next);
     showHint = false;
     send({ t: 'state', state: forGuest(state) });
+    save?.(state); // zu zweit: Host merkt sich die Partie (saves.js)
     coach?.update(state);
     render();
   }
@@ -201,9 +202,9 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     cheat.update({ free: !!state.free, canAccuse: !!state.cheat && state.cheat.player !== me && !waiting });
     const v = state.verdict;
     if (v) {
-      const who = v.player === me ? 'Du bekommst' : `${other()} bekommt`;
+      const who = v.player === me ? 'du bekommst' : `${other()} bekommt`; // mitten im Satz
       cheat.say(`${state.moves.length}:${state.strikes}:${JSON.stringify(v)}`, solo ? soloVerdict(v) : v.caught
-        ? `Erwischt! ${v.player === me ? 'Dein' : 'Der'} Zug ${v.player === me ? 'wird' : `von ${other()} wird`} zurückgenommen – ${who} eine Verwarnung.`
+        ? `Erwischt! ${v.player === me ? 'Du hast' : `${other()} hat`} geschummelt${v.why ? `: ${v.why}` : ''} – ${v.player === me ? 'dein' : 'der'} Zug wird zurückgenommen, ${who} eine Verwarnung.`
         : `Fehlalarm! Der Zug war erlaubt – ${who} eine Verwarnung.`, v.caught);
     }
     panel.render({
@@ -233,9 +234,9 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
   }
 
   // Allein: Meldungen, wenn der Computer ruft oder erwischt wird (v.player = wer die Verwarnung bekommt)
-  function soloVerdict({ caught, player }) {
-    if (player !== me) return caught ? 'Erwischt! Der Computer nimmt seinen Zug zurück und bekommt eine Verwarnung.' : 'Der Computer ruft „Geschummelt!“ – Fehlalarm, dein Zug war erlaubt. Er bekommt eine Verwarnung.';
-    return caught ? 'Der Computer ruft „Geschummelt!“ – erwischt! Du musst neu ziehen und bekommst eine Verwarnung.' : 'Fehlalarm! Der Zug des Computers war erlaubt – du bekommst eine Verwarnung.';
+  function soloVerdict({ caught, player, why }) {
+    if (player !== me) return caught ? `Erwischt! Der Computer hat geschummelt${why ? `: ${why}` : ''} – er nimmt seinen Zug zurück und bekommt eine Verwarnung.` : 'Der Computer ruft „Geschummelt!“ – Fehlalarm, dein Zug war erlaubt. Er bekommt eine Verwarnung.';
+    return caught ? `Der Computer ruft „Geschummelt!“ Erwischt! Du hast geschummelt${why ? `: ${why}` : ''} – du musst neu ziehen und bekommst eine Verwarnung.` : 'Fehlalarm! Der Zug des Computers war erlaubt – du bekommst eine Verwarnung.';
   }
 
   function endInfo() {
@@ -355,7 +356,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
   };
   const stopFrames = room.onFrame((dt) => board.update(dt));
 
-  if (isHost) commit(newGame(Math.random() < 0.5 ? 0 : 1, { free })); // Farben per Zufall
+  if (isHost) commit(resume ?? newGame(Math.random() < 0.5 ? 0 : 1, { free })); // Farben per Zufall
 
   return {
     handle,

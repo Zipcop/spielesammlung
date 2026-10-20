@@ -22,6 +22,7 @@ import { unlockAudio } from './sound.js';
 import { createTisch } from './tisch.js';
 import { createTutorial } from './tutorial.js';
 import { loadSettings, saveSettings, cleanName } from './settings.js';
+import { loadSaves, storeSave, savedAt } from './saves.js';
 import { createMenu, askName } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
@@ -62,6 +63,8 @@ let table = 'Kniffel'; // Spiel, das auf dem Tisch liegt
 let view = 'shelf';
 let noticeTimer = null;
 let peerName = ''; // Name des Mitspielers (beim Empfang geprüft), '' = noch unbekannt
+let latest = null; // Host: { name, state } der laufenden Partie zu zweit – nach einem Verbindungsabbruch geht es damit weiter
+let resumeNext = false; // Host: nach dem Verbinden die gespeicherte Partie fortsetzen statt neu anfangen
 
 const otherName = () => peerName || 'Mitspieler';
 const names = { me: () => settings.name, other: otherName }; // für die Spiele – Namen können sich während der Partie ändern
@@ -141,24 +144,37 @@ function tip(e, text) {
 }
 
 // Rückfrage im Spiel (kein confirm(): das hält die Seite an, und der Mitspieler hielte die Verbindung für tot)
-function ask(text, onYes) {
+// onNo gesetzt: „Nein“ ist eine eigene Wahl (Text noText) statt nur Zurück
+function ask(text, onYes, onNo, noText = 'Nein, zurück') {
   $('confirm-text').textContent = text;
   $('confirm').hidden = false;
   $('confirm-yes').onclick = () => {
     $('confirm').hidden = true;
     onYes();
   };
+  $('confirm-no').textContent = noText;
+  $('confirm-no').onclick = () => {
+    $('confirm').hidden = true;
+    onNo?.();
+  };
 }
 
-// level gesetzt = allein gegen den Computer (ohne Verbindung)
-function startGame(name, me, level) {
+// level gesetzt = allein gegen den Computer (ohne Verbindung) · resume = gespeicherter Stand (nur Host)
+function startGame(name, me, level, resume) {
   game?.stop();
+  $('confirm').hidden = true; // offene Rückfrage gehörte zur alten Partie
   setTable(name);
   const g = GAMES[name];
   tisch.setBoard(g.board);
   const onLeave = level === undefined ? bothToShelf : () => toShelf();
   const free = settings.free && !!PLAYABLE.get(name).free; // allein oder zu zweit; zu zweit entscheidet der Host
-  game = g.start({ room, board: g.board, canvas, me, level, ask, names, free, send: (msg) => lobby?.send(msg), onLeave });
+  // Zu zweit merkt sich der Host jeden Spielstand (saves.js) – für Neuverbinden und „Fortsetzen“
+  latest = null;
+  const save = level === undefined && me === 0 ? (state) => {
+    latest = { name, state };
+    storeSave(name, state);
+  } : undefined;
+  game = g.start({ room, board: g.board, canvas, me, level, ask, names, free, resume, save, send: (msg) => lobby?.send(msg), onLeave });
   room.shelf.setHover(null);
   room.shelf.setTaken(name);
   room.setView(g.seat + me);
@@ -175,6 +191,9 @@ function showTablePanel(name) {
   $('solo').hidden = !PLAYABLE.get(name).solo;
   const alone = PLAYABLE.get(name).alone; // nur allein: keine Lobby, eigener Start-Knopf
   $('btn-host').hidden = document.querySelector('#solo .or').hidden = !!alone;
+  const saved = loadSaves()[name];
+  $('btn-resume').hidden = !saved || !!alone;
+  if (saved) $('btn-resume').textContent = `Letzte Partie fortsetzen (${savedAt(saved.at)})`;
   $('btn-solo').textContent = alone || 'Gegen Computer';
   $('level').hidden = $('solo-record').hidden = name !== 'Schach';
   $('free-row').hidden = !PLAYABLE.get(name).free;
@@ -187,6 +206,12 @@ function showRecord() {
   $('solo-record').textContent = `Deine Bilanz – Siege: ${r.w} · Remis: ${r.d} · Niederlagen: ${r.l}`;
 }
 
+// Verbindungsleiste: steht die Leitung oder wird gerade neu verbunden?
+function showLink(ok) {
+  $('hud-link').className = ok ? 'ok' : 'muted';
+  $('hud-link').firstChild.textContent = ok ? '● Verbunden mit ' : '○ Verbinde neu mit ';
+}
+
 function startLobby(role) {
   lobby?.leave();
   lobby = new Lobby()
@@ -196,12 +221,29 @@ function startLobby(role) {
     })
     .on('connected', () => {
       host = role === 'host';
+      showLink(true);
       $('ping').textContent = '…';
       $('role').textContent = host ? 'Du bist Host' : 'Du bist Gast';
       lobby.send({ t: 'name', name: settings.name });
       if (!host) return; // der Gast wartet, welches Spiel der Host aufgemacht hat
       lobby.send({ t: 'game', id: table });
-      startGame(table, 0);
+      startGame(table, 0, undefined, resumeNext ? loadSaves()[table]?.state : undefined);
+    })
+    // Verbindung kurz weg: Spiel bleibt stehen, Lobby verbindet neu (net.js)
+    .on('reconnecting', () => {
+      $('ping').textContent = '–';
+      showLink(false);
+      show(view, `Verbindung zu ${otherName()} unterbrochen – verbinde neu …`, 'info');
+    })
+    .on('reconnected', () => {
+      showLink(true);
+      show(view);
+      lobby.send({ t: 'name', name: settings.name });
+      // Host schickt das Spiel neu, mit dem letzten Stand – was während der Pause passiert ist, kommt so beim Gast an
+      if (host && view === 'playing' && latest?.name === table) {
+        lobby.send({ t: 'game', id: table });
+        startGame(table, 0, undefined, latest.state);
+      } else if (host && view !== 'playing') lobby.send({ t: 'shelf' }); // „Zum Schrank“ während der Pause ging verloren
     })
     .on('ping', (ms) => ($('ping').textContent = ms < 1 ? '< 1 ms' : `${Math.round(ms)} ms`))
     .on('message', (msg) => {
@@ -216,7 +258,12 @@ function startLobby(role) {
       } else game?.handle(msg);
     })
     .on('error', (text) => show(role === 'host' ? 'table' : 'shelf', text))
-    .on('closed', () => disconnect(`Verbindung zu ${otherName()} verloren.`));
+    .on('closed', (why) => {
+      if (why === 'full') return disconnect('Das Spiel hat schon zwei Spieler.');
+      const kept = host && view === 'playing' && latest?.name === table;
+      const what = why === 'bye' ? `${otherName()} hat die Verbindung getrennt.` : `Verbindung zu ${otherName()} verloren.`;
+      disconnect(`${what}${kept ? ' Die Partie ist gespeichert – am Tisch „Letzte Partie fortsetzen“.' : ''}`);
+    });
   return lobby;
 }
 
@@ -246,8 +293,13 @@ canvas.addEventListener('click', (e) => {
   tip(e, '');
   if (host && PLAYABLE.get(name).alone) return notice(`${name} übt jeder allein – erst die Verbindung trennen.`);
   if (host) {
-    lobby.send({ t: 'game', id: name }); // schon verbunden → beide direkt an den Tisch
-    return startGame(name, 0);
+    const play = (resume) => {
+      lobby.send({ t: 'game', id: name }); // schon verbunden → beide direkt an den Tisch
+      startGame(name, 0, undefined, resume);
+    };
+    const saved = loadSaves()[name];
+    if (!saved) return play();
+    return ask(`Letzte Partie ${name} (${savedAt(saved.at)}) fortsetzen?`, () => play(saved.state), () => play(), 'Nein, neue Partie');
   }
   setTable(name);
   room.shelf.setTaken(name); // Schachtel kommt auf den Tisch
@@ -258,7 +310,8 @@ canvas.addEventListener('click', (e) => {
 
 window.addEventListener('pointerdown', unlockAudio); // Ton ist erst nach einem Klick erlaubt
 
-$('btn-host').onclick = () => {
+$('btn-host').onclick = $('btn-resume').onclick = (e) => {
+  resumeNext = e.currentTarget.id === 'btn-resume';
   $('code').textContent = '····';
   $('host-status').textContent = 'Code wird erstellt …';
   show('hosting');
@@ -285,7 +338,6 @@ $('join-form').onsubmit = (e) => {
 document.querySelectorAll('[data-back]').forEach((b) => (b.onclick = () => disconnect()));
 $('hud-shelf').onclick = () => ask('Partie abbrechen? Ihr geht beide zurück zum Schrank.', bothToShelf);
 $('hud-leave').onclick = () => ask(`Verbindung zu ${otherName()} trennen?`, () => disconnect());
-$('confirm-no').onclick = () => ($('confirm').hidden = true);
 
 // --- Einstellungen (Zahnrad) und Ansicht ---
 function changeSettings(next) {

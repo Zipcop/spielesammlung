@@ -16,7 +16,7 @@ const $ = (id) => document.getElementById(id);
 const THINK_MS = 900; // so lange „überlegt“ der Computer, nachdem die Karten liegen
 const nameOf = (card) => (isCard(card) ? cardName(card) : 'eine Karte');
 
-export function startMauMau({ room, board, canvas, me, send, onLeave, ask, level, names, free = false }) {
+export function startMauMau({ room, board, canvas, me, send, onLeave, ask, level, names, free = false, resume, save }) {
   const solo = level !== undefined;
   const isHost = me === 0;
   const other = () => (solo ? 'Der Computer' : names.other()); // Name kann sich während des Spiels ändern
@@ -64,6 +64,7 @@ export function startMauMau({ room, board, canvas, me, send, onLeave, ask, level
   function commit(next) {
     setState(next);
     send({ t: 'state', state: viewFor(state, 1 - me) }); // der Gast sieht nur seine eigenen Karten
+    save?.(state); // zu zweit: Host merkt sich die Partie (saves.js)
     render();
     if (solo) computerTurn();
   }
@@ -201,12 +202,12 @@ export function startMauMau({ room, board, canvas, me, send, onLeave, ask, level
 
   function verdictText(e) {
     if (e.type === 'caught' && e.mau) {
-      return e.player === me ? `Erwischt! Du hast „Mau“ vergessen – ${MAU_PENALTY} Strafkarte.`
-        : `Erwischt! ${other()} hat „Mau“ vergessen und zieht ${MAU_PENALTY} Strafkarte.`;
+      return e.player === me ? `Erwischt! Du hast geschummelt${e.why ? `: ${e.why}` : ''}. Du ziehst ${MAU_PENALTY} Strafkarte.`
+        : `Erwischt! ${other()} hat geschummelt${e.why ? `: ${e.why}` : ''}. Dafür ${MAU_PENALTY} Strafkarte.`;
     }
     if (e.type === 'caught') {
-      return e.player === me ? `Erwischt! Deine Karte geht zurück, dazu ${CHEAT_PENALTY} Strafkarten.`
-        : `Erwischt! ${other()} hat geschummelt – Karte zurück und ${CHEAT_PENALTY} Strafkarten.`;
+      return e.player === me ? `Erwischt! Du hast geschummelt${e.why ? `: ${e.why}` : ''}. Deine Karte geht zurück, dazu ${CHEAT_PENALTY} Strafkarten.`
+        : `Erwischt! ${other()} hat geschummelt${e.why ? `: ${e.why}` : ''}. Karte zurück und ${CHEAT_PENALTY} Strafkarten.`;
     }
     return e.player === me ? `Fehlalarm! Der Zug war in Ordnung – du ziehst ${FALSE_ALARM_PENALTY} Strafkarte.`
       : `Fehlalarm! ${other()} hat zu Unrecht „Geschummelt!“ gerufen und zieht ${FALSE_ALARM_PENALTY} Strafkarte.`;
@@ -263,7 +264,7 @@ export function startMauMau({ room, board, canvas, me, send, onLeave, ask, level
   };
   const stopFrames = room.onFrame((dt) => board.update(dt));
 
-  if (isHost) commit(newGame(Math.random() < 0.5 ? 0 : 1, Math.random, { free })); // wer anfängt, entscheidet der Zufall
+  if (isHost) commit(resume ?? newGame(Math.random() < 0.5 ? 0 : 1, Math.random, { free })); // wer anfängt, entscheidet der Zufall
 
   return {
     handle,

@@ -14,7 +14,7 @@
 // darf man immer behalten oder legen. Bis zum nächsten Zug kann der andere „Geschummelt!“ rufen (accuse):
 // Stimmt es, kommt die Karte zurück auf die Hand und es gibt 2 Strafkarten, sonst 1 Karte für den Ankläger.
 // Ein vergessenes „Mau“ bestraft dann nicht das Spiel – der andere muss es erwischen: 1 Strafkarte, die Karte bleibt liegen.
-import { makeDeck, shuffle, suitOf, rankOf, SUITS } from '../karten/cards.js';
+import { makeDeck, shuffle, suitOf, rankOf, cardName, SUITS, SUIT_NAMES } from '../karten/cards.js';
 
 export const HAND_SIZE = 5;
 export const MAU_PENALTY = 1;
@@ -39,7 +39,7 @@ export function newGame(starter = 0, rng = Math.random, { free = false } = {}) {
     seq: 0, // zählt die Aktionen (für die Anzeige)
     events: [{ type: 'deal' }], // was die letzte Aktion bewirkt hat – für Animation und Text
     free, // ohne Hilfen: Schummeln möglich
-    cheat: null, // letzter gelegter Zug, solange man ihn anprangern kann: { player, legal, forgot (= „Mau“ vergessen), prev }
+    cheat: null, // letzter gelegter Zug, solange man ihn anprangern kann: { player, legal, forgot (= „Mau“ vergessen), prev, why (= Gründe) }
   };
 }
 
@@ -71,6 +71,7 @@ export function play(s, player, arg) {
   const jack = rankOf(card) === 'J' && rest.length > 0; // mit der letzten Karte muss niemand mehr wünschen
   if (jack && !SUITS.includes(wish)) return null;
   const forgot = rest.length === 1 && mau !== true;
+  const why = [...(legal ? [] : [fault(s, card)]), ...(forgot ? ['„Mau“ vergessen'] : [])];
   const own = s.cheat?.player === player && (!s.cheat.legal || s.cheat.forgot) ? s.cheat : null;
   let next = {
     ...s,
@@ -83,7 +84,7 @@ export function play(s, player, arg) {
     events: [{ type: 'play', player, card, wish: jack ? wish : null }],
     // Ein noch offener eigener Fehler (z. B. vor einer 8) bleibt anfechtbar – sonst könnte der Schummler
     // die Frist mit seinem nächsten Zug selbst schließen
-    cheat: !s.free ? null : own ? { ...own, legal: own.legal && legal, forgot: own.forgot || forgot } : { player, legal, forgot, prev: { ...s, cheat: null } },
+    cheat: !s.free ? null : own ? { ...own, legal: own.legal && legal, forgot: own.forgot || forgot, why: [...new Set([...(own.why ?? []), ...why])] } : { player, legal, forgot, prev: { ...s, cheat: null }, why },
   };
   if (!rest.length) return { ...next, winner: player };
   if (rest.length === 1 && !(s.free && forgot)) next.events.push({ type: 'mau', player, said: !forgot }); // ohne Hilfen hört man nur ein gesagtes „Mau“
@@ -91,6 +92,15 @@ export function play(s, player, arg) {
   if (rankOf(card) === '7') return { ...next, sevens: s.sevens + 1, turn: other(player) };
   if (rankOf(card) === '8') return { ...next, events: [...next.events, { type: 'skip', player: other(player) }] }; // gleich nochmal dran
   return { ...next, turn: other(player) };
+}
+
+// Warum die Karte nicht gelegt werden durfte – kurz, für die Meldung beim Erwischen (gleiche Reihenfolge wie fits)
+function fault(s, card) {
+  if (s.drawn && card !== s.drawn) return 'nach dem Ziehen nur die gezogene Karte erlaubt';
+  if (s.sevens > 0) return `auf die 7 nur eine 7 – sonst ${2 * s.sevens} Karten ziehen`;
+  if (rankOf(card) === 'J') return 'kein Bube auf einen Buben';
+  if (s.wish) return `${SUIT_NAMES[s.wish]} war gewünscht`;
+  return `${cardName(card)} passt nicht auf ${cardName(top(s))}`;
 }
 
 // Karte ziehen. Bei offener 7 sind es 2 je 7 – danach geht der Zug normal weiter.
@@ -119,12 +129,13 @@ export function pass(s, player) {
 export function accuse(s, player, rng = Math.random) {
   const c = s.cheat;
   if (!s.free || !c || c.player === player || (player !== 0 && player !== 1)) return null;
+  const why = (c.why ?? []).slice(0, 2).join(' und '); // höchstens zwei Gründe (alter Spielstand: keine)
   if (!c.legal) {
-    const back = { ...c.prev, seq: s.seq + 1, events: [{ type: 'caught', player: c.player, by: player }] };
+    const back = { ...c.prev, seq: s.seq + 1, events: [{ type: 'caught', player: c.player, by: player, why }] };
     return take(back, c.player, CHEAT_PENALTY, 'strafe', rng);
   }
   if (c.forgot) {
-    const base = { ...s, seq: s.seq + 1, cheat: null, winner: null, turn: s.winner === null ? s.turn : player, events: [{ type: 'caught', player: c.player, by: player, mau: true }] };
+    const base = { ...s, seq: s.seq + 1, cheat: null, winner: null, turn: s.winner === null ? s.turn : player, events: [{ type: 'caught', player: c.player, by: player, mau: true, why }] };
     return take(base, c.player, MAU_PENALTY, 'mau', rng);
   }
   const base = { ...s, seq: s.seq + 1, cheat: null, events: [{ type: 'fehlalarm', player }] };

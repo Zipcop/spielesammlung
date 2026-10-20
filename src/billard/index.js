@@ -22,7 +22,7 @@ const AIM_SEND_MS = 66; // Zielen 15-mal pro Sekunde an den anderen
 const GROUP_NAME = { volle: 'Volle (1–7)', halbe: 'Halbe (9–15)' };
 const listOf = { volle: SOLIDS, halbe: STRIPES };
 
-export function startBillard({ room, board, canvas, me, send, onLeave, ask, level, names }) {
+export function startBillard({ room, board, canvas, me, send, onLeave, ask, level, names, resume, save }) {
   const solo = level !== undefined;
   const isHost = me === 0;
   const other = () => (solo ? 'Computer' : names.other());
@@ -58,6 +58,7 @@ export function startBillard({ room, board, canvas, me, send, onLeave, ask, leve
   function commit(next) {
     state = next;
     send({ t: 'state', state });
+    save?.(state); // zu zweit: Host merkt sich die Partie (saves.js)
     render();
     if (solo) computerTurn();
   }
@@ -306,7 +307,7 @@ export function startBillard({ room, board, canvas, me, send, onLeave, ask, leve
     if (state && statusShown !== statusText()) render(); // z. B. nach dem Ausrollen beim Zuschauer
   });
 
-  if (isHost) commit(newGame({ breaker: Math.random() < 0.5 ? 0 : 1 })); // wer anstößt, entscheidet der Zufall
+  if (isHost) commit(resume ?? newGame({ breaker: Math.random() < 0.5 ? 0 : 1 })); // wer anstößt, entscheidet der Zufall
 
   return {
     handle,

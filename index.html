@@ -63,6 +63,7 @@
       <section data-view="table">
         <button id="btn-rules" class="secondary">Spielanleitung</button>
         <label id="free-row" class="free-row" hidden><input type="checkbox" id="free-toggle"> Ohne Hilfen – Schummeln erlaubt</label>
+        <button id="btn-resume" hidden>Letzte Partie fortsetzen</button>
         <button id="btn-host">Lobby hosten</button>
         <div id="solo" class="solo" hidden>
           <p class="or">oder allein</p>
@@ -84,7 +85,7 @@
 
     <!-- Verbindung (bleibt, bis jemand trennt) -->
     <div id="hud" class="hud" hidden>
-      <span class="ok">● Verbunden mit <span id="peer-name"></span></span>
+      <span id="hud-link" class="ok">● Verbunden mit <span id="peer-name"></span></span>
       <span>Ping: <strong id="ping">…</strong></span>
       <span id="role"></span>
       <button id="hud-shelf" class="secondary small">Zum Schrank</button>

@@ -129,7 +129,7 @@ test('Kniffel ohne Hilfen: falsche Punkte erwischt → Feld wird mit 0 gestriche
   assert.equal(s.cheat.legal, false);
   s = kniffel.accuse(s, 1);
   assert.equal(s.cards[0].fullHouse, 0);
-  assert.deepEqual(s.verdict, { caught: true, player: 0, by: 1, field: 'fullHouse' });
+  assert.deepEqual(s.verdict, { caught: true, player: 0, by: 1, field: 'fullHouse', why: 'Full House: 25 statt 0 Punkte' }); // 1-1-1-2-3 ist kein Full House
   assert.equal(s.turn, 1); // der Zug ist trotzdem vorbei
 });
 

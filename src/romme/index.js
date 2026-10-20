@@ -29,7 +29,7 @@ function meldName(m) {
   return `Satz ${nameOf(real).split(' ')[1]}`;
 }
 
-export function startRomme({ room, board, canvas, me, send, onLeave, ask, level, names, free = false }) {
+export function startRomme({ room, board, canvas, me, send, onLeave, ask, level, names, free = false, resume, save }) {
   const solo = level !== undefined;
   const isHost = me === 0;
   const other = () => (solo ? 'Der Computer' : names.other()); // Name kann sich während des Spiels ändern
@@ -92,6 +92,7 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
   function commit(next) {
     setState(next);
     send({ t: 'state', state: viewFor(state, 1 - me) }); // der Gast sieht nur seine eigenen Karten
+    save?.(state); // zu zweit: Host merkt sich die Partie (saves.js)
     render();
     if (solo) computerTurn();
   }
@@ -341,8 +342,8 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
 
   function verdictText(e) {
     if (e.type === 'caught') {
-      return e.player === me ? `${other()} ruft „Geschummelt!“ – erwischt! Dein ganzer Zug wird zurückgenommen, dazu ${CHEAT_PENALTY} Strafkarten – spiel ihn neu.`
-        : `Erwischt! ${other()} hat geschummelt – der Zug wird zurückgenommen, dazu ${CHEAT_PENALTY} Strafkarten.`;
+      return e.player === me ? `Erwischt! Du hast geschummelt${e.why ? `: ${e.why}` : ''}. Dein ganzer Zug wird zurückgenommen, dazu ${CHEAT_PENALTY} Strafkarten – spiel ihn neu.`
+        : `Erwischt! ${other()} hat geschummelt${e.why ? `: ${e.why}` : ''}. Der Zug wird zurückgenommen, dazu ${CHEAT_PENALTY} Strafkarten.`;
     }
     return e.player === me ? `Fehlalarm! Der Zug war in Ordnung – du ziehst ${FALSE_ALARM_PENALTY} Strafkarte.`
       : `Fehlalarm! ${other()} hat zu Unrecht „Geschummelt!“ gerufen und zieht ${FALSE_ALARM_PENALTY} Strafkarte.`;
@@ -421,7 +422,7 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
   const stopFrames = room.onFrame((dt) => board.update(dt));
   board.setSort(sort);
 
-  if (isHost) commit(newGame(Math.random() < 0.5 ? 0 : 1, Math.random, { free })); // wer anfängt, entscheidet der Zufall
+  if (isHost) commit(resume ?? newGame(Math.random() < 0.5 ? 0 : 1, Math.random, { free })); // wer anfängt, entscheidet der Zufall
 
   return {
     handle,

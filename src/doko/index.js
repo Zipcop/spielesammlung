@@ -20,7 +20,7 @@ const THINK_MS = { call: 650, play: 600, announce: 450, accuse: 900 }; // so lan
 const REL = ['', 'links', 'gegenüber', 'rechts'];
 const nameOfCard = (c) => cardName(faceOf(c));
 
-export function startDoko({ room, board, canvas, me, send, onLeave, ask, level, names, free = false }) {
+export function startDoko({ room, board, canvas, me, send, onLeave, ask, level, names, free = false, resume, save }) {
   const solo = level !== undefined;
   const isHost = me === 0;
   const mySeat = isHost ? 0 : 2;
@@ -91,6 +91,7 @@ export function startDoko({ room, board, canvas, me, send, onLeave, ask, level, 
   function commit(next) {
     setState(next);
     if (!solo) send({ t: 'state', state: viewFor(state, 2) });
+    save?.(state); // zu zweit: Host merkt sich die Partie (saves.js)
     render();
     schedule();
   }
@@ -366,7 +367,7 @@ export function startDoko({ room, board, canvas, me, send, onLeave, ask, level, 
   window.addEventListener('keydown', onKey);
   const stopFrames = room.onFrame((dt) => board.update(dt));
 
-  if (isHost) commit(newGame({ dealer: Math.floor(Math.random() * 4), humans, free }));
+  if (isHost) commit(resume ?? newGame({ dealer: Math.floor(Math.random() * 4), humans, free }));
 
   return {
     handle,

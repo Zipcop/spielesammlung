@@ -37,7 +37,9 @@
 // Stimmt es, wird er komplett zurückgenommen, der Schummler bekommt 2 Strafkarten und spielt ihn neu; sonst zieht der
 // Ankläger 1 Strafkarte (wie Mau-Mau, Nicos Vorgaben vom 19.10.2026). Figuren bleiben so liegen, wie sie gelegt wurden
 // (geordnet verrieten sie, ob sie gültig sind) – geprüft wird trotzdem an der geordneten Figur.
-import { SUITS, RANKS, shuffle } from '../karten/cards.js';
+// Jeder Verstoß hinterlässt einen kurzen Grund (faults, nur beim Host) – bei „erwischt“ stehen die ersten zwei im
+// caught-Ereignis (why), damit beide sehen, WAS falsch war (Nicos Vorgabe vom 20.10.2026).
+import { SUITS, RANKS, SUIT_NAMES, cardName, shuffle } from '../karten/cards.js';
 
 export const HAND_SIZE = 13;
 export const OPEN_MIN = 30;
@@ -204,7 +206,8 @@ export function newGame(starter = 0, rng = Math.random, { score = [0, 0], free =
     score, // Punkte aus allen Runden dieser Sitzung
     free, // ohne Hilfen: Schummeln möglich
     clean: true, // ohne Hilfen: in diesem Zug bisher alles regelgerecht
-    cheat: null, // ohne Hilfen: letzter Zug, solange man ihn anprangern kann: { player, legal, prev }
+    faults: [], // ohne Hilfen: Gründe, warum dieser Zug regelwidrig ist (z. B. „Reihe Herz 4-5-7 hat eine Lücke“)
+    cheat: null, // ohne Hilfen: letzter Zug, solange man ihn anprangern kann: { player, legal, why, prev }
     turnStart: null, // ohne Hilfen: Stand am Anfang dieses Zugs (nach dem Ziehen) – dahin geht es bei „erwischt“ zurück
     seq: 0,
     events: [{ type: 'deal' }],
@@ -256,6 +259,7 @@ export function draw(s, player, from, rng = Math.random) {
     restocks,
     start: { hand, melds: s.melds, opened: s.opened },
     clean: true,
+    faults: [],
     cheat: null, // wer zieht, hat den letzten Zug des anderen hingenommen
     seq: s.seq + 1,
     events,
@@ -343,6 +347,7 @@ export function undo(s, player) {
     swapped: [],
     changed: false,
     clean: true, // alles aus diesem Zug ist zurückgenommen
+    faults: [],
     seq: s.seq + 1,
     events: [{ type: 'undo', player }],
   };
@@ -373,6 +378,7 @@ function finishDiscard(s, player, card) {
     swapped: [],
     changed: false,
     clean: true,
+    faults: [],
     start: null,
     seq: s.seq + 1,
     events: [{ type: 'discard', player, card }],
@@ -427,7 +433,67 @@ export function discard(s, player, card) {
   const strict = strictDiscard(s, player, card);
   if (!s.free) return strict;
   const next = strict ?? looseDiscard(s, player, card);
-  return next && { ...next, cheat: { player, legal: !!strict && s.clean, prev: s.turnStart } };
+  if (!next) return null;
+  const legal = !!strict && s.clean;
+  // (s.faults ?? []: Spielstand von vor den Gründen)
+  const faults = strict ? s.faults ?? [] : addFaults(s.faults, card === s.taken && 'die genommene Ablagekarte gleich wieder abgelegt',
+    s.fresh.length > 0 && opening(freshValue(s)), s.swapped.some((j) => s.hands[player].includes(j)) && 'eingetauschter Joker nicht im selben Zug ausgelegt');
+  return { ...next, cheat: { player, legal, why: legal ? null : faults.slice(0, 2).join(' und '), prev: s.turnStart } };
+}
+
+// --- Ohne Hilfen: Gründe für „erwischt“ – kurze Satzteile, Karten und Figuren wie im Spiel benannt ---
+const nameOf = (c) => cardName(faceOf(c)); // 'Herz 7', 'Joker'
+const rankName = (c) => (isJoker(c) ? 'Joker' : nameOf(c).split(' ')[1]); // '7', 'König'
+const POS_NAMES = { 1: 'Ass', 11: 'Bube', 12: 'Dame', 13: 'König', 14: 'Ass' };
+const posName = (p) => POS_NAMES[p] ?? String(p);
+// Herauskommen mit zu wenig Punkten (0 = nur Schummel-Figuren – deren Grund reicht; ab 30 war es nicht die Punktzahl)
+const opening = (points) => points > 0 && points < OPEN_MIN && `erstes Auslegen hat nur ${points} statt ${OPEN_MIN} Punkte`;
+// Gründe anhängen – jeder nur einmal, false = kein Grund (ohne faults: gespeicherte Partie von vorher, saves.js)
+const addFaults = (faults, ...more) => more.reduce((list, f) => (f && !list.includes(f) ? [...list, f] : list), faults ?? []);
+
+// Lose Karten: eine Farbe → 'Herz 4-5-7' (aufsteigend, Joker hinten), sonst 'Herz 2, Pik 9, Kreuz König'
+function listed(cards) {
+  const real = realOf(cards);
+  if (!real.length || real.some((c) => suitOf(c) !== suitOf(real[0]))) return cards.map(nameOf).join(', ');
+  const high = real.some((c) => rankOf(c) === 'K'); // Ass hinter den König, sonst vor die 2
+  const at = (c) => (rankOf(c) === 'A' && !high ? 1 : posOf(rankOf(c)));
+  return `${SUIT_NAMES[suitOf(real[0])]} ${[...real.sort((a, b) => at(a) - at(b)), ...cards.filter(isJoker)].map(rankName).join('-')}`;
+}
+
+// Figur auf dem Tisch wie in der Anzeige: 'Herz 4 bis 6', 'Satz König' – eine geschummelte als lose Karten
+const figName = (m) => (m.kind === 'run' ? `${SUIT_NAMES[m.suit]} ${posName(m.low)} bis ${posName(m.low + m.cards.length - 1)}`
+  : m.kind === 'set' ? `Satz ${rankName(realOf(m.cards)[0])}` : listed(m.cards));
+
+// Warum diese Karten (ab 3) keine Figur sind
+function noFigure(cards) {
+  const real = realOf(cards);
+  if (!real.length) return 'Figur nur aus Jokern';
+  const twice = (list, key) => list.find((c, i) => list.slice(0, i).some((d) => key(d) === key(c)));
+  const most = (key) => Math.max(...real.map((c) => real.filter((d) => key(d) === key(c)).length));
+  if (most(rankOf) === real.length) {
+    const dup = twice(real, suitOf);
+    return dup ? `Satz ${rankName(dup)} mit zweimal ${SUIT_NAMES[suitOf(dup)]}` : `Satz ${rankName(real[0])} mit ${cards.length} statt höchstens 4 Karten`;
+  }
+  if (most(suitOf) === real.length) {
+    const dup = twice(real.filter((c) => rankOf(c) !== 'A'), rankOf); // zwei Asse gehen (A-2 … K-A)
+    if (dup) return `Reihe ${listed(cards)} hat zweimal ${nameOf(dup)}`;
+    if (['K', 'A', '2'].every((r) => real.some((c) => rankOf(c) === r))) return `${SUIT_NAMES[suitOf(real[0])]} König-Ass-2 ist keine Reihe`;
+    return `Reihe ${listed(cards)} hat eine Lücke`;
+  }
+  const [sameSuit, sameRank] = [most(suitOf), most(rankOf)];
+  if (sameRank > 1 && sameRank >= sameSuit) return `Satz ${listed(cards)} hat verschiedene Werte`;
+  if (sameSuit > 1) return `Reihe ${listed(cards)} hat verschiedene Farben`;
+  return `${listed(cards)} ist keine Figur`;
+}
+
+// Warum die Karte diesen Joker nicht ersetzt
+function wrongSwap(m, card, joker) {
+  if (m.kind === 'run') {
+    const r = runAt(m.cards, m.low) ?? m;
+    return `${nameOf(card)} ersetzt den Joker für ${SUIT_NAMES[r.suit]} ${posName(r.low + r.cards.indexOf(joker))} nicht`;
+  }
+  if (m.kind === 'set' && rankOf(card) === rankOf(realOf(m.cards)[0])) return `${nameOf(card)} liegt schon im ${figName(m)}`;
+  return `${nameOf(card)} ersetzt den Joker ${m.kind === 'set' ? 'im' : 'in'} ${figName(m)} nicht`;
 }
 
 // Ohne Hilfen: Karten aus der Hand (mindestens min) – es muss nur eine zum Ablegen übrig bleiben
@@ -443,8 +509,10 @@ function looseCards(s, player, cards, min) {
 function looseMeld(s, player, cards) {
   const rest = looseCards(s, player, cards, 3);
   if (!rest) return null;
-  const m = { ...(asLaid(cards) ?? { kind: 'free' }), cards: [...cards] };
+  const laid = asLaid(cards);
+  const m = { ...(laid ?? { kind: 'free' }), cards: [...cards] };
   const index = s.melds.length;
+  const points = freshValue(s) + meldValue(m); // fürs Herauskommen (eine Schummel-Figur zählt 0)
   return {
     ...s,
     hands: withHand(s.hands, player, rest),
@@ -454,6 +522,8 @@ function looseMeld(s, player, cards) {
     swapped: s.swapped.filter((j) => !cards.includes(j)),
     changed: true,
     clean: false,
+    faults: addFaults(s.faults, s.turns < 2 && 'in der ersten Runde schon ausgelegt', !laid && noFigure(cards),
+      !s.opened[player] && opening(points)),
     seq: s.seq + 1,
     events: [{ type: 'meld', player, index, cards: m.cards }],
   };
@@ -465,7 +535,8 @@ function looseLayoff(s, player, card, index, end) {
   const rest = looseCards(s, player, [card], 1);
   if (!rest) return null;
   const old = s.melds[index];
-  const m = { ...(extend(old, card, end === 'low' || end === 'high' ? end : null) ?? { owner: old.owner, kind: 'free' }), cards: laidOn(old.cards, card, end) };
+  const fit = extend(old, card, end === 'low' || end === 'high' ? end : null);
+  const m = { ...(fit ?? { owner: old.owner, kind: 'free' }), cards: laidOn(old.cards, card, end) };
   return {
     ...s,
     hands: withHand(s.hands, player, rest),
@@ -473,6 +544,8 @@ function looseLayoff(s, player, card, index, end) {
     swapped: s.swapped.filter((j) => j !== card),
     changed: true,
     clean: false,
+    faults: addFaults(s.faults, s.turns < 2 ? 'in der ersten Runde schon angelegt' : !s.opened[player] && 'vor dem Herauskommen angelegt',
+      !fit && `${nameOf(card)} passt nicht an ${figName(old)}`),
     seq: s.seq + 1,
     events: [{ type: 'layoff', player, index, card, at: m.cards.indexOf(card) }],
   };
@@ -494,6 +567,8 @@ function looseSwap(s, player, card, index, tapped = null) {
     swapped: [...s.swapped, joker],
     changed: true,
     clean: false,
+    faults: addFaults(s.faults, s.turns < 2 ? 'in der ersten Runde schon einen Joker getauscht' : !s.opened[player] && 'vor dem Herauskommen einen Joker getauscht',
+      !swapIn(old, card, joker) && wrongSwap(old, card, joker)),
     seq: s.seq + 1,
     events: [{ type: 'swap', player, index, card, joker }],
   };
@@ -513,7 +588,7 @@ export function accuse(s, player, rng = Math.random) {
   const c = s.cheat;
   if (!s.free || !c || c.player === player || (player !== 0 && player !== 1)) return null;
   if (!c.legal) {
-    const back = { ...c.prev, cheat: null, seq: s.seq + 1, events: [{ type: 'caught', player: c.player, by: player }] };
+    const back = { ...c.prev, cheat: null, seq: s.seq + 1, events: [{ type: 'caught', player: c.player, by: player, why: c.why }] };
     const next = penalty(back, c.player, CHEAT_PENALTY, rng);
     return { ...next, turnStart: { ...next, turnStart: null } }; // neuer Zuganfang mit den Strafkarten – falls er wieder schummelt
   }
@@ -568,7 +643,8 @@ export function viewFor(s, player) {
     start: null,
     turnStart: null,
     clean: true, // ob der laufende Zug regelwidrig ist, bleibt beim Host
-    cheat: s.cheat && { player: s.cheat.player }, // ob regelwidrig und der Stand davor bleiben beim Host
+    faults: [], // die Gründe auch
+    cheat: s.cheat && { player: s.cheat.player }, // ob regelwidrig, warum und der Stand davor bleiben beim Host
     events: s.events.map((e) => (e.type === 'draw' && e.from === 'talon' && e.player !== player ? withoutCard(e) : e)),
   };
 }

@@ -29,7 +29,9 @@ export function createCheatUI({ onAccuse, hint = null }) {
       toast.className = `cheat-toast ${caught ? 'caught' : 'alarm'}`;
       toast.hidden = false;
       clearTimeout(timer);
-      timer = setTimeout(() => (toast.hidden = true), 4500);
+      // mit Grund wird die Meldung länger – sie bleibt so lange, dass man sie in Ruhe lesen kann (gut 15 Zeichen je Sekunde),
+      // höchstens 12 s; Klicks gehen durch sie hindurch zum Tisch (cheat-ui.css)
+      timer = setTimeout(() => (toast.hidden = true), Math.min(12000, Math.max(4500, 1500 + text.length * 60)));
     },
     remove() {
       clearTimeout(timer);

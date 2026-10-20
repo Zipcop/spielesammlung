@@ -25,7 +25,7 @@ test('Ohne Hilfen: beliebiges Feld voraus – nie rückwärts, nie über d hinau
   const r = rolled(setup({ pieces: { 0: [5, 12, 40, H] } }), 0, 3);
   const m = move(r, 0, { piece: 0, to: 9 });
   assert.equal(m.pieces[0][0], 9);
-  assert.deepEqual(m.cheat, { player: 0, bad: [{ piece: 0, hits: [] }] });
+  assert.deepEqual(m.cheat, { player: 0, bad: [{ piece: 0, hits: [], why: '4 Felder statt 3 gezogen' }] });
   for (const bad of [{ piece: 0, to: 4 }, { piece: 0, to: 5 }, { piece: 0, to: 44 }, { piece: 0, to: 7.5 }, { piece: 0, to: 12 }, { piece: 0, to: 40 }, { piece: 7, to: 9 }, { piece: '0', to: 9 }, {}]) {
     assert.equal(move(r, 0, bad), null, JSON.stringify(bad));
   }
@@ -44,7 +44,7 @@ test('Nur ohne Hilfen und nur für Menschen – Computer ziehen immer regelgerec
 test('Figuren im Haus sind gleich: mit der 6 irgendeine heraus ist regelgerecht, ohne 6 nicht', () => {
   const s = setup({ pieces: { 0: [10, H, H, H] } });
   assert.deepEqual(move(rolled(s, 0, 6), 0, { piece: 3, to: 0 }).cheat.bad, []);
-  assert.deepEqual(move(rolled(s, 0, 5), 0, { piece: 2, to: 0 }).cheat.bad, [{ piece: 2, hits: [] }]);
+  assert.deepEqual(move(rolled(s, 0, 5), 0, { piece: 2, to: 0 }).cheat.bad, [{ piece: 2, hits: [], why: 'ohne 6 herausgekommen' }]);
 });
 
 test('Erwischt: Figur zurück ins Haus, geschlagene Figur zurück auf ihr Feld', () => {
@@ -73,7 +73,7 @@ test('Schummeln vor der 6: bleibt nach dem nächsten eigenen Zug anfechtbar, erw
   assert.equal(caughtNow.pieces[0][0], H);
   assert.equal(caughtNow.turn, 1); // kein weiterer Wurf für den Schummler
   const later = move(rolled(m, 0, 2), 0, 0); // regelgerecht hinterher
-  assert.deepEqual(later.cheat.bad, [{ piece: 0, hits: [] }]);
+  assert.deepEqual(later.cheat.bad, [{ piece: 0, hits: [], why: '8 Felder statt 6 gezogen' }]);
   assert.equal(accuse(later, 2).pieces[0][0], H);
 });
 
@@ -175,7 +175,7 @@ test('Ohne Hilfen gibt das Spiel nicht von selbst weiter: ohne passenden Wurf zi
   assert.equal(r.phase, 'move'); // mit Hilfen: nochmal würfeln bzw. verfällt
   assert.equal(r.turn, 0);
   assert.equal(r.tries, 0);
-  assert.deepEqual(move(r, 0, { piece: 1, to: 0 }).cheat.bad, [{ piece: 1, hits: [] }]); // ohne 6 heraus
+  assert.deepEqual(move(r, 0, { piece: 1, to: 0 }).cheat.bad, [{ piece: 1, hits: [], why: 'ohne 6 herausgekommen' }]);
   const w = pass(r, 0);
   assert.equal(w.turn, 1);
   assert.equal(w.events[0].type, 'weiter');
@@ -191,7 +191,7 @@ test('Ohne Hilfen: „Weiter“, obwohl eine Figur ziehen kann, ist Schummeln', 
   const r = rolled(setup({ pieces: { 0: [5, H, H, H] } }), 0, 3);
   assert.equal(pass(r, 2), null); // nicht dran
   const w = pass(r, 0);
-  assert.deepEqual(w.cheat.bad, [{ piece: null, hits: [] }]);
+  assert.deepEqual(w.cheat.bad, [{ piece: null, hits: [], why: 'weitergegeben, obwohl ein Zug möglich war' }]);
   const c = accuse(w, 2);
   assert.deepEqual(types(c), ['caught', 'sitout']); // keine Figur gezogen – dafür setzt der Schummler einmal aus
   assert.equal(c.pieces[0][0], 5);
@@ -206,13 +206,13 @@ test('Ohne Hilfen: nochmal würfeln – bis zu dreimal, wenn keine Figur drauße
   assert.equal(third.tries, 2);
   assert.deepEqual(move(third, 0, { piece: 0, to: 0 }).cheat.bad, []); // dritter Wurf eine 6 – regelgerecht heraus
   const fourth = roll(roll(second, 0, 1), 0, 6);
-  assert.deepEqual(move(fourth, 0, { piece: 0, to: 0 }).cheat.bad, [{ piece: 0, hits: [] }]);
+  assert.deepEqual(move(fourth, 0, { piece: 0, to: 0 }).cheat.bad, [{ piece: 0, hits: [], why: 'nochmal gewürfelt, obwohl es nicht erlaubt war' }]);
 
   // Figur draußen: ein zweiter Wurf ist nicht erlaubt
   const again6 = roll(rolled(setup({ pieces: { 0: [5, H, H, H] } }), 0, 2), 0, 6);
   assert.equal(again6.phase, 'move');
   const out = move(again6, 0, { piece: 1, to: 0 }); // mit der 6 heraus – passt zum Wurf, aber der Wurf war geschummelt
-  assert.deepEqual(out.cheat.bad, [{ piece: 1, hits: [] }]);
+  assert.deepEqual(out.cheat.bad, [{ piece: 1, hits: [], why: 'nochmal gewürfelt, obwohl es nicht erlaubt war' }]);
   assert.equal(out.phase, 'roll'); // die 6 zählt, bis jemand „Geschummelt!“ ruft
   assert.equal(move(rolled(out, 0, 1), 0, 1).cheat.bad.length, 2); // auch der Rest des Zugs (A-Feld räumen wäre regelgerecht)
   const next = pass(rolled(setup({ pieces: { 0: [5, H, H, H] } }), 0, 2), 0);
@@ -233,7 +233,7 @@ test('Nochmal würfeln statt ziehen und „Weiter“ gibt es nur ohne Hilfen und
 test('Allein ohne Hilfen: Computer dürfen schummeln – der Mensch erwischt sie bis zu seinem eigenen Wurf', () => {
   const s = solo({ pieces: { 0: [20, H, H, H], 1: [5, H, H, H], 2: [5, H, H, H] }, turn: 1 });
   const m1 = move(rolled(s, 1, 3), 1, { piece: 0, to: 9 }); // Computer 1 schummelt
-  assert.deepEqual(m1.cheat, { player: 1, bad: [{ piece: 0, hits: [], player: 1 }] });
+  assert.deepEqual(m1.cheat, { player: 1, bad: [{ piece: 0, hits: [], why: '4 Felder statt 3 gezogen', player: 1 }] });
   const m2 = move(rolled(m1, 2, 2), 2, 0); // Computer 2 zieht regelgerecht – die Frist läuft weiter
   assert.equal(m2.cheat.player, 2);
   assert.equal(m2.cheat.bad.length, 1);
@@ -305,4 +305,26 @@ test('Schummelzug des Computers: ein Feld weiter als gewürfelt oder ohne 6 hera
     assert.ok(t.to !== 9 && t.to <= 43, JSON.stringify(t));
   }
   assert.equal(cheatMove({ ...solo({ pieces: { 1: [40, 41, 42, 43] }, turn: 1 }), phase: 'move', die: 1 }, 1), null);
+});
+
+// --- Nico 20.10.2026: Beim Erwischen sagen, was falsch war ---
+test('Grund je Schummelzug: Schlagpflicht, A-Feld räumen, Herauskommen nicht aufs A-Feld', () => {
+  // Sitz 2 steht auf Stand 28 = Feld 8 von Sitz 0: Figur 0 (Feld 5) muss mit der 3 schlagen
+  const hit = rolled(setup({ pieces: { 0: [5, 12, H, H], 2: [28, H, H, H] } }), 0, 3);
+  assert.deepEqual(legalMoves(hit), [0]);
+  assert.equal(move(hit, 0, { piece: 1, to: 15 }).cheat.bad[0].why, 'Schlagen war Pflicht');
+  const start = rolled(setup({ pieces: { 0: [0, 10, H, H] } }), 0, 2);
+  assert.equal(move(start, 0, { piece: 1, to: 12 }).cheat.bad[0].why, 'das A-Feld musste geräumt werden');
+  const six = rolled(setup({ pieces: { 0: [10, H, H, H] } }), 0, 6);
+  assert.equal(move(six, 0, { piece: 1, to: 2 }).cheat.bad[0].why, 'beim Herauskommen nicht aufs A-Feld gesetzt');
+});
+
+test('Erwischt: das Ereignis nennt den Grund – bei zwei Schummeleien beide', () => {
+  const m = move(rolled(setup({ pieces: { 0: [5, H, H, H] } }), 0, 3), 0, { piece: 0, to: 9 });
+  assert.equal(accuse(m, 2).events[0].why, '4 Felder statt 3 gezogen');
+  const two = pass(rolled(move(rolled(setup({ pieces: { 0: [5, H, H, H] } }), 0, 6), 0, { piece: 0, to: 13 }), 0, 2), 0);
+  assert.equal(accuse(two, 2).events[0].why, '8 Felder statt 6 gezogen und weitergegeben, obwohl ein Zug möglich war');
+  // allein: der Computer schummelt, der Mensch erwischt ihn – Grund steht im Ereignis des Computers
+  const cpu = move(rolled(solo({ pieces: { 1: [5, H, H, H] }, turn: 1 }), 1, 3), 1, { piece: 0, to: 9 });
+  assert.equal(accuse(cpu, 0).events[0].why, '4 Felder statt 3 gezogen');
 });

@@ -13,7 +13,7 @@ const $ = (id) => document.getElementById(id);
 // Was der Gast sehen darf: ob der letzte Eintrag gestimmt hat, muss er selbst merken
 const forGuest = (s) => ({ ...s, cheat: s.cheat && { player: s.cheat.player, field: s.cheat.field } });
 
-export function startKniffel({ room, board, canvas, me, send, onLeave, names, free = false }) {
+export function startKniffel({ room, board, canvas, me, send, onLeave, names, free = false, resume, save }) {
   const isHost = me === 0;
   let state = null;
   let cheered = false; // Sieg-Konfetti schon gezeigt
@@ -47,6 +47,7 @@ export function startKniffel({ room, board, canvas, me, send, onLeave, names, fr
   function commit(next) {
     state = next;
     send({ t: 'state', state: forGuest(state) });
+    save?.(state); // zu zweit: Host merkt sich die Partie (saves.js)
     render();
   }
 
@@ -115,7 +116,7 @@ export function startKniffel({ room, board, canvas, me, send, onLeave, names, fr
       const who = v.player === me ? 'Du' : other;
       const filled = state.cards.reduce((n, c) => n + Object.keys(c).length, 0); // unterscheidet gleiche Meldungen in verschiedenen Runden
       cheat.say(`${filled}:${JSON.stringify(v)}`, v.caught
-        ? `Erwischt! ${v.player === me ? 'Du hast' : `${other} hat`} geschummelt – ${LABELS[v.field]} wird mit 0 gestrichen${v.extra ? ', der Zusatz-Kniffel fällt weg' : ''}.`
+        ? `Erwischt! ${v.player === me ? 'Du hast' : `${other} hat`} geschummelt${v.why ? `: ${v.why}` : ''} – ${LABELS[v.field]} wird mit 0 gestrichen${v.extra ? ', der Zusatz-Kniffel fällt weg' : ''}.`
         : `Fehlalarm! ${who} ${v.player === me ? 'bekommst' : 'bekommt'} ${FALSE_ALARM_POINTS} Minuspunkte.`, v.caught);
     }
 
@@ -204,7 +205,7 @@ export function startKniffel({ room, board, canvas, me, send, onLeave, names, fr
   $('to-room').onclick = onLeave;
   const stopFrames = room.onFrame((dt) => board.update(dt));
 
-  if (isHost) commit(newGame(Math.random() < 0.5 ? 0 : 1, { free })); // wer anfängt, entscheidet der Zufall
+  if (isHost) commit(resume ?? newGame(Math.random() < 0.5 ? 0 : 1, { free })); // wer anfängt, entscheidet der Zufall
 
   return {
     handle,

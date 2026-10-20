@@ -81,7 +81,8 @@ export function accuse(s, player) {
   const base = c.legal ? { ...s, cheat: null } : c.prev; // erwischt: Stellung vor dem Zug, Schummler ist wieder dran
   const strikes = base.strikes.map((n, p) => (p === guilty ? n + 1 : n));
   const out = strikes[guilty] >= MAX_STRIKES ? { winner: 1 - guilty, reason: 'schummeln' } : null;
-  return { ...base, strikes, result: base.result ?? out, verdict: { caught: !c.legal, player: guilty, by: player } };
+  // erwischt: erst jetzt wird der Grund (why) für beide sichtbar
+  return { ...base, strikes, result: base.result ?? out, verdict: { caught: !c.legal, player: guilty, by: player, ...(!c.legal && { why: c.why }) } };
 }
 
 // Allein: Der Computer ruft nicht – die Frist ist zu (nötig, wenn der Zug des Menschen die Partie beendet hat,
@@ -191,7 +192,7 @@ function freeMove(s, player, uci) {
   } catch {
     const forced = forceMove(s.fen, from, to, uci[4]);
     if (!forced) return null; // nicht einmal regelwidrig möglich (fremde Figur, eigene Figur oder König im Weg …)
-    done = { legal: false, ...forced };
+    done = { legal: false, why: whyIllegal(s.fen, from, to, forced.fen), ...forced };
     chess.load(forced.fen, { skipValidation: true });
   }
   const next = {
@@ -203,7 +204,8 @@ function freeMove(s, player, uci) {
     captured: done.captured ? [...s.captured, done.captured] : s.captured,
     check: false, // kein „Schach!“, kein roter König
     positions: [...s.positions, positionKey(done.fen)],
-    cheat: { player, legal: done.legal, prev: { ...s, cheat: null, verdict: null } },
+    // why: versteckter Grund des Regelverstoßes (nur beim Host, forGuest entfernt ihn)
+    cheat: { player, legal: done.legal, why: done.why ?? null, prev: { ...s, cheat: null, verdict: null } },
     verdict: null,
   };
   const key = next.positions.at(-1);
@@ -276,4 +278,56 @@ function forceMove(fen, from, to, promotion) {
     lan: from + to + promoted,
     captured: capture ? (white ? 'b' : 'w') + target.toLowerCase() : null,
   };
+}
+
+const PIECES = { p: 'ein Bauer', n: 'ein Springer', b: 'ein Läufer', r: 'ein Turm', q: 'eine Dame', k: 'ein König' };
+
+// Kurzer Grund für „Erwischt!“, warum der Zug regelwidrig war – geprüft auf der Stellung davor (fen), after = Stellung danach.
+// Erst die Gangart (Zugmuster, Weg frei), dann das Schach; beides falsch → beide Gründe mit „und“.
+function whyIllegal(fen, from, to, after) {
+  const chess = new Chess(fen, { skipValidation: true });
+  const { type, color } = chess.get(from);
+  const [f, r, tf, tr] = [from, to].flatMap((sq) => [FILES.indexOf(sq[0]), Number(sq[1])]);
+  const df = Math.abs(tf - f);
+  const dr = Math.abs(tr - r);
+  const blocked = (squares) => squares.some((sq) => chess.get(sq));
+  const them = color === 'w' ? 'b' : 'w';
+
+  // Rochade: König zwei Felder vom Startfeld zur Seite
+  if (type === 'k' && from === (color === 'w' ? 'e1' : 'e8') && dr === 0 && df === 2) {
+    const side = tf > f ? 'k' : 'q';
+    const right = color === 'w' ? side.toUpperCase() : side;
+    let detail = 'der König stünde danach im Schach';
+    if (!fen.split(' ')[2].includes(right)) detail = 'König oder Turm hat schon gezogen';
+    else if (blocked(between(from, (side === 'k' ? 'h' : 'a') + r))) detail = 'der Weg ist nicht frei';
+    else if (chess.inCheck()) detail = 'der König stand im Schach';
+    else if (chess.isAttacked(between(from, to)[0], them)) detail = 'der König zöge durch Schach';
+    return `Rochade nicht erlaubt, ${detail}`;
+  }
+
+  let wrong = null; // Gangart falsch?
+  if (type === 'p') {
+    const ahead = (tr - r) * (color === 'w' ? 1 : -1);
+    const start = r === (color === 'w' ? 2 : 7);
+    if (ahead < 0) wrong = 'ein Bauer zieht nur vorwärts';
+    else if (df === 0 && chess.get(to)) wrong = 'ein Bauer schlägt nur schräg';
+    else if (df === 0 && ahead > (start ? 2 : 1)) wrong = start ? 'ein Bauer zieht höchstens zwei Felder vor' : 'ein Bauer zieht nur ein Feld vor';
+    else if (df === 0 && blocked(between(from, to))) wrong = 'der Weg ist nicht frei';
+    else if (df === 1 && ahead === 1) wrong = (chess.get(to) || to === fen.split(' ')[3]) ? null : 'ein Bauer zieht nur zum Schlagen schräg'; // auch en passant
+    else if (df !== 0) wrong = 'so zieht ein Bauer nicht';
+  } else {
+    const line = df === 0 || dr === 0;
+    const ok = { n: df * dr === 2, b: df === dr, r: line, q: line || df === dr, k: df <= 1 && dr <= 1 }[type];
+    if (!ok) wrong = `so zieht ${PIECES[type]} nicht`;
+    else if ('brq'.includes(type) && blocked(between(from, to))) wrong = 'der Weg ist nicht frei';
+  }
+  const check = kingExposed({ fen: after }) && (chess.inCheck() && type !== 'k' ? 'der König stand im Schach und bleibt es' : 'der König stünde danach im Schach');
+  return [wrong, check].filter(Boolean).join(' und ') || 'der Zug ist nicht erlaubt';
+}
+
+// Felder zwischen zwei Feldern auf einer Linie (ohne Start und Ziel)
+function between(from, to) {
+  const [f, r, tf, tr] = [from, to].flatMap((sq) => [FILES.indexOf(sq[0]), Number(sq[1])]);
+  const n = Math.max(Math.abs(tf - f), Math.abs(tr - r));
+  return Array.from({ length: n - 1 }, (_, i) => FILES[f + Math.sign(tf - f) * (i + 1)] + (r + Math.sign(tr - r) * (i + 1)));
 }

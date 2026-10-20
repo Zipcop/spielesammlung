@@ -46,7 +46,7 @@ test('ohne Hilfen: vergessenes „Mau“ erwischt → 1 Strafkarte, die Karte bl
   assert.deepEqual(caught.hands[0], ['h7', 'cA']);
   assert.equal(caught.turn, 1); // der Ankläger bleibt dran
   assert.equal(caught.cheat, null);
-  assert.deepEqual(caught.events.map((e) => [e.type, e.why]), [['caught', undefined], ['draw', 'mau']]);
+  assert.deepEqual(caught.events.map((e) => [e.type, e.why]), [['caught', '„Mau“ vergessen'], ['draw', 'mau']]);
   assert.equal(caught.events[0].mau, true);
   assert.equal(accuse(caught, 1), null); // nur einmal
 
@@ -63,6 +63,38 @@ test('ohne Hilfen: unpassende Karte und „Mau“ vergessen → wie bisher zurü
   assert.deepEqual(caught.pile, ['hT']);
   assert.equal(caught.hands[0].length, 2 + CHEAT_PENALTY);
   assert.equal(caught.turn, 0);
+  assert.equal(caught.events[0].why, 'Kreuz 9 passt nicht auf Herz 10 und „Mau“ vergessen');
+});
+
+// Grund beim Erwischen (Nico 20.10.2026: „Dann soll auch erklärt werden was falsch war“)
+test('ohne Hilfen: erwischt nennt den Grund – vorher sieht der andere ihn nicht', () => {
+  const why = (s, card, wish) => {
+    const cheated = play(s, 0, { card, wish });
+    const text = accuse(cheated, 1).events[0].why;
+    assert.ok(text);
+    assert.deepEqual(viewFor(cheated, 1).cheat, { player: 0 }); // Grund bleibt beim Host
+    assert.ok(!JSON.stringify(viewFor(cheated, 1)).includes(text));
+    return text;
+  };
+  const hands = [['s9', 'hK', 'cJ', 'dA'], ['hA']];
+  assert.equal(why(setup({ hands, pile: ['hQ'] }), 's9'), 'Pik 9 passt nicht auf Herz Dame');
+  assert.equal(why(setup({ hands, pile: ['dJ'], wish: 'h' }), 's9'), 'Herz war gewünscht');
+  assert.equal(why(setup({ hands, pile: ['h7'], sevens: 1 }), 'hK'), 'auf die 7 nur eine 7 – sonst 2 Karten ziehen');
+  assert.equal(why(setup({ hands, pile: ['h7'], sevens: 2 }), 'hK'), 'auf die 7 nur eine 7 – sonst 4 Karten ziehen');
+  assert.equal(why(setup({ hands, pile: ['hJ'], wish: 's' }), 'cJ', 'h'), 'kein Bube auf einen Buben');
+  // nach dem Ziehen eine andere (sogar passende) Karte gelegt
+  const drawn = draw(setup({ hands: [['hK', 'c8'], ['sA']], pile: ['h9'], talon: ['dQ'] }), 0);
+  assert.equal(drawn.drawn, 'dQ');
+  assert.equal(accuse(play(drawn, 0, { card: 'hK' }), 1).events[0].why, 'nach dem Ziehen nur die gezogene Karte erlaubt');
+});
+
+test('ohne Hilfen: mehrere Fehler (8, dann weiter) – höchstens zwei Gründe mit „und“', () => {
+  const s = setup({ hands: [['s8', 'cK', 'dA'], ['hA']], pile: ['hK'] });
+  const eight = play(s, 0, { card: 's8' }); // passt nicht, 8 = nochmal dran
+  const more = play(eight, 0, { card: 'cK' }); // passt wieder nicht, dazu „Mau“ vergessen
+  const caught = accuse(more, 1);
+  assert.deepEqual(caught.pile, ['hK']);
+  assert.equal(caught.events[0].why, 'Pik 8 passt nicht auf Herz König und Kreuz König passt nicht auf Pik 8');
 });
 
 test('mit Hilfen: vergessenes „Mau“ kostet wie bisher sofort 1 Karte, nichts anzuprangern', () => {
@@ -153,3 +185,19 @@ test('allein ohne Hilfen: schummeln und anprangern – nur gültige Aktionen, ke
     assert.equal(rematchBlocked(s, 0) || rematchBlocked(s, 1), false);
   }
 });
+
+// Prüfung 20.10.2026: Spielstand von vor den Gründen (cheat ohne why) – Fortsetzen darf nicht abstürzen
+test('alter Spielstand ohne Grund-Liste: weiterspielen und anprangern ohne Absturz', () => {
+  const s = setup({ hands: [['c9', 'c8', 'sK'], ['h8', 'h9']], pile: ['hT'] });
+  const old = { ...mauOld(play(s, 0, { card: 'c8' })) }; // Kreuz 8 auf Herz 10 – regelwidrig, 8 = nochmal dran
+  const again = play(old, 0, { card: 'c9' });
+  assert.ok(again);
+  const caught = accuse(again, 1);
+  assert.equal(caught.events[0].type, 'caught');
+  assert.equal(accuse(mauOld(play(s, 0, { card: 'c8' })), 1).events[0].why, '');
+});
+
+function mauOld(s) {
+  const { why, ...cheat } = s.cheat;
+  return { ...s, cheat };
+}

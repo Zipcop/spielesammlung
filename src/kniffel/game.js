@@ -5,7 +5,7 @@
 // Bis zum ersten Wurf des anderen kann der „Geschummelt!“ rufen (accuse): Stimmt es (falsche Punkte, mehr als
 // 3 Würfe oder falsch angesagter Zusatz-Kniffel), wird das Feld mit 0 gestrichen und ein angesagter Zusatz-Kniffel
 // fällt weg; sonst bekommt der Ankläger 10 Minuspunkte.
-import { FIELDS, isJoker, scoreOptions, totals } from './rules.js';
+import { FIELDS, LABELS, isJoker, scoreOptions, totals } from './rules.js';
 
 export const ROLLS_PER_TURN = 3;
 export const MAX_CLAIM = 99; // höchste Zahl, die man ohne Hilfen eintragen kann
@@ -23,7 +23,7 @@ export function newGame(starter = 0, { free = false } = {}) {
     penalty: [0, 0], // Minuspunkte für Fehlalarme
     over: false,
     free, // ohne Hilfen: Schummeln möglich
-    cheat: null, // letzter Eintrag, solange man ihn anprangern kann: { player, legal, field, extra }
+    cheat: null, // letzter Eintrag, solange man ihn anprangern kann: { player, legal, field, extra, why } – nur beim Host
     verdict: null, // Ergebnis der letzten Anklage – für die Anzeige
   };
 }
@@ -63,7 +63,12 @@ export function scoreField(s, player, field, claim, said = false) {
   const cards = s.cards.map((c, p) => (p === player ? { ...c, [field]: points } : c));
   const extra = s.extra.map((n, p) => (p === player && credit ? n + 1 : n));
   const over = cards.every((c) => FIELDS.every((f) => c[f] !== undefined));
-  const legal = points === correct && s.rolls <= ROLLS_PER_TURN && (!said || joker);
+  // Grund für den Schummel-Eintrag (leer = regelgerecht) – erst beim Erwischen sehen ihn beide; höchstens zwei Verstöße
+  const why = [
+    points !== correct && `${LABELS[field]}: ${points} statt ${correct} ${correct === 1 ? 'Punkt' : 'Punkte'}`,
+    s.rolls > ROLLS_PER_TURN && `${s.rolls} Würfe statt höchstens ${ROLLS_PER_TURN}`,
+    said && !joker && 'kein Zusatz-Kniffel',
+  ].filter(Boolean).slice(0, 2).join(' und ');
   return {
     ...s,
     cards,
@@ -72,7 +77,7 @@ export function scoreField(s, player, field, claim, said = false) {
     turn: over ? s.turn : 1 - s.turn,
     rolls: 0,
     held: [false, false, false, false, false],
-    cheat: s.free ? { player, legal, field, extra: credit } : null,
+    cheat: s.free ? { player, legal: !why, field, extra: credit, why } : null,
     verdict: null,
   };
 }
@@ -84,7 +89,7 @@ export function accuse(s, player) {
   if (!c.legal) {
     const cards = s.cards.map((card, p) => (p === c.player ? { ...card, [c.field]: 0 } : card));
     const extra = s.extra.map((n, p) => (p === c.player && c.extra ? n - 1 : n));
-    return { ...s, cards, extra, cheat: null, verdict: { caught: true, player: c.player, by: player, field: c.field, ...(c.extra && { extra: true }) } };
+    return { ...s, cards, extra, cheat: null, verdict: { caught: true, player: c.player, by: player, field: c.field, ...(c.extra && { extra: true }), why: c.why } };
   }
   const penalty = s.penalty.map((n, p) => (p === player ? n + FALSE_ALARM_POINTS : n));
   return { ...s, penalty, cheat: null, verdict: { caught: false, player, by: player } };

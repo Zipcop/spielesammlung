@@ -769,6 +769,13 @@ button.icon svg {
   left: 176px;
 }
 
+/* Meldung im Spiel (z. B. „verbinde neu …“) unter die Verbindungsleiste – sonst verdeckt die Leiste sie */
+body:has(.hud:not(.below):not([hidden])) .message {
+  top: 72px;
+  left: 176px;
+  transform: none;
+}
+
 .fps {
   position: fixed;
   top: 68px;

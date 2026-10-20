@@ -133,6 +133,21 @@ function placeable(mine, piece, to) {
   return Number.isInteger(piece) && piece >= 0 && piece < PIECES && Number.isInteger(to) && to > mine[piece] && to <= LAST && !mine.includes(to);
 }
 
+// Ohne Hilfen: warum ein Zug regelwidrig war – kurz, für die Meldung nach „Geschummelt!“ (Nico 20.10.2026)
+const fieldsText = (n) => (n === 1 ? '1 Feld' : `${n} Felder`);
+function whyBad(s, player, piece, to) {
+  if (s.tainted) return 'nochmal gewürfelt, obwohl es nicht erlaubt war';
+  const mine = s.pieces[player];
+  const from = mine[piece];
+  if (from === HOUSE && s.die !== 6) return 'ohne 6 herausgekommen';
+  if (from === HOUSE && to !== 0) return 'beim Herauskommen nicht aufs A-Feld gesetzt';
+  if (from !== HOUSE && to - from !== s.die) return `${fieldsText(to - from)} statt ${s.die} gezogen`;
+  // Die Augenzahl stimmt – dann ist eine Pflicht ausgelassen
+  if (legalMoves(s, player).some((i) => hitsAt(s.pieces, player, reach(mine, i, s.die)))) return 'Schlagen war Pflicht';
+  if (mine.includes(HOUSE) && mine.includes(0)) return 'das A-Feld musste geräumt werden';
+  return 'dieser Zug war nicht erlaubt';
+}
+
 // Figuren (Index 0–3), die der Spieler mit dem aktuellen Wurf ziehen darf. Figuren im Haus sind gleich –
 // es wird nur die erste angeboten.
 export function legalMoves(s, player = s.turn) {
@@ -211,7 +226,7 @@ export function move(s, player, arg) {
   if (takesPart(s, player)) {
     // Ein noch offener eigener Schummelzug (z. B. vor der 6) bleibt anfechtbar
     const hits = events.filter((e) => e.type === 'hit').map(({ player: q, piece: j, from: at }) => ({ player: q, piece: j, from: at }));
-    cheat = record(s, player, legal ? null : { piece, hits });
+    cheat = record(s, player, legal ? null : { piece, hits, why: whyBad(s, player, piece, to) });
   }
   let state = { ...s, pieces, die: null, tries: 0, seq: s.seq + 1, events, cheat };
   if (pieces[player].every((p) => p >= GOAL)) {
@@ -227,7 +242,8 @@ export function move(s, player, arg) {
 export function pass(s, player) {
   if (s.phase !== 'move' || s.turn !== player || !freeHuman(s, player)) return null;
   const legal = !s.tainted && !legalMoves(s, player).length;
-  const cheat = record(s, player, legal ? null : { piece: null, hits: [] });
+  const why = s.tainted ? 'nochmal gewürfelt, obwohl es nicht erlaubt war' : 'weitergegeben, obwohl ein Zug möglich war';
+  const cheat = record(s, player, legal ? null : { piece: null, hits: [], why });
   return nextTurn({ ...s, cheat, seq: s.seq + 1, events: [{ type: 'weiter', player, die: s.die }] });
 }
 
@@ -249,7 +265,9 @@ export function accuse(s, player) {
   }
   const pieces = s.pieces.map((mine) => [...mine]);
   const cheaters = [...new Set(c.bad.map((b) => b.player ?? c.player))];
-  const events = cheaters.map((q) => ({ type: 'caught', player: q, by: player }));
+  // Grund je Schummler: höchstens zwei verschiedene, für die Meldung
+  const why = (q) => [...new Set(c.bad.filter((b) => (b.player ?? c.player) === q && b.why).map((b) => b.why))].slice(0, 2).join(' und ');
+  const events = cheaters.map((q) => ({ type: 'caught', player: q, by: player, why: why(q) }));
   for (const { piece, player: q = c.player } of c.bad) {
     if (piece === null || pieces[q][piece] === HOUSE) continue; // „Weiter“ oder schon wieder im Haus (geschlagen)
     events.push({ type: 'home', player: q, piece, from: pieces[q][piece] });
