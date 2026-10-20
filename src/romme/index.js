@@ -2,19 +2,20 @@
 // Zu zweit: Der Host hält den vollen Stand und schickt dem Gast nur dessen Sicht (viewFor: eigene Karten offen,
 // vom Host nur die Anzahl). Der Gast schickt Wünsche (ziehen, auslegen, anlegen, tauschen, zurücksetzen, ablegen,
 // nächste Runde), der Host prüft sie. Allein (level gesetzt): Spieler 1 ist der Computer (ai.js) – auch er sieht nur seine Sicht.
-// free = „Ohne Hilfen“ (nur zu zweit): keine Hinweise und Punkte zur Auswahl, regelwidrige Züge gehen durch, „Geschummelt!“-Knopf.
+// free = „Ohne Hilfen“ (zu zweit oder allein): keine Hinweise und Punkte zur Auswahl, regelwidrige Züge gehen durch,
+// „Geschummelt!“-Knopf. Allein schummelt der Computer ab und zu selbst und prüft jeden Zug des Menschen einmal.
 import {
-  newGame, draw, meld, layoff, swap, undo, discard, again, accuse, viewFor, arrange, arrangeOptions, extend, meldValue, handSize,
-  canMeld, discardable, openPoints, faceOf, isJoker, handPoints, OPEN_MIN, NOBODY, CHEAT_PENALTY, FALSE_ALARM_PENALTY,
+  newGame, draw, meld, layoff, swap, undo, discard, again, accuse, waive, viewFor, arrange, arrangeOptions, extend, meldValue, handSize,
+  canMeld, discardable, openPoints, isOut, faceOf, isJoker, handPoints, OPEN_MIN, NOBODY, CHEAT_PENALTY, FALSE_ALARM_PENALTY,
 } from './game.js';
-import { computerMove } from './ai.js';
+import { computerMove, cheatMoves } from './ai.js';
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
-import { rematchBlocked } from '../schummeln.js';
+import { rematchBlocked, cpuCheats, cpuAccuses } from '../schummeln.js';
 import { cardName, SUIT_NAMES } from '../karten/cards.js';
 
 const $ = (id) => document.getElementById(id);
-const THINK_MS = { draw: 800, discard: 700, other: 450 }; // so lange „überlegt“ der Computer je Schritt, nachdem die Karten liegen
+const THINK_MS = { draw: 800, discard: 700, other: 450, accuse: 900 }; // so lange „überlegt“ der Computer je Schritt, nachdem die Karten liegen
 const nameOf = (id) => cardName(faceOf(id));
 const asObject = (id) => (isJoker(id) ? 'einen Joker' : nameOf(id)); // „legt einen Joker an“
 const RUN_NAMES = { 1: 'Ass', 11: 'Bube', 12: 'Dame', 13: 'König', 14: 'Ass' };
@@ -41,6 +42,11 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
   let sort = 'suit';
   let hint = '';
   let timer = null;
+  // Computer allein ohne Hilfen: Schummelzug, den er gerade spielt · ob er in diesem Zug schummelt (beim Ziehen
+  // entschieden) · der Zug des Menschen, den er schon geprüft hat
+  let plan = [];
+  let cheating = false;
+  let judged = null;
 
   const panel = createPanel($('rm-panel'), {
     solo,
@@ -65,7 +71,7 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
     if (type === 'draw') return draw(state, player, arg?.from);
     if (type === 'meld') return meld(state, player, arg?.cards, arg?.hint);
     if (type === 'layoff') return layoff(state, player, arg?.card, arg?.index, arg?.end);
-    if (type === 'swap') return swap(state, player, arg?.card, arg?.index);
+    if (type === 'swap') return swap(state, player, arg?.card, arg?.index, arg?.joker ?? null); // joker: ohne Hilfen der angetippte
     if (type === 'undo') return undo(state, player);
     if (type === 'discard') return discard(state, player, arg?.card);
     if (type === 'accuse') return accuse(state, player);
@@ -122,10 +128,31 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
   // Der Computer spielt Schritt für Schritt, sobald die Karten liegen (solange ändert sonst niemand etwas am Stand)
   function computerTurn() {
     clearTimeout(timer);
+    const cpu = 1 - me;
+    const c = state.cheat;
+    if (c && c.player === me && c !== judged) { // ohne Hilfen: den letzten Zug des Menschen einmal prüfen, bevor er handelt
+      judged = c;
+      if (cpuAccuses(!c.legal)) {
+        timer = setTimeout(() => {
+          const next = accuse(state, cpu);
+          if (next) commit(next);
+        }, THINK_MS.accuse + board.busy() * 1000);
+        return;
+      }
+      if (state.winner !== null) return commit(waive(state, cpu)); // Runde vorbei: gelten lassen, sonst sperrt das die nächste
+    }
     if (state.winner !== null || state.turn === me) return;
-    const m = computerMove(viewFor(state, 1 - me), 1 - me);
+    const v = viewFor(state, cpu);
+    let m = plan.shift() ?? computerMove(v, cpu);
+    if (m.t === 'draw') cheating = state.free && cpuCheats();
+    if (m.t === 'discard' && cheating) { // einmal je Zug: statt des Ablegens ein Schummelzug, falls es einen gibt
+      cheating = false;
+      plan = cheatMoves(v, cpu) ?? [];
+      m = plan.shift() ?? m;
+    }
     timer = setTimeout(() => {
-      const next = apply(m.t, 1 - me, m.arg) ?? rescue(state, 1 - me);
+      let next = apply(m.t, cpu, m.arg);
+      if (!next) [plan, next] = [[], rescue(state, cpu)];
       if (next) commit(next);
     }, (THINK_MS[m.t] ?? THINK_MS.other) + board.busy() * 1000);
   }
@@ -149,8 +176,6 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
 
   // Ohne Hilfen: das Spiel lässt auch Regelwidriges zu und verrät nicht, was passt
   const loose = () => !!mine?.free;
-  // Dieselbe Sicht mit Regeln – um ohne Hilfen trotzdem den regelgerechten Zug zu wählen, wenn es einen gibt
-  const strict = () => (loose() ? { ...mine, free: false } : mine);
 
   // Warum geht Auslegen/Anlegen gerade nicht? (null = geht)
   function meldBlock() {
@@ -190,15 +215,21 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
   function tryLayoff(card, target) {
     const block = meldBlock();
     if (block) return say(block);
-    if (!mine.opened[me] && !loose()) return say(`Anlegen und Joker tauschen geht erst, wenn du herausgekommen bist (${OPEN_MIN} Punkte).`);
-    const canSwap = !!swap(strict(), me, card, target.index);
-    const canLay = !!layoff(strict(), me, card, target.index, target.end);
     const onJoker = target.card && isJoker(target.card);
-    if ((canSwap && (!canLay || onJoker)) || (loose() && !canLay && onJoker && swap(mine, me, card, target.index))) {
+    if (loose()) { // ohne Hilfen zählt nur, wohin man tippt (auf einen Joker = tauschen) – sonst verriete es, was passt
+      const swapping = onJoker && !isJoker(card);
+      if (!(swapping ? swap(mine, me, card, target.index, target.card) : layoff(mine, me, card, target.index, target.end))) return say(noRest([card]));
+      act(swapping ? 'swap' : 'layoff', { card, index: target.index, end: target.end, ...(swapping && { joker: target.card }) });
+      return true;
+    }
+    if (!mine.opened[me]) return say(`Anlegen und Joker tauschen geht erst, wenn du herausgekommen bist (${OPEN_MIN} Punkte).`);
+    const canSwap = !!swap(mine, me, card, target.index);
+    const canLay = !!layoff(mine, me, card, target.index, target.end);
+    if (canSwap && (!canLay || onJoker)) {
       act('swap', { card, index: target.index });
       return true;
     }
-    if (canLay || (loose() && layoff(mine, me, card, target.index, target.end))) {
+    if (canLay) {
       act('layoff', { card, index: target.index, end: target.end });
       return true;
     }
@@ -250,7 +281,7 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
     if (verdict) cheat.say(mine.seq, verdictText(verdict), verdict.type === 'caught');
     const n = (p) => handSize(mine, p);
     const cards = (k) => (k === 1 ? '1 Karte' : `${k} Karten`);
-    const out = (p) => (mine.opened[p] ? ' (draußen)' : '');
+    const out = (p) => (isOut(mine, p) ? ' (draußen)' : '');
     const won = mine.winner === me;
     if (won && !cheered) room.celebrate(me);
     cheered = won;
@@ -310,7 +341,7 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
 
   function verdictText(e) {
     if (e.type === 'caught') {
-      return e.player === me ? `Erwischt! Dein ganzer Zug wird zurückgenommen, dazu ${CHEAT_PENALTY} Strafkarten – spiel ihn neu.`
+      return e.player === me ? `${other()} ruft „Geschummelt!“ – erwischt! Dein ganzer Zug wird zurückgenommen, dazu ${CHEAT_PENALTY} Strafkarten – spiel ihn neu.`
         : `Erwischt! ${other()} hat geschummelt – der Zug wird zurückgenommen, dazu ${CHEAT_PENALTY} Strafkarten.`;
     }
     return e.player === me ? `Fehlalarm! Der Zug war in Ordnung – du ziehst ${FALSE_ALARM_PENALTY} Strafkarte.`
@@ -328,8 +359,9 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
       else if (e.type === 'draw' && e.why === 'strafe') continue; // steht schon im Urteil
       else if (e.type === 'draw') parts.push(e.from === 'pile' ? `${who(e.player)} ${verb(e.player, 'nimmst', 'nimmt')} ${asObject(e.card)} von der Ablage.` : `${who(e.player)} ${verb(e.player, 'ziehst', 'zieht')} vom Stapel.`);
       else if (e.type === 'shuffle') parts.push('Die Ablage wird neu gemischt.');
-      else if (e.type === 'meld') parts.push(`${who(e.player)} ${verb(e.player, 'legst', 'legt')} ${meldName(mine.melds[e.index] ?? arrange(e.cards))} aus.`);
-      else if (e.type === 'open') parts.push(`Mit ${e.points} Punkten herausgekommen!`);
+      else if (e.type === 'meld') { // ohne Hilfen ohne Figurname – der verriete, ob sie gültig ist
+        parts.push(`${who(e.player)} ${verb(e.player, 'legst', 'legt')} ${loose() ? `${e.cards.length} Karten` : meldName(mine.melds[e.index] ?? arrange(e.cards))} aus.`);
+      } else if (e.type === 'open' && !loose()) parts.push(`Mit ${e.points} Punkten herausgekommen!`);
       else if (e.type === 'layoff') parts.push(`${who(e.player)} ${verb(e.player, 'legst', 'legt')} ${asObject(e.card)} an.`);
       else if (e.type === 'swap') parts.push(`${who(e.player)} ${verb(e.player, 'tauschst', 'tauscht')} ${nameOf(e.card)} gegen einen Joker.`);
       else if (e.type === 'undo') parts.push(`${who(e.player)} ${verb(e.player, 'nimmst', 'nimmt')} den Zug zurück.`);
@@ -389,7 +421,7 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
   const stopFrames = room.onFrame((dt) => board.update(dt));
   board.setSort(sort);
 
-  if (isHost) commit(newGame(Math.random() < 0.5 ? 0 : 1, Math.random, { free: free && !solo })); // wer anfängt, entscheidet der Zufall
+  if (isHost) commit(newGame(Math.random() < 0.5 ? 0 : 1, Math.random, { free })); // wer anfängt, entscheidet der Zufall
 
   return {
     handle,

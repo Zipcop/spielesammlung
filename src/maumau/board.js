@@ -210,11 +210,6 @@ export function createMauMauBoard(parent) {
     },
     // eigene Karte unter der Maus (Kartentext) oder null
     pickHand: (raycaster) => cards.pick(raycaster, model.hands[me])?.id ?? null,
-    // Teile für den Rundgang (tutorial.js): Punkt in der Welt
-    anchor(name) {
-      const local = { stapel: [TALON.x, 0, TALON.z], ablage: [PILE.x, 0, PILE.z], hand: [0, HAND.at.y, me === 0 ? HAND.at.z : -HAND.at.z] }[name];
-      return local ? cards.group.localToWorld(new THREE.Vector3(...local)) : null;
-    },
     // Karte zu einem Mesh (mit der Hand gepackt, tisch.js): { id, from: 'hand' | 'talon' } oder null (andere Karte)
     cardOf(mesh) {
       const c = mesh.userData.card;

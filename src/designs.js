@@ -49,7 +49,7 @@ export function createDesigns(scene, look) {
     look.floor.map = once(`floor-${name}`, () => woodTexture({ base: s.floor, boards: 8, joints: true, repeat: [4, 4] }));
     look.rug.map = once(`rug-${name}`, () => rugTexture(s.rug));
     look.table.map = s.felt ? once('felt', () => feltTexture('gruen')) : look.tableWood;
-    look.table.roughness = s.felt ? 1 : 0.45;
+    look.table.roughness = s.felt ? 1 : 0.65; // seidenmatt – mit 0,45 spiegelte die Platte bei Tag die Sonne fast weiß
     look.curtain.color.setHex(s.curtain);
     look.ceiling.color.setHex(s.ceiling);
     for (const m of [look.paper, look.panel, look.floor, look.rug, look.table]) m.needsUpdate = true;

@@ -3,9 +3,9 @@
 // der Gast schickt nur Wünsche (Zug, Aufgeben, Revanche) – der Host prüft sie mit chess.js.
 // Allein (level gesetzt): Spieler 1 ist Stockfish (solo.js), dazu das Orakel mit Zuganalyse (analysis.js).
 // Zu zweit: Live-Bewertung der eigenen Züge (abschaltbar) und nach der Partie der Rückblick „Analyse“ –
-// jeder PC rechnet für sich. free = „Ohne Hilfen“ (nur zu zweit): keine erlaubten Felder, jede eigene Figur
-// darf überallhin, „Geschummelt!“-Knopf – und keine Analyse.
-import { newGame, move, resign, takeBack, again, accuse, turnOf, colorOf, legalMoves, positionAt, REASONS, MAX_STRIKES } from './game.js';
+// jeder PC rechnet für sich. free = „Ohne Hilfen“ (zu zweit und allein): keine erlaubten Felder, jede eigene Figur
+// darf überallhin, „Geschummelt!“-Knopf – und keine Analyse, kein Orakel, kein Zurücknehmen.
+import { newGame, move, resign, takeBack, again, accuse, waive, anyMove, turnOf, colorOf, legalMoves, positionAt, REASONS, MAX_STRIKES } from './game.js';
 import { createPanel } from './panel.js';
 import { createSolo, LEVELS, loadRecord } from './solo.js';
 import { createAnalyst } from './analysis.js';
@@ -97,7 +97,12 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     level,
     me,
     onComputerMove: (uci) => {
-      const next = move(state, 1 - me, uci);
+      // ohne Hilfen kann Stockfish in einer regelwidrigen Stellung Unsinn liefern – dann irgendein erlaubter Zug
+      const next = move(state, 1 - me, uci) ?? (state.free ? move(state, 1 - me, anyMove(state)) : null);
+      if (next) commit(next);
+    },
+    onJudge: (accuses) => {
+      const next = accuses ? accuse(state, 1 - me) : waive(state, 1 - me);
       if (next) commit(next);
     },
   }) : null;
@@ -197,7 +202,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     const v = state.verdict;
     if (v) {
       const who = v.player === me ? 'Du bekommst' : `${other()} bekommt`;
-      cheat.say(`${state.moves.length}:${state.strikes}:${JSON.stringify(v)}`, v.caught
+      cheat.say(`${state.moves.length}:${state.strikes}:${JSON.stringify(v)}`, solo ? soloVerdict(v) : v.caught
         ? `Erwischt! ${v.player === me ? 'Dein' : 'Der'} Zug ${v.player === me ? 'wird' : `von ${other()} wird`} zurückgenommen – ${who} eine Verwarnung.`
         : `Fehlalarm! Der Zug war erlaubt – ${who} eine Verwarnung.`, v.caught);
     }
@@ -219,19 +224,26 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
 
   function statusText() {
     // ohne Hilfen: Verwarnungen mit anzeigen (bei der dritten ist die Partie verloren)
-    const strikes = state.free ? ` · Verwarnungen: du ${state.strikes[me]}/${MAX_STRIKES}, ${other()} ${state.strikes[1 - me]}/${MAX_STRIKES}` : '';
+    const strikes = state.free ? ` · Verwarnungen: du ${state.strikes[me]}/${MAX_STRIKES}, ${solo ? 'Computer' : other()} ${state.strikes[1 - me]}/${MAX_STRIKES}` : '';
     if (state.result) return `Partie beendet${strikes}`;
     if (waiting) return 'Zug wird gesendet …';
     const check = state.check ? 'Schach! ' : '';
     if (turnOf(state) === me) return `${check}Du bist am Zug${strikes}`;
-    return solo ? `${check}Der Computer denkt …` : `${check}${other()} ist am Zug${strikes}`;
+    return solo ? `${check}Der Computer denkt …${strikes}` : `${check}${other()} ist am Zug${strikes}`;
+  }
+
+  // Allein: Meldungen, wenn der Computer ruft oder erwischt wird (v.player = wer die Verwarnung bekommt)
+  function soloVerdict({ caught, player }) {
+    if (player !== me) return caught ? 'Erwischt! Der Computer nimmt seinen Zug zurück und bekommt eine Verwarnung.' : 'Der Computer ruft „Geschummelt!“ – Fehlalarm, dein Zug war erlaubt. Er bekommt eine Verwarnung.';
+    return caught ? 'Der Computer ruft „Geschummelt!“ – erwischt! Du musst neu ziehen und bekommst eine Verwarnung.' : 'Fehlalarm! Der Zug des Computers war erlaubt – du bekommst eine Verwarnung.';
   }
 
   function endInfo() {
     const { winner, reason } = state.result;
     const title = winner === null ? 'Remis' : winner === me ? 'Du gewinnst!' : `${other()} gewinnt`;
     let text = reason === 'aufgabe' ? (winner === me ? `${other()} hat aufgegeben.` : 'Du hast aufgegeben.') : `${REASONS[reason]}.`;
-    if (solo) {
+    if (solo && state.free) text += ' Ohne Hilfen – zählt nicht zur Bilanz.';
+    else if (solo) {
       const r = loadRecord()[level] ?? { w: 0, d: 0, l: 0 };
       text += ` Bilanz gegen ${LEVELS[level].name} – Siege: ${r.w} · Remis: ${r.d} · Niederlagen: ${r.l}`;
     }
@@ -343,7 +355,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
   };
   const stopFrames = room.onFrame((dt) => board.update(dt));
 
-  if (isHost) commit(newGame(Math.random() < 0.5 ? 0 : 1, { free: free && !solo })); // Farben per Zufall
+  if (isHost) commit(newGame(Math.random() < 0.5 ? 0 : 1, { free })); // Farben per Zufall
 
   return {
     handle,

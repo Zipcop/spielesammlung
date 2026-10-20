@@ -1,13 +1,21 @@
 // Billard-Partie (8-Ball): verbindet Spielstand (rules.js), Tisch mit Physik (table.js), Seitenfeld (panel.js),
 // Computer (ai.js) und Netz. Der Host hält den Spielstand. Wer stößt, rechnet die Physik selbst, streamt die
 // Kugeln und meldet das Ergebnis (Gast → Host: { t: 'shot', arg: report }). Zielen sieht der andere live ('aim').
-// Bedienung: Maus zeigt die Richtung, linke Maustaste gedrückt halten = Kraft, loslassen = Stoß, Esc = abbrechen.
+// Bedienung (Nico 20.10.2026): Maus zeigt die Richtung (Shift = fein), linke Maustaste drücken = Richtung steht,
+// dann die Maus vom Ziel weg ziehen = Queue zurückziehen (je weiter, desto stärker), loslassen = Stoß, Esc = abbrechen.
 import { newGame, applyShot, placeCue, again, targets, freeSpot, SOLIDS, STRIPES } from './rules.js';
 import { chooseShot } from './ai.js';
 import { createPanel } from './panel.js';
 
 const $ = (id) => document.getElementById(id);
-const CHARGE_S = 1.3; // Kraft füllt sich so lange (und läuft dann zurück)
+// Kraft = Mausweg in Bildschirm-Pixeln entlang des Queues, vom Ziel weg – in jeder Kameraansicht gleich (auf dem Tuch
+// gemessen waren es je nach Zoom und Blickwinkel 60 px = 26 % oder 32 px = 75 %). Die ersten Pixel zählen nicht (Zittern).
+const POWER_DEAD = 6;
+const POWER_PX = 300; // px für volle Kraft
+const FINE = 0.1; // Shift: der Zielpunkt geht nur ein Zehntel des Mauswegs mit
+const FINE_RELEASE = 20; // nach Shift bleibt der Zielpunkt stehen, bis die Maus so viele px weiter ist (kein Sprung)
+const MIN_POWER = 0.02; // weniger zurückgezogen = kein Stoß (abgebrochen)
+const STROKE_S = 0.09; // Queue schnellt nach dem Loslassen vor, dann trifft er die Weiße
 const THINK_MS = 1000; // Computer überlegt kurz
 const AIM_SHOW_MS = 900; // Computer zeigt kurz, wohin er zielt
 const AIM_SEND_MS = 66; // Zielen 15-mal pro Sekunde an den anderen
@@ -22,8 +30,12 @@ export function startBillard({ room, board, canvas, me, send, onLeave, ask, leve
   let state = null;
   let waiting = false; // Gast: Wunsch geschickt, Antwort vom Host steht aus
   let rolling = false; // meine Kugeln rollen gerade
-  let charging = null; // { start } – Maustaste gedrückt, Kraft lädt (nach der Uhr, nicht nach Bildern)
+  let charging = null; // { x, y, back, power } – Maustaste gedrückt bei x/y: Richtung steht, Ziehen entlang back = Kraft
+  let stroke = null; // { power, t } – losgelassen, der Queue schnellt vor
   let aimAngle = 0;
+  let last = null; // letzte Mausposition { x, y }
+  let fine = null; // Zielpunkt mit Shift { clientX, clientY } (geht langsamer als die Maus)
+  let hold = null; // nach Shift: { x, y, at } – Maus bei x/y, gezielt wird weiter auf at
   let lastAimSend = 0;
   let cheered = false;
   let timer = null;
@@ -160,7 +172,7 @@ export function startBillard({ room, board, canvas, me, send, onLeave, ask, leve
     if (placingNow()) return 'Ball in Hand: Weiße mit der Maus hinlegen (klicken)';
     const must = targets(state, me);
     const goal = state.isBreak ? 'Anstoß' : must?.length === 1 && must[0] === 8 ? 'jetzt die 8' : must ? GROUP_NAME[state.groups[me]] : 'Tisch offen';
-    return `Du bist dran (${goal}) – zielen, Maustaste halten = Kraft, loslassen = Stoß`;
+    return `Du bist dran (${goal}) – zielen, Maustaste halten und vom Ziel weg ziehen = Kraft, loslassen = Stoß`;
   }
 
   function lastText() {
@@ -178,22 +190,58 @@ export function startBillard({ room, board, canvas, me, send, onLeave, ask, leve
 
   // --- Eingaben ---
   function onMove(e) {
-    if (!myTurn()) return;
-    const spot = board.pickBed(room.rayFrom(e));
-    if (!spot) return;
+    const [dx, dy] = last ? [e.clientX - last.x, e.clientY - last.y] : [0, 0]; // vor dem Abbruch merken – sonst springt das feine Zielen
+    last = { x: e.clientX, y: e.clientY };
+    if (!myTurn() || stroke) return;
     if (placingNow()) {
+      const spot = board.pickBed(room.rayFrom(e));
+      if (!spot) return;
       board.setPlacing(spot);
       canvas.style.cursor = freeSpot(state, spot, 0) ? 'pointer' : 'not-allowed';
       return;
     }
-    const cue = state.positions[0];
-    aimAngle = Math.atan2(-(spot[1] - cue[1]), spot[0] - cue[0]);
+    if (charging) {
+      if (!(e.buttons & 1)) return cancel(); // Taste außerhalb des Fensters losgelassen
+      // Richtung steht – wie weit ist die Maus auf dem Bildschirm entlang des Queues vom Ziel weg gewandert?
+      const along = (e.clientX - charging.x) * charging.back.x + (e.clientY - charging.y) * charging.back.y;
+      charging.power = Math.min(Math.max((along - POWER_DEAD) / POWER_PX, 0), 1);
+    } else {
+      const spot = board.pickBed(room.rayFrom(aimPoint(e, dx, dy)));
+      if (spot) {
+        const cue = state.positions[0];
+        aimAngle = Math.atan2(-(spot[1] - cue[1]), spot[0] - cue[0]);
+      }
+    }
     showAim();
   }
 
-  function showAim() {
-    const power = charging ? chargeNow() : 0;
+  // Punkt, auf den gezielt wird: sonst die Maus selbst. Mit Shift ein eigener Punkt, der nur ein Zehntel des Mauswegs
+  // mitgeht; nach dem Loslassen von Shift bleibt er stehen, bis die Maus ein Stück weiterbewegt wurde.
+  function aimPoint(e, dx, dy) {
+    if (e.shiftKey) {
+      const from = fine ?? hold?.at ?? { clientX: e.clientX - dx, clientY: e.clientY - dy };
+      [fine, hold] = [{ clientX: from.clientX + dx * FINE, clientY: from.clientY + dy * FINE }, null];
+      return fine;
+    }
+    if (fine) [hold, fine] = [{ x: e.clientX, y: e.clientY, at: fine }, null];
+    if (hold && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) < FINE_RELEASE) return hold.at;
+    hold = null;
+    return e;
+  }
+
+  // Richtung „vom Ziel weg“ (zum Ende des Queues) auf dem Bildschirm als Einheitsvektor
+  function backOnScreen() {
+    const cue = state.positions[0];
+    const a = room.toScreen(board.toWorld(cue));
+    const b = room.toScreen(board.toWorld([cue[0] - Math.cos(aimAngle) * 0.1, cue[1] + Math.sin(aimAngle) * 0.1]));
+    const len = a && b ? Math.hypot(b.x - a.x, b.y - a.y) : 0;
+    return len > 1 ? { x: (b.x - a.x) / len, y: (b.y - a.y) / len } : { x: 0, y: 1 }; // Kugel nicht im Bild: nach unten ziehen
+  }
+
+  // power = wie weit der Queue zurückgezogen ist (0–1), auch beim Mitspieler zu sehen
+  function showAim(power = charging?.power ?? 0) {
     board.setAim({ angle: aimAngle, power });
+    if (charging) panel.setPower(power);
     const now = performance.now();
     if (now - lastAimSend > AIM_SEND_MS) {
       lastAimSend = now;
@@ -201,14 +249,8 @@ export function startBillard({ room, board, canvas, me, send, onLeave, ask, leve
     }
   }
 
-  // Kraft läuft hoch und wieder runter, solange die Taste gedrückt ist
-  const chargeNow = () => {
-    const k = ((performance.now() - charging.start) / 1000 / CHARGE_S) % 2;
-    return Math.max(0.03, k < 1 ? k : 2 - k);
-  };
-
   function onDown(e) {
-    if (e.button !== 0 || !myTurn() || e.target !== canvas) return;
+    if (e.button !== 0 || !myTurn() || stroke || e.target !== canvas) return;
     if (placingNow()) {
       const spot = board.pickBed(room.rayFrom(e));
       if (spot && freeSpot(state, spot, 0)) {
@@ -217,33 +259,49 @@ export function startBillard({ room, board, canvas, me, send, onLeave, ask, leve
       }
       return;
     }
-    charging = { start: performance.now() };
+    charging = { x: e.clientX, y: e.clientY, back: backOnScreen(), power: 0 };
+    canvas.setPointerCapture(e.pointerId); // Ziehen geht weiter, auch wenn die Maus über das Seitenfeld rutscht
   }
 
   function onUp(e) {
     if (e.button !== 0 || !charging) return;
-    const power = chargeNow();
+    const { power } = charging;
     charging = null;
-    if (myTurn()) shoot(aimAngle, power);
+    if (power < MIN_POWER || !myTurn()) return cancel();
+    stroke = { power, t: 0 };
+  }
+
+  function cancel() {
+    charging = null;
+    lastAimSend = 0; // der andere soll den Abbruch gleich sehen, nicht erst beim nächsten Zielen
+    if (myTurn()) showAim(0);
+    render();
   }
 
   function onKey(e) {
-    if (e.key === 'Escape' && charging) {
-      charging = null;
-      showAim();
-      render();
-    }
+    if (e.key === 'Escape' && charging) cancel();
   }
+
+  const forget = () => (last = null); // Maus verlässt das Bild – beim Zurückkommen nicht den ganzen Weg als Zug werten
+  const noSelect = (e) => e.button === 0 && e.preventDefault(); // Ziehen markiert sonst Text im Seitenfeld
 
   canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointerleave', forget);
+  canvas.addEventListener('mousedown', noSelect);
   window.addEventListener('pointerup', onUp);
   window.addEventListener('keydown', onKey);
   const stopFrames = room.onFrame((dt) => {
     board.update(dt);
-    if (charging) {
-      panel.setPower(chargeNow());
-      showAim();
+    if (stroke) {
+      // Queue schnellt vor, trifft die Weiße – dann rechnet die Physik mit der Kraft vom Loslassen
+      stroke.t += dt;
+      if (stroke.t < STROKE_S) showAim(stroke.power * (1 - stroke.t / STROKE_S));
+      else {
+        const { power } = stroke;
+        stroke = null;
+        shoot(aimAngle, power);
+      }
     }
     if (state && statusShown !== statusText()) render(); // z. B. nach dem Ausrollen beim Zuschauer
   });
@@ -258,6 +316,8 @@ export function startBillard({ room, board, canvas, me, send, onLeave, ask, leve
       clearTimeout(timer);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointerleave', forget);
+      canvas.removeEventListener('mousedown', noSelect);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('keydown', onKey);
       canvas.style.cursor = '';

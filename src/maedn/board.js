@@ -255,13 +255,6 @@ export function createMaednBoard(parent, { onStream = () => {} } = {}) {
       const at = group.worldToLocal(point.clone());
       return { field: fieldOf(at, seat), onBoard: Math.abs(at.x) <= BOARD / 2 && Math.abs(at.z) <= BOARD / 2 };
     },
-    // Teile für den Rundgang (tutorial.js): Punkt in der Welt – „haus“ ist das Haus des Spielers, dessen Figuren leuchten dürfen
-    anchor(name) {
-      if (name === 'teller') return dice.tray.getWorldPosition(new THREE.Vector3());
-      if (name === 'mitte') return group.localToWorld(new THREE.Vector3(0, THICK, 0));
-      if (name === 'haus') return group.localToWorld(toWorld(cellOf(Math.max(movable.seat, 0), HOUSE, 0)));
-      return null;
-    },
     // Figur zu einem Mesh: { seat, piece } oder null
     pieceOf(mesh) {
       for (let seat = 0; seat < pieces.length; seat++) {

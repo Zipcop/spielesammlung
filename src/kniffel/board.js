@@ -567,15 +567,6 @@ export function createBoard(parent, { onStream }) {
       else releaseEarly = true;
     },
     hitCup: (raycaster) => raycaster.intersectObject(cup, true).length > 0,
-    // Teile für den Rundgang (tutorial.js): Punkt in der Welt
-    anchor(name) {
-      const o = { becher: cup, block: deco[0] }[name];
-      if (o) return o.getWorldPosition(new THREE.Vector3());
-      if (name !== 'wuerfel') return null;
-      const sum = new THREE.Vector3();
-      for (const d of dice) sum.add(d.getWorldPosition(new THREE.Vector3()));
-      return sum.divideScalar(dice.length);
-    },
     loose: () => [...dice, cup, ...deco], // fliegt beim Umwerfen einzeln (tisch.js)
     // Design dieses PCs: Würfelfarbe und Filz (settings.js)
     setDesign(s) {

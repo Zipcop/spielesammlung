@@ -75,6 +75,7 @@
 
 .md-actions {
   display: grid;
+  gap: 6px; /* „Würfeln“ und – ohne Hilfen – „Weiter“ */
 }
 
 .md-actions button {

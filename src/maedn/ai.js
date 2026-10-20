@@ -5,7 +5,7 @@
 // Herauskommen 61 %, 1 gegen 3 davon 33 % statt 25 %) –
 // eine frische Figur auf dem A-Feld muss wieder weg und steht im Weg. Er sieht nur, was auch Menschen am Brett
 // sehen, und würfelt nicht selbst – das macht der Host.
-import { legalMoves, targetOf, fieldOf, HOUSE, GOAL, TRACK, SEATS } from './rules.js';
+import { legalMoves, targetOf, fieldOf, HOUSE, GOAL, TRACK, SEATS, LAST } from './rules.js';
 
 // Wie wahrscheinlich wird eine Figur von player auf diesem Feld im nächsten Wurf eines Gegners geschlagen?
 // Gegner 1–6 Felder dahinter: 1/6 · 7–12 Felder (erst eine 6, dann der Rest): 1/36 ·
@@ -54,4 +54,18 @@ export function chooseMove(s, player = s.turn) {
   const options = legalMoves(s, player);
   if (!options.length) return null;
   return options.reduce((best, i) => (rate(s, player, i) > rate(s, player, best) ? i : best));
+}
+
+// Ohne Hilfen allein: Schummelzug des Computers als { piece, to } – ein Feld weiter als gewürfelt oder ohne 6 heraus.
+// Am liebsten einer, der schlägt, dann einer ins Ziel, sonst ein zufälliger. null = keiner möglich
+export function cheatMove(s, player = s.turn, rng = Math.random) {
+  const mine = s.pieces[player];
+  const options = [];
+  mine.forEach((pos, piece) => {
+    const to = pos !== HOUSE ? pos + s.die + 1 : s.die !== 6 && piece === mine.indexOf(HOUSE) ? 0 : null;
+    if (to !== null && to <= LAST && !mine.includes(to)) options.push({ piece, to });
+  });
+  const hits = (to) => fieldOf(player, to) !== null && s.pieces.some((theirs, q) => q !== player && theirs.some((p) => fieldOf(q, p) === fieldOf(player, to)));
+  const rated = options.map((o) => ({ o, worth: (hits(o.to) ? 2 : 0) + (mine[o.piece] < GOAL && o.to >= GOAL ? 1 : 0) + rng() * 0.5 }));
+  return rated.length ? rated.reduce((best, r) => (r.worth > best.worth ? r : best)).o : null;
 }

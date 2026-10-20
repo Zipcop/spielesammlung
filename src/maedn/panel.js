@@ -4,7 +4,7 @@
 import './maedn.css';
 import { COLORS } from './print.js';
 
-export function createPanel(root, { solo, onRoll, onAgain, onLeave, onPick }) {
+export function createPanel(root, { solo, onRoll, onPass, onAgain, onLeave, onPick }) {
   root.innerHTML = `
     <div class="md-head"><span class="brand">Mensch ärgere Dich nicht</span></div>
     <ul class="md-players">${COLORS.map((c, k) => `
@@ -16,6 +16,7 @@ export function createPanel(root, { solo, onRoll, onAgain, onLeave, onPick }) {
     </div>
     <div class="md-actions" data-running>
       <button data-roll>Würfeln</button>
+      <button class="secondary" data-pass hidden>Weiter</button>
     </div>
     <ol class="md-log" data-log></ol>
     <div class="md-end" data-end hidden>
@@ -32,9 +33,10 @@ export function createPanel(root, { solo, onRoll, onAgain, onLeave, onPick }) {
       <li>Ins Ziel nur mit passender Zahl, dort darf man überspringen</li>
       <li>Keine Figur draußen: bis zu dreimal würfeln</li>
     </ul>
-    <p class="muted small" data-free hidden>Ohne Hilfen: eigene Figur anklicken, dann ein beliebiges Feld voraus – es wird nichts geprüft.
+    <p class="muted small" data-free hidden>Ohne Hilfen: Nichts zieht von selbst. Eigene Figur anklicken, dann ein beliebiges Feld voraus –
+      oder „Weiter“. Nochmal würfeln geht immer – ob es erlaubt war, prüft der andere.
       „Geschummelt!“ geht, bis du selbst würfelst: erwischt = Figur zurück ins Haus, Fehlalarm = du setzt einmal aus.
-      Auch ein ausgelassener Schlag gilt als Schummeln.</p>
+      Auch ein ausgelassener Schlag gilt als Schummeln.${solo ? ' Allein schummeln die Computer auch mal – und passen auf.' : ''}</p>
     ${solo ? '<div class="row" data-shelf-row><button class="secondary small" data-shelf>Zum Schrank</button></div>' : ''}`;
 
   const q = (name) => root.querySelector(`[data-${name}]`);
@@ -44,6 +46,7 @@ export function createPanel(root, { solo, onRoll, onAgain, onLeave, onPick }) {
     if (!b || b.disabled) return;
     if ('color' in b.dataset) onPick(Number(b.dataset.color));
     else if ('roll' in b.dataset) onRoll();
+    else if ('pass' in b.dataset) onPass();
     else if ('again' in b.dataset) onAgain();
     else if ('leave' in b.dataset || 'shelf' in b.dataset) onLeave(!('leave' in b.dataset));
   };
@@ -64,8 +67,8 @@ export function createPanel(root, { solo, onRoll, onAgain, onLeave, onPick }) {
       root.querySelector('.md-players').hidden = true;
     },
     // players = [{ name, color, goal, out, turn, place }] je Sitz · log = Zeilen (neueste zuerst) · end = { title, places } oder null
-    // free = ohne Hilfen (Hinweis zeigen)
-    render({ players, status, canRoll, rollText, log, end, free }) {
+    // free = ohne Hilfen (Hinweis und „Weiter“ zeigen) · canPass = „Weiter“ jetzt möglich
+    render({ players, status, canRoll, canPass, rollText, log, end, free }) {
       q('free').hidden = !free;
       q('choose').hidden = true;
       q('log').hidden = false;
@@ -81,6 +84,8 @@ export function createPanel(root, { solo, onRoll, onAgain, onLeave, onPick }) {
       q('status').textContent = status;
       q('roll').disabled = !canRoll;
       q('roll').textContent = rollText;
+      q('pass').hidden = !free;
+      q('pass').disabled = !canPass;
       q('log').replaceChildren(...log.map((line) => Object.assign(document.createElement('li'), { textContent: line })));
       q('running').hidden = !!end;
       q('end').hidden = !end;

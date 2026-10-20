@@ -72,6 +72,16 @@ function roundRect(g, x, y, w, h, r) {
   g.roundRect(x, y, w, h, r);
 }
 
+// Schmaler schwarzer Rand ringsum (Nico 20.10.2026): weiß auf weiß verschwammen übereinanderliegende Karten.
+// Die Ecken folgen der Kartenform (Radius 3,5 mm = 22 Pixel, cards3d.js).
+function frame(g, w, h) {
+  const width = 8; // ≈ 1,3 mm
+  g.strokeStyle = BLACK;
+  g.lineWidth = width;
+  roundRect(g, width / 2, width / 2, w - width, h - width, 22 - width / 2);
+  g.stroke();
+}
+
 // Augen-Bilder 2–10: Spalte (0 links, 1 Mitte, 2 rechts) und Zeile (0 oben … 1 unten)
 const R4 = [0, 1 / 3, 2 / 3, 1];
 const PIPS = {
@@ -101,10 +111,7 @@ function drawJoker(g, card, w, h) {
   const [capA, capB] = card === 'xr' ? [RED, BLUE] : [BLACK, '#6d6d6d'];
   g.fillStyle = '#fbf8f1';
   g.fillRect(0, 0, w, h);
-  g.strokeStyle = 'rgba(0, 0, 0, 0.12)';
-  g.lineWidth = 3;
-  roundRect(g, 5, 5, w - 10, h - 10, 22);
-  g.stroke();
+  frame(g, w, h);
   for (const flip of [false, true]) {
     g.save();
     if (flip) {
@@ -190,10 +197,7 @@ function drawFace(g, card, w, h) {
   const ink = inkOf(suit);
   g.fillStyle = '#fbf8f1';
   g.fillRect(0, 0, w, h);
-  g.strokeStyle = 'rgba(0, 0, 0, 0.12)';
-  g.lineWidth = 3;
-  roundRect(g, 5, 5, w - 10, h - 10, 22);
-  g.stroke();
+  frame(g, w, h);
 
   // Ecken: oben links und (gedreht) unten rechts
   for (const flip of [false, true]) {

@@ -64,33 +64,47 @@ export function createSheet(root, { me, onPick }) {
         }
 
         const t = totals(card, state.extra[p]);
-        cell(p, 'upper').textContent = t.upper;
+        const hide = state.free && !state.over; // ohne Hilfen rechnet man erst am Ende zusammen – auch kein „noch X“
+        cell(p, 'upper').textContent = hide ? '' : t.upper;
         const upperDone = UPPER.every((f) => card[f] !== undefined);
         const bonus = cell(p, 'bonus');
-        if (t.bonus || upperDone) bonus.textContent = t.bonus || '–';
+        if (hide) bonus.textContent = '';
+        else if (t.bonus || upperDone) bonus.textContent = t.bonus || '–';
         else bonus.replaceChildren(Object.assign(document.createElement('small'), { textContent: `noch ${BONUS_FROM - t.upper}` }));
-        cell(p, 'lower').textContent = t.lower;
+        cell(p, 'lower').textContent = hide ? '' : t.lower;
         cell(p, 'extra').textContent = t.extra || '–';
         const penalty = state.penalty?.[p] ?? 0;
         cell(p, 'penalty').textContent = penalty ? `−${penalty}` : '–';
-        cell(p, 'total').textContent = t.total - penalty;
+        cell(p, 'total').textContent = hide ? '' : t.total - penalty;
       }
       previous = state;
     },
 
-    // Ohne Hilfen: Punkte für dieses Feld selbst eintippen. done(zahl) oder done(null) = abgebrochen
+    // Ohne Hilfen: Punkte für dieses Feld selbst eintippen und einen Zusatz-Kniffel selbst ankreuzen
+    // (Kästchen in der eigenen Zusatz-Kniffel-Zeile). done(zahl, angesagt) oder done(null) = abgebrochen
     askClaim(field, done) {
       const td = cell(me, field);
       const input = Object.assign(document.createElement('input'), { type: 'number', min: 0, max: MAX_CLAIM, step: 1, className: 'claim' });
       input.placeholder = 'Punkte';
       td.replaceChildren(input);
+      // kein <label>: dessen Klick holt den Fokus aus dem Zahlenfeld, onblur bräche ab
+      const box = Object.assign(document.createElement('input'), { type: 'checkbox' });
+      const tick = document.createElement('span');
+      tick.append(box, Object.assign(document.createElement('small'), { textContent: ' +50' }));
+      tick.onmousedown = (e) => e.preventDefault(); // Fokus bleibt im Zahlenfeld
+      // auch „+50“ anklicken setzt den Haken – ohne Rückgabewert: false würde den Klick aufs Kästchen abbrechen
+      tick.onclick = (e) => {
+        if (e.target !== box) box.checked = !box.checked;
+      };
+      cell(me, 'extra').replaceChildren(tick);
       input.focus();
       let finished = false;
       const finish = (ok) => {
         if (finished) return;
         finished = true;
         const value = Number(input.value);
-        done(ok && input.value !== '' && Number.isInteger(value) && value >= 0 && value <= MAX_CLAIM ? value : null);
+        if (ok && input.value !== '' && Number.isInteger(value) && value >= 0 && value <= MAX_CLAIM) done(value, box.checked);
+        else done(null);
       };
       input.onkeydown = (e) => {
         e.stopPropagation(); // Leertaste würfelt sonst

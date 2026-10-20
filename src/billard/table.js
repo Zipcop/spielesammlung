@@ -9,6 +9,7 @@ import { playHit } from '../sound.js';
 import { createPhysics, BED_Y, STEP, CORNER, SIDE, CUSHION, POCKETS } from './physics.js';
 
 const { L, W } = TABLE;
+const PULL = 0.25; // m – so weit steht der Queue bei voller Kraft hinter der Weißen
 const SEND_EVERY = 8; // 30 Updates pro Sekunde an den Mitspieler
 const RAIL = 0.11; // Holzrahmen
 const TRAY = { y: -0.17, z: W / 2 + CUSHION + RAIL + 0.04 }; // Ablage der versenkten Kugeln an der Längsseite
@@ -152,7 +153,7 @@ export function createBillardBoard(parent, { onStream }) {
     if (!show) return;
     const dir = new THREE.Vector3(Math.cos(aim.angle), 0, -Math.sin(aim.angle));
     const start = new THREE.Vector3(p[0], BED_Y + R, p[1]);
-    cue.position.copy(start).addScaledVector(dir, -(R + 0.012 + aim.power * 0.22));
+    cue.position.copy(start).addScaledVector(dir, -(R + 0.012 + aim.power * PULL));
     cue.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir.clone().setY(0.09).normalize());
     const hit = firstHit(start, dir);
     guide.set(start, hit.point, hit.ball !== null ? hit.ghost : null, hit.ballDir);
@@ -223,7 +224,6 @@ export function createBillardBoard(parent, { onStream }) {
     applyRemote,
     strike,
     busy: () => !!(shot || remote),
-    anchor: (name) => (name === 'weisse' && balls[0].visible ? balls[0].getWorldPosition(new THREE.Vector3()) : null), // für den Rundgang (tutorial.js)
     // Ziel des Spielers am Zug (auch beim Mitspieler sichtbar); null = ausblenden
     setAim(next) {
       aim = next;

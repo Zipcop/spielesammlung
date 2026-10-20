@@ -5,7 +5,8 @@
 // „Ohne Hilfen“ (free): Jede eigene Figur darf auf jedes Feld ziehen, das nicht von einer eigenen Figur
 // oder einem König besetzt ist – auch regelwidrig. Bis zum nächsten Zug kann der andere „Geschummelt!“
 // rufen (accuse): Stimmt es, wird der Zug zurückgenommen und der Schummler muss neu ziehen; sonst trifft
-// die Verwarnung den Ankläger. Bei der dritten Verwarnung ist die Partie verloren.
+// die Verwarnung den Ankläger. Bei der dritten Verwarnung ist die Partie verloren. Keine Hilfen: kein „Schach!“
+// (check bleibt false) und kein +/# auf dem Zettel – Matt und Patt beenden die Partie trotzdem.
 // Weil chess.js regelwidrige Stellungen nicht nachspielen kann, läuft dieser Modus über die FEN der
 // aktuellen Stellung; die dreifache Wiederholung zählen wir dann selbst (positions).
 import { Chess } from 'chess.js';
@@ -83,6 +84,55 @@ export function accuse(s, player) {
   return { ...base, strikes, result: base.result ?? out, verdict: { caught: !c.legal, player: guilty, by: player } };
 }
 
+// Allein: Der Computer ruft nicht – die Frist ist zu (nötig, wenn der Zug des Menschen die Partie beendet hat,
+// sonst blockiert rematchBlocked die Revanche für immer)
+export function waive(s, player) {
+  const c = s.cheat;
+  if (!s.free || !c || c.player === player || (player !== 0 && player !== 1)) return null;
+  return { ...s, cheat: null };
+}
+
+// Züge der Seite am Zug laut chess.js – ohne das Schlagen eines Königs (gibt es nicht, siehe freeMove)
+const movesOf = (s) => new Chess(s.fen, { skipValidation: true }).moves({ verbose: true }).filter((m) => m.captured !== 'k');
+
+// Allein ohne Hilfen: Schummelzug des Computers – ein erlaubter Zug von Bauer (nur geradeaus), König, Läufer, Turm
+// oder Dame ein Feld weiter in dieselbe Richtung, am liebsten mit Schlagen. null, wenn es keinen regelwidrigen gibt.
+export function cheatMove(s, rng = Math.random) {
+  const player = turnOf(s);
+  const all = [];
+  const captures = [];
+  for (const m of movesOf(s)) {
+    if (m.piece === 'n' || (m.piece === 'p' && m.from[0] !== m.to[0])) continue;
+    const [f, r, tf, tr] = [m.from, m.to].flatMap((sq) => [FILES.indexOf(sq[0]), Number(sq[1])]);
+    const file = FILES[tf + Math.sign(tf - f)];
+    const rank = tr + Math.sign(tr - r);
+    if (!file || rank < 1 || rank > 8) continue;
+    const uci = m.from + file + rank;
+    const next = move(s, player, uci); // eigene Figur oder König im Ziel → null
+    if (!next || next.cheat.legal) continue;
+    const took = next.captured.length > s.captured.length;
+    if (m.piece === 'p' && took) continue; // Bauern schlagen nie geradeaus
+    (took ? captures : all).push(uci);
+  }
+  const pool = captures.length ? captures : all;
+  return pool.length ? pool[Math.floor(rng() * pool.length)] : null;
+}
+
+// Steht der König der Seite, die nicht am Zug ist, im Schach (nach einem Schummelzug)? Diese regelwidrige
+// Stellung bekommt Stockfish nicht – er lehnt sie ab, auch wenn der Angreifer gefesselt oder der König selbst ist.
+export function kingExposed(s) {
+  const chess = new Chess(s.fen, { skipValidation: true });
+  const mover = chess.turn();
+  const king = chess.board().flat().find((p) => p && p.type === 'k' && p.color !== mover);
+  return !!king && chess.isAttacked(king.square, mover);
+}
+
+// Irgendein erlaubter Zug (Ersatz, wenn Stockfish die Stellung nicht rechnen kann); null, wenn es keinen gibt
+export function anyMove(s, rng = Math.random) {
+  const moves = movesOf(s);
+  return moves.length ? moves[Math.floor(rng() * moves.length)].lan : null;
+}
+
 // Erlaubte Züge der Figur auf diesem Feld (nur für die Seite am Zug)
 export function legalMoves(s, square) {
   if (s.result) return [];
@@ -136,13 +186,13 @@ function freeMove(s, player, uci) {
     const m = chess.move({ from, to, promotion: uci[4] });
     // Steht der König nach einem Schummelzug im Schach, bietet chess.js das Schlagen des Königs an – das gibt es nicht
     if (m.captured === 'k') return null;
-    done = { legal: true, fen: chess.fen(), san: m.san, lan: m.lan, captured: m.captured ? (m.color === 'w' ? 'b' : 'w') + m.captured : null };
+    // ohne +/#: der Zettel verrät kein Schach
+    done = { legal: true, fen: chess.fen(), san: m.san.replace(/[+#]$/, ''), lan: m.lan, captured: m.captured ? (m.color === 'w' ? 'b' : 'w') + m.captured : null };
   } catch {
     const forced = forceMove(s.fen, from, to, uci[4]);
     if (!forced) return null; // nicht einmal regelwidrig möglich (fremde Figur, eigene Figur oder König im Weg …)
     done = { legal: false, ...forced };
     chess.load(forced.fen, { skipValidation: true });
-    done.san += chess.isCheckmate() ? '#' : chess.inCheck() ? '+' : ''; // Zettel sieht aus wie bei echten Zügen
   }
   const next = {
     ...s,
@@ -151,7 +201,7 @@ function freeMove(s, player, uci) {
     san: [...s.san, done.san],
     last: { from, to },
     captured: done.captured ? [...s.captured, done.captured] : s.captured,
-    check: chess.inCheck(),
+    check: false, // kein „Schach!“, kein roter König
     positions: [...s.positions, positionKey(done.fen)],
     cheat: { player, legal: done.legal, prev: { ...s, cheat: null, verdict: null } },
     verdict: null,

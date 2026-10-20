@@ -1,7 +1,10 @@
 // Computer-Gegner für Rommé. Er bekommt nur seine Sicht (viewFor) – vom Mitspieler kennt er wie ein Mensch nur die
 // Kartenzahl, vom Nachziehstapel nur die Höhe. Jeder Aufruf liefert die nächste Aktion; der Zug wird jedes Mal aus dem
 // aktuellen Stand neu geplant: ziehen, herauskommen (≥ 30 Punkte), Figuren auslegen, anlegen, Joker holen, ablegen.
-import { extend, swapIn, layoff, swap, isJoker, suitOf, rankOf, cardPoints, discardable, canMeld, openPoints, OPEN_MIN } from './game.js';
+// Ohne Hilfen spielt er von sich aus regelgerecht; schummeln kann er nur gezielt (cheatMoves).
+import {
+  extend, swapIn, meld, layoff, swap, arrange, isJoker, suitOf, rankOf, cardPoints, discardable, canMeld, openPoints, OPEN_MIN,
+} from './game.js';
 import { RANKS } from '../karten/cards.js';
 
 const LIMIT = 40000; // so viele Schritte darf die Suche nach der besten Auslage höchstens machen
@@ -105,14 +108,16 @@ function meldAction(v, me, m) {
   const hand = v.hands[me];
   const free = (c) => isJoker(c) && !v.swapped.includes(c);
   const jokers = [...v.swapped.filter((j) => hand.includes(j)), ...hand.filter((c) => free(c) && c === v.taken), ...hand.filter((c) => free(c) && c !== v.taken)];
-  return { t: 'meld', arg: { cards: [...m.real, ...jokers.slice(0, m.jokers)], hint: m.hint } };
+  const cards = [...m.real, ...jokers.slice(0, m.jokers)];
+  return { t: 'meld', arg: { cards: arrange(cards, m.hint)?.cards ?? cards, hint: m.hint } }; // geordnet – ohne Hilfen bleibt sie so liegen
 }
 
-// Erste Figur, an die die Karte passt (Joker lieber hinten)
+// Erste Figur, an die die Karte passt (Joker lieber hinten) – mit dem Ende, an das sie gehört (ohne Hilfen liegt sie dort)
 function findLayoff(v, me, card) {
   for (let index = 0; index < v.melds.length; index++) {
     for (const end of isJoker(card) ? ['high', 'low'] : [null]) {
-      if (layoff(v, me, card, index, end)) return { t: 'layoff', arg: { card, index, end } };
+      const next = layoff(v, me, card, index, end);
+      if (next) return { t: 'layoff', arg: { card, index, end: next.melds[index].low < v.melds[index].low ? 'low' : 'high' } };
     }
   }
   return null;
@@ -206,5 +211,30 @@ const discardStep = (v, me) => ({ t: 'discard', arg: { card: chooseDiscard(v, me
 
 // Nächste Aktion als Nachricht wie vom Gast: { t: 'draw' | 'meld' | 'layoff' | 'swap' | 'undo' | 'discard', arg }
 export function computerMove(v, me) {
+  if (v.free) v = { ...v, free: false }; // er prüft nach den Regeln – ohne Hilfen ginge sonst jedes Anlegen durch
   return v.phase === 'draw' ? drawStep(v, me) : playStep(v, me);
+}
+
+// Allein ohne Hilfen (Nico 20.10.2026): statt des Ablegens ein plausibler Schummelzug – noch nicht draußen: eine Figur
+// unter 30 Punkten auslegen und trotzdem ablegen; draußen: die Karte, die er sonst abgelegt hätte, an eine Figur, an die
+// sie nicht passt (lieber eine derselben Farbe bzw. desselben Werts). Aktionen wie computerMove oder null (nichts möglich).
+export function cheatMoves(v, me) {
+  v = { ...v, free: false };
+  if (!canMeld(v, me) || v.fresh.length) return null;
+  const hand = v.hands[me];
+  const keep = new Set(discardable(v, hand));
+  if (!v.opened[me]) {
+    const [m] = bestPacking(hand, { keep });
+    const a = m && meldAction(v, me, m);
+    const next = a && meld(v, me, a.arg.cards, a.arg.hint);
+    return next?.fresh.length ? [a, discardStep(next, me)] : null;
+  }
+  if (keep.size < 2) return null; // danach muss noch eine Karte zum Ablegen bleiben
+  const card = chooseDiscard(v, me);
+  if (isJoker(card)) return null;
+  const near = (m) => (m.kind === 'set' ? m.cards.some((c) => !isJoker(c) && rankOf(c) === rankOf(card)) : m.suit === suitOf(card));
+  const index = v.melds.map((m, i) => i)
+    .filter((i) => !['low', 'high'].some((end) => layoff(v, me, card, i, end)))
+    .sort((a, b) => near(v.melds[b]) - near(v.melds[a]))[0];
+  return index === undefined ? null : [{ t: 'layoff', arg: { card, index, end: 'high' } }];
 }

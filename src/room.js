@@ -122,7 +122,7 @@ export function createRoom(canvas) {
     resetView: view.resetView,
     focus: view.focus,
     rayFrom,
-    // Punkt in der Welt → Bildschirmpunkt { x, y } in CSS-Pixeln (z. B. für den Rundgang), null wenn hinter der Kamera
+    // Punkt in der Welt → Bildschirmpunkt { x, y } in CSS-Pixeln (z. B. Billard: Richtung des Queues), null wenn hinter der Kamera
     toScreen(point) {
       const v = point.clone().project(camera);
       if (v.z > 1) return null;
@@ -241,7 +241,7 @@ function buildRoom(scene) {
 
 function buildTable(scene) {
   const table = new THREE.Group();
-  const top = new THREE.MeshStandardMaterial({ map: woodTexture({ base: '#5c3418', boards: 5 }), roughness: 0.45 });
+  const top = new THREE.MeshStandardMaterial({ map: woodTexture({ base: '#5c3418', boards: 5 }), roughness: 0.65 }); // wie designs.js
   const dark = new THREE.MeshStandardMaterial({ map: woodTexture({ base: '#3e2210', boards: 2 }), roughness: 0.55 });
 
   table.add(mesh(new RoundedBoxGeometry(1.0, 0.045, 1.0, 2, 0.012), top, { y: TABLE_TOP - 0.0225 }));

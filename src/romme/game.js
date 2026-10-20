@@ -31,11 +31,12 @@
 // Für die Bedienung: „Zug zurücksetzen“ nimmt alles zurück, was man in diesem Zug ausgelegt, angelegt oder
 // getauscht hat (gezogen bleibt gezogen) – damit bleibt niemand mit zu wenig Punkten oder einem Joker hängen.
 //
-// „Ohne Hilfen“ (free, nur zu zweit): Auslegen, Anlegen, Tauschen und Ablegen gehen auch regelwidrig – das Spiel prüft
-// dann nur, dass man dran ist, die Karten hat und zum Schluss eine Karte ablegen kann. Nach dem Ablegen kann der andere
-// bis zu seinem Ziehen „Geschummelt!“ rufen (accuse) – gemeint ist der ganze letzte Zug: Stimmt es, wird er komplett
-// zurückgenommen, der Schummler bekommt 2 Strafkarten und spielt ihn neu; sonst zieht der Ankläger 1 Strafkarte
-// (wie Mau-Mau, Nicos Vorgaben vom 19.10.2026).
+// „Ohne Hilfen“ (free, zu zweit oder allein gegen den Computer): Auslegen, Anlegen, Tauschen und Ablegen gehen auch
+// regelwidrig – das Spiel prüft dann nur, dass man dran ist, die Karten hat und zum Schluss eine Karte ablegen kann. Nach
+// dem Ablegen kann der andere bis zu seinem Ziehen „Geschummelt!“ rufen (accuse) – gemeint ist der ganze letzte Zug:
+// Stimmt es, wird er komplett zurückgenommen, der Schummler bekommt 2 Strafkarten und spielt ihn neu; sonst zieht der
+// Ankläger 1 Strafkarte (wie Mau-Mau, Nicos Vorgaben vom 19.10.2026). Figuren bleiben so liegen, wie sie gelegt wurden
+// (geordnet verrieten sie, ob sie gültig sind) – geprüft wird trotzdem an der geordneten Figur.
 import { SUITS, RANKS, shuffle } from '../karten/cards.js';
 
 export const HAND_SIZE = 13;
@@ -134,6 +135,12 @@ export function arrangeOptions(cards, hint = null) {
 // Karten als Figur anordnen (beste bzw. per hint gewählte Lage) oder null
 export const arrange = (cards, hint = null) => arrangeOptions(cards, hint)[0] ?? null;
 
+// Ohne Hilfen: die Lage, in der die Karten genau so liegen, wie sie gelegt wurden (der Joker gilt dort, wo er liegt) –
+// gibt es keine, die beste
+const asLaid = (cards) => arrangeOptions(cards).find((m) => m.cards.every((c, i) => c === cards[i])) ?? arrange(cards);
+// Ohne Hilfen kommt eine angelegte Karte an das angeklickte Ende ('low' = vorn, sonst hinten) – ob sie passt oder nicht
+const laidOn = (cards, card, end) => (end === 'low' ? [card, ...cards] : [...cards, card]);
+
 // Karte an eine Figur anlegen → neue Figur oder null. end = 'low' | 'high' (nur für Joker an Reihen von Belang)
 export function extend(m, card, end = null) {
   if (m.kind === 'free') return null;
@@ -152,14 +159,17 @@ export function extend(m, card, end = null) {
 }
 
 // Echte Karte gegen einen Joker der Figur tauschen → { meld, joker } oder null
-export function swapIn(m, card) {
+// joker = ohne Hilfen der angetippte Joker: nur er darf getauscht werden (im Satz stehen alle Joker für fehlende Farben)
+export function swapIn(m, card, joker = null) {
   if (isJoker(card) || m.kind === 'free') return null;
+  if (m.kind === 'run') m = runAt(m.cards, m.low) ?? m; // ohne Hilfen liegt eine Reihe evtl. ungeordnet
+  const asked = (c) => isJoker(c) && (joker === null || c === joker);
   let i = -1;
   if (m.kind === 'set') {
     const real = realOf(m.cards);
-    if (rankOf(card) === rankOf(real[0]) && !real.some((c) => suitOf(c) === suitOf(card))) i = m.cards.findIndex(isJoker);
+    if (rankOf(card) === rankOf(real[0]) && !real.some((c) => suitOf(c) === suitOf(card))) i = m.cards.findIndex(asked);
   } else if (suitOf(card) === m.suit) {
-    i = m.cards.findIndex((c, k) => isJoker(c) && (rankOf(card) === 'A' ? [1, 14].includes(m.low + k) : posOf(rankOf(card)) === m.low + k));
+    i = m.cards.findIndex((c, k) => asked(c) && (rankOf(card) === 'A' ? [1, 14].includes(m.low + k) : posOf(rankOf(card)) === m.low + k));
   }
   if (i < 0) return null;
   const cards = m.cards.map((c, k) => (k === i ? card : c));
@@ -265,8 +275,9 @@ function takeFromHand(s, player, cards) {
 function strictMeld(s, player, cards, hint) {
   if (!canMeld(s, player)) return null;
   const rest = takeFromHand(s, player, cards);
-  const m = rest && arrange(cards, hint && typeof hint === 'object' ? hint : null);
-  if (!m) return null;
+  const best = rest && (s.free ? asLaid(cards) : arrange(cards, hint && typeof hint === 'object' ? hint : null));
+  if (!best) return null;
+  const m = s.free ? { ...best, cards: [...cards] } : best;
   const index = s.melds.length;
   const next = {
     ...s,
@@ -288,8 +299,9 @@ function strictMeld(s, player, cards, hint) {
 function strictLayoff(s, player, card, index, end) {
   if (!canMeld(s, player) || !s.opened[player] || !Number.isInteger(index) || !s.melds[index]) return null;
   const rest = takeFromHand(s, player, [card]);
-  const m = rest && extend(s.melds[index], card, end === 'low' || end === 'high' ? end : null);
-  if (!m) return null;
+  const fit = rest && extend(s.melds[index], card, end === 'low' || end === 'high' ? end : null);
+  if (!fit) return null;
+  const m = s.free ? { ...fit, cards: laidOn(s.melds[index].cards, card, end) } : fit;
   return {
     ...s,
     hands: withHand(s.hands, player, rest),
@@ -302,15 +314,16 @@ function strictLayoff(s, player, card, index, end) {
 }
 
 // Joker aus einer Figur gegen die passende echte Karte tauschen – der Joker kommt auf die Hand
-function strictSwap(s, player, card, index) {
+function strictSwap(s, player, card, index, joker = null) {
   if (!canMeld(s, player) || !s.opened[player] || !Number.isInteger(index) || !s.melds[index]) return null;
   if (!isCard(card) || !s.hands[player].includes(card)) return null;
-  const res = swapIn(s.melds[index], card);
+  const res = swapIn(s.melds[index], card, joker);
   if (!res) return null;
+  const old = s.melds[index];
   return {
     ...s,
     hands: withHand(s.hands, player, [...s.hands[player].filter((c) => c !== card), res.joker]),
-    melds: withMeld(s.melds, index, { ...s.melds[index], ...res.meld }),
+    melds: withMeld(s.melds, index, { ...old, ...res.meld, ...(s.free && { cards: old.cards.map((c) => (c === res.joker ? card : c)) }) }),
     swapped: [...s.swapped, res.joker],
     changed: true,
     seq: s.seq + 1,
@@ -359,6 +372,7 @@ function finishDiscard(s, player, card) {
     fresh: [],
     swapped: [],
     changed: false,
+    clean: true,
     start: null,
     seq: s.seq + 1,
     events: [{ type: 'discard', player, card }],
@@ -403,8 +417,10 @@ export function layoff(s, player, card, index, end = null) {
   return strictLayoff(s, player, card, index, end) ?? (s.free ? looseLayoff(s, player, card, index, end) : null);
 }
 
-export function swap(s, player, card, index) {
-  return strictSwap(s, player, card, index) ?? (s.free ? looseSwap(s, player, card, index) : null);
+// joker = ohne Hilfen der angetippte Joker (sonst sucht das Spiel den passenden)
+export function swap(s, player, card, index, joker = null) {
+  if (joker !== null && (!s.free || !isJoker(joker))) return null;
+  return strictSwap(s, player, card, index, joker) ?? (s.free ? looseSwap(s, player, card, index, joker) : null);
 }
 
 export function discard(s, player, card) {
@@ -427,7 +443,7 @@ function looseCards(s, player, cards, min) {
 function looseMeld(s, player, cards) {
   const rest = looseCards(s, player, cards, 3);
   if (!rest) return null;
-  const m = arrange(cards) ?? { kind: 'free', cards: [...cards] };
+  const m = { ...(asLaid(cards) ?? { kind: 'free' }), cards: [...cards] };
   const index = s.melds.length;
   return {
     ...s,
@@ -443,13 +459,13 @@ function looseMeld(s, player, cards) {
   };
 }
 
-// Karte an eine Figur, auch wenn sie nicht passt (dann hinten dran, die Figur wird „geschummelt“)
+// Karte an eine Figur, auch wenn sie nicht passt (dann wird die Figur „geschummelt“) – immer an das angeklickte Ende
 function looseLayoff(s, player, card, index, end) {
   if (!Number.isInteger(index) || !s.melds[index]) return null;
   const rest = looseCards(s, player, [card], 1);
   if (!rest) return null;
   const old = s.melds[index];
-  const m = extend(old, card, end === 'low' || end === 'high' ? end : null) ?? { owner: old.owner, kind: 'free', cards: [...old.cards, card] };
+  const m = { ...(extend(old, card, end === 'low' || end === 'high' ? end : null) ?? { owner: old.owner, kind: 'free' }), cards: laidOn(old.cards, card, end) };
   return {
     ...s,
     hands: withHand(s.hands, player, rest),
@@ -463,18 +479,18 @@ function looseLayoff(s, player, card, index, end) {
 }
 
 // Beliebige echte Karte gegen den ersten Joker der Figur
-function looseSwap(s, player, card, index) {
+function looseSwap(s, player, card, index, tapped = null) {
   if (!playing(s, player) || !Number.isInteger(index) || !s.melds[index]) return null;
   if (!isCard(card) || isJoker(card) || !s.hands[player].includes(card)) return null;
   const old = s.melds[index];
-  const i = old.cards.findIndex(isJoker);
+  const i = old.cards.findIndex((c) => isJoker(c) && (tapped === null || c === tapped));
   if (i < 0) return null;
   const cards = old.cards.map((c, k) => (k === i ? card : c));
   const joker = old.cards[i];
   return {
     ...s,
     hands: withHand(s.hands, player, [...s.hands[player].filter((c) => c !== card), joker]),
-    melds: withMeld(s.melds, index, { owner: old.owner, ...(arrange(cards) ?? { kind: 'free', cards }) }),
+    melds: withMeld(s.melds, index, { owner: old.owner, ...(asLaid(cards) ?? { kind: 'free' }), cards }),
     swapped: [...s.swapped, joker],
     changed: true,
     clean: false,
@@ -498,10 +514,15 @@ export function accuse(s, player, rng = Math.random) {
   if (!s.free || !c || c.player === player || (player !== 0 && player !== 1)) return null;
   if (!c.legal) {
     const back = { ...c.prev, cheat: null, seq: s.seq + 1, events: [{ type: 'caught', player: c.player, by: player }] };
-    return penalty(back, c.player, CHEAT_PENALTY, rng);
+    const next = penalty(back, c.player, CHEAT_PENALTY, rng);
+    return { ...next, turnStart: { ...next, turnStart: null } }; // neuer Zuganfang mit den Strafkarten – falls er wieder schummelt
   }
   return penalty({ ...s, cheat: null, seq: s.seq + 1, events: [{ type: 'fehlalarm', player }] }, player, FALSE_ALARM_PENALTY, rng);
 }
+
+// Den letzten Zug des anderen gelten lassen (der Computer, wenn die Runde damit endet) – sonst hielte rematchBlocked
+// den anderen von der nächsten Runde ab
+export const waive = (s, player) => (s.free && s.cheat?.player === 1 - player ? { ...s, cheat: null } : null);
 
 // n Strafkarten vom Stapel (ist er leer, wird die Ablage gemischt; liegt nichts mehr da, gibt es eben weniger)
 function penalty(s, player, n, rng) {
@@ -521,15 +542,13 @@ function penalty(s, player, n, rng) {
     talon = talon.slice(0, -1);
   }
   const mid = s.turn === player && s.phase === 'play'; // mitten im eigenen Zug: auch „Zug zurücksetzen“ behält sie
-  const add = (hands) => withHand(hands, player, [...hands[player], ...cards]);
   return {
     ...s,
     talon,
     pile,
     restocks,
-    hands: add(s.hands),
+    hands: withHand(s.hands, player, [...s.hands[player], ...cards]),
     start: mid && s.start ? { ...s.start, hand: [...s.start.hand, ...cards] } : s.start,
-    turnStart: mid && s.turnStart ? { ...s.turnStart, talon, pile, restocks, hands: add(s.turnStart.hands) } : s.turnStart,
     events,
   };
 }
@@ -548,6 +567,7 @@ export function viewFor(s, player) {
     talon: s.talon.length,
     start: null,
     turnStart: null,
+    clean: true, // ob der laufende Zug regelwidrig ist, bleibt beim Host
     cheat: s.cheat && { player: s.cheat.player }, // ob regelwidrig und der Stand davor bleiben beim Host
     events: s.events.map((e) => (e.type === 'draw' && e.from === 'talon' && e.player !== player ? withoutCard(e) : e)),
   };
@@ -559,3 +579,5 @@ const withoutCard = ({ card, ...e }) => e;
 export const handSize = (s, player) => (Array.isArray(s.hands[player]) ? s.hands[player].length : s.hands[player]);
 // Punkte, die in diesem Zug schon zum Herauskommen ausliegen
 export const openPoints = freshValue;
+// Für die Anzeige „(draußen)“: ohne Hilfen schon nach der ersten Auslage – sonst verriete sie, ob die 30 Punkte reichen
+export const isOut = (s, player) => s.opened[player] || (s.free && s.turn === player && s.fresh.length > 0);

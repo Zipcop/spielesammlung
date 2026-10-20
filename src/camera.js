@@ -1,7 +1,8 @@
 // Kamera: weiche Fahrten zwischen festen Ansichten (Schrank, Tisch, Plätze) und – am Platz – frei um
-// den Tisch drehen: rechte Maustaste ziehen = drehen, Mausrad = zoomen. Die linke Maustaste bleibt fürs Spiel.
+// den Tisch drehen: rechte Maustaste ziehen = drehen, Mausrad = zoomen, Mausrad gedrückt ziehen = verschieben.
+// Die linke Maustaste bleibt fürs Spiel.
 // Grenzen: mindestens 15 cm über der Tischplatte (nicht in Figuren/Karten), nicht in die Hängelampe,
-// nicht durch Wände (höchstens 1,6 m weg).
+// nicht durch Wände (höchstens 1,6 m weg, Blickpunkt höchstens 1,3 m und Kamera höchstens 2,4 m von der Zimmermitte).
 import * as THREE from 'three';
 
 const FLY_S = 1.4;
@@ -12,6 +13,8 @@ const Y_MAX = 1.6; // höchste Kamerahöhe – die Hängelampe hängt ab 1,70 m
 const ABOVE = 0.15; // so hoch mindestens über dem Blickziel (Tischplatte)
 const TURN = 0.006; // Bogenmaß pro Pixel Mausweg
 const ZOOM = 0.0012; // je Rad-Einheit (eine Raste ≈ 100 → etwa 13 % näher/weiter)
+const PAN_AREA = 1.3; // Blickpunkt bleibt in x und z so nah an der Zimmermitte (m) – Zimmer 6 × 6 m, Kamera bis 1,6 m dahinter
+const CAM_AREA = 2.4; // Kamera selbst bleibt in x und z so nah an der Mitte – vor Schrank (ab 2,6 m), Kamin und Wänden
 
 // views: Name → [Position, Blickziel]
 export function createCamera(canvas, views) {
@@ -28,7 +31,8 @@ export function createCamera(canvas, views) {
     const offset = pos.clone().sub(target);
     const dist = offset.length();
     const at = { yaw: Math.atan2(offset.x, offset.z), pitch: Math.asin(offset.y / dist), dist };
-    return { target: target.clone(), now: { ...at }, goal: at };
+    // pan = Verschiebung des Blickpunkts (Mausrad gedrückt), zusätzlich zum Blickziel – das wandert beim Billard mit der Kugel
+    return { target: target.clone(), now: { ...at }, goal: at, pan: new THREE.Vector3(), panGoal: new THREE.Vector3() };
   }
 
   // keepDist: beim Drehen bleibt der Abstand und der Winkel gibt nach, beim Zoomen umgekehrt
@@ -71,9 +75,31 @@ export function createCamera(canvas, views) {
     const k = 1 - Math.exp(-dt * 14); // weich nachziehen
     for (const key of ['yaw', 'pitch', 'dist']) now[key] += (goal[key] - now[key]) * k;
     if (orbit.focus) target.lerp(orbit.focus, 1 - Math.exp(-dt * 4)); // Blickziel wandert gemächlich mit (z. B. zur weißen Kugel)
+    orbit.pan.lerp(orbit.panGoal, k);
+    const at = target.clone().add(orbit.pan);
+    at.x = THREE.MathUtils.clamp(at.x, -PAN_AREA, PAN_AREA);
+    at.z = THREE.MathUtils.clamp(at.z, -PAN_AREA, PAN_AREA);
     const flatDist = now.dist * Math.cos(now.pitch);
-    camera.position.set(target.x + flatDist * Math.sin(now.yaw), target.y + now.dist * Math.sin(now.pitch), target.z + flatDist * Math.cos(now.yaw));
-    camera.lookAt(target);
+    camera.position.set(
+      THREE.MathUtils.clamp(at.x + flatDist * Math.sin(now.yaw), -CAM_AREA, CAM_AREA),
+      at.y + now.dist * Math.sin(now.pitch),
+      THREE.MathUtils.clamp(at.z + flatDist * Math.cos(now.yaw), -CAM_AREA, CAM_AREA),
+    );
+    camera.lookAt(at);
+  }
+
+  // Mausrad gedrückt ziehen: den Tisch „anfassen“ und verschieben – so weit, wie er sich in Blickpunkt-Tiefe bewegt
+  function pan(dx, dy) {
+    const { yaw, pitch, dist } = orbit.goal;
+    const perPixel = (2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) / canvas.clientHeight;
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const ahead = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); // vom Platz weg, flach über den Tisch
+    // in die Tiefe erscheint der Tisch verkürzt (schräger Blick) – deshalb dort weiter schieben, sonst rutscht er unter der Maus weg
+    orbit.panGoal.addScaledVector(right, -dx * perPixel).addScaledVector(ahead, (dy * perPixel) / Math.sin(pitch));
+    // nicht weiter als der Blickpunkt darf (sonst hinge die Maus „fest“, bis man zurückzieht)
+    const at = orbit.target.clone().add(orbit.panGoal);
+    orbit.panGoal.x = THREE.MathUtils.clamp(at.x, -PAN_AREA, PAN_AREA) - orbit.target.x;
+    orbit.panGoal.z = THREE.MathUtils.clamp(at.z, -PAN_AREA, PAN_AREA) - orbit.target.z;
   }
 
   const free = () => orbit && !fly;
@@ -82,24 +108,30 @@ export function createCamera(canvas, views) {
   window.addEventListener('contextmenu', (e) => {
     if (e.target === canvas || drag || performance.now() - dragEnd < 400) e.preventDefault();
   });
+  // Mittlere Taste: sonst startet der Browser sein Auto-Scrollen (Pfeilkreuz)
+  canvas.addEventListener('mousedown', (e) => e.button === 1 && e.preventDefault());
   canvas.addEventListener('pointerdown', (e) => {
-    if (e.button !== 2 || !free()) return;
-    drag = { x: e.clientX, y: e.clientY };
+    if ((e.button !== 2 && e.button !== 1) || !free()) return;
+    drag = { x: e.clientX, y: e.clientY, mask: e.button === 2 ? 2 : 4 }; // buttons: 2 = rechte, 4 = mittlere Taste
     canvas.setPointerCapture(e.pointerId);
   });
   canvas.addEventListener('pointermove', (e) => {
     if (!drag || !free()) return;
-    if (!(e.buttons & 2)) return endDrag(); // rechte Taste schon los (z. B. mit linker zusammen gedrückt)
-    orbit.goal.yaw -= (e.clientX - drag.x) * TURN;
-    orbit.goal.pitch += (e.clientY - drag.y) * TURN;
-    limit(orbit.goal, true);
-    drag = { x: e.clientX, y: e.clientY };
+    if (!(e.buttons & drag.mask)) return endDrag(); // Taste schon los (z. B. mit einer anderen zusammen gedrückt)
+    if (drag.mask === 4) pan(e.clientX - drag.x, e.clientY - drag.y);
+    else {
+      orbit.goal.yaw -= (e.clientX - drag.x) * TURN;
+      orbit.goal.pitch += (e.clientY - drag.y) * TURN;
+      limit(orbit.goal, true);
+    }
+    drag.x = e.clientX;
+    drag.y = e.clientY;
   });
   function endDrag() {
     if (drag) dragEnd = performance.now();
     drag = null;
   }
-  canvas.addEventListener('pointerup', (e) => e.button === 2 && endDrag());
+  canvas.addEventListener('pointerup', (e) => (e.button === 2 || e.button === 1) && endDrag());
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('lostpointercapture', endDrag);
   canvas.addEventListener('wheel', (e) => {
@@ -114,9 +146,12 @@ export function createCamera(canvas, views) {
     camera,
     setView,
     update,
-    // zurück zur Ansicht des Platzes (nach Drehen/Zoomen)
+    // zurück zur Ansicht des Platzes (nach Drehen/Zoomen/Verschieben)
     resetView() {
-      if (orbit) setView(current);
+      if (!orbit) return;
+      const { focus } = orbit;
+      setView(current);
+      orbit.focus = focus; // Billard: Blick bleibt bei der weißen Kugel
     },
     // Blickziel an einem Platz verschieben (Welt-Koordinaten), Drehung und Abstand bleiben – z. B. Billard: weiße Kugel
     focus(point) {

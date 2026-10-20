@@ -36,7 +36,7 @@
           <path d="M4.5 3.5v4.5h4.5" />
         </svg>
       </button>
-      <button id="btn-help" class="icon" data-view="playing" title="So geht’s – kurzer Rundgang durchs Spiel" aria-label="So geht’s">
+      <button id="btn-help" class="icon" data-view="playing" title="Spielanleitung" aria-label="Spielanleitung">
         <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
           <path d="M8.6 9a3.5 3.5 0 1 1 5.3 3c-1.2.7-1.9 1.5-1.9 2.8v.4" />
           <circle cx="12" cy="19" r="0.6" fill="currentColor" />
@@ -61,6 +61,7 @@
       <h2 id="game-title">Kniffel</h2>
       <p id="game-info" class="muted"></p>
       <section data-view="table">
+        <button id="btn-rules" class="secondary">Spielanleitung</button>
         <label id="free-row" class="free-row" hidden><input type="checkbox" id="free-toggle"> Ohne Hilfen – Schummeln erlaubt</label>
         <button id="btn-host">Lobby hosten</button>
         <div id="solo" class="solo" hidden>
@@ -114,7 +115,7 @@
           </label>
           <p id="name-error" class="error small" hidden>Bitte gib einen Namen ein.</p>
           <label class="setting check">
-            <span>Ohne Hilfen spielen<small>Gilt, wenn du hostest: keine erlaubten Züge, alles geht – wer schummelt, kann mit „Geschummelt!“ erwischt werden. Gegen den Computer gelten immer die Regeln.</small></span>
+            <span>Ohne Hilfen spielen<small>Gilt allein und – wenn du hostest – für euch beide: keine erlaubten Züge, alles geht – wer schummelt, kann mit „Geschummelt!“ erwischt werden, auch vom Computer.</small></span>
             <input type="checkbox" data-key="free">
           </label>
           <p class="muted small">Alle Einstellungen gelten nur für diesen PC.</p>
@@ -159,8 +160,8 @@
         </aside>
         <div class="dock">
           <button id="roll">Würfeln</button>
-          <p class="muted small" data-hint="Becher greifen und schütteln, loslassen = auskippen · Würfel ziehen = als Handvoll werfen · Würfel anklicken = behalten · Feld im Block anklicken = eintragen · Leertaste = würfeln" data-hint-free="Becher greifen und schütteln, loslassen = auskippen · Würfel ziehen = als Handvoll werfen · Würfel anklicken = behalten · Feld im Block anklicken und Punkte selbst eintippen"></p>
-          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+          <p class="muted small" data-hint="Becher greifen und schütteln, loslassen = auskippen · Würfel ziehen = als Handvoll werfen · Würfel anklicken = behalten · Feld im Block anklicken = eintragen · Leertaste = würfeln" data-hint-free="Becher greifen und schütteln, loslassen = auskippen · Würfel ziehen = als Handvoll werfen · Würfel anklicken = behalten · Feld im Block anklicken und Punkte selbst eintippen · Zusatz-Kniffel dabei selbst ankreuzen (+50)"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
         <div id="result" class="overlay" hidden>
           <div class="panel">
@@ -177,7 +178,7 @@
         <aside id="chess-panel" class="sheet chess"></aside>
         <div class="dock">
           <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen" data-hint-free="Eigene Figur anklicken · beliebiges Feld anklicken = ziehen (es wird nichts geprüft) · Esc = abwählen"></p>
-          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
         <div id="promo" class="overlay" hidden>
           <div class="panel">
@@ -198,7 +199,7 @@
         <aside id="puzzle-panel" class="sheet chess"></aside>
         <div class="dock">
           <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen"></p>
-          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
       </div>
 
@@ -206,8 +207,8 @@
       <div data-game="Mau-Mau">
         <aside id="mm-panel" class="sheet maumau"></aside>
         <div class="dock">
-          <p class="muted small" data-hint="Eigene Karte anklicken oder auf die Ablage ziehen = legen · Stapel anklicken = ziehen · vorletzte Karte: vorher „Mau!“" data-hint-free="Jede Karte lässt sich legen – auch eine unpassende · Stapel anklicken = ziehen · vorletzte Karte: vorher „Mau!“"></p>
-          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+          <p class="muted small" data-hint="Eigene Karte anklicken oder auf die Ablage ziehen = legen · Stapel anklicken = ziehen · vorletzte Karte: vorher „Mau!“" data-hint-free="Jede Karte lässt sich legen – auch eine unpassende · Stapel anklicken = ziehen · vorletzte Karte: vorher „Mau!“ · vergisst der andere „Mau“ oder legt falsch: „Geschummelt!“"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
         <div id="wish" class="overlay" hidden>
           <div class="panel">
@@ -227,7 +228,7 @@
       <div data-game="Rommé">
         <aside id="rm-panel" class="sheet romme"></aside>
         <div class="dock">
-          <p class="muted small" data-hint="Karten anklicken = auswählen, dann „Auslegen“ · eine Karte + Figur = anlegen · eine Karte + Ablage = ablegen · Esc = Auswahl weg" data-hint-free="Alles lässt sich auslegen, anlegen und ablegen – auch Regelwidriges · Schummelt der andere, „Geschummelt!“ drücken, bevor du ziehst"></p>
+          <p class="muted small" data-hint="Karten anklicken = auswählen, dann „Auslegen“ · eine Karte + Figur = anlegen · eine Karte + Ablage = ablegen · Esc = Auswahl weg" data-hint-free="Alles lässt sich auslegen, anlegen und ablegen – auch Regelwidriges · Karten liegen in der Reihenfolge deiner Klicks · Joker tauschen: Karte wählen, dann den Joker antippen · Schummelt der andere, „Geschummelt!“ drücken, bevor du ziehst"></p>
         </div>
       </div>
 
@@ -235,16 +236,16 @@
       <div data-game="Billard">
         <aside id="bil-panel" class="sheet billard"></aside>
         <div class="dock">
-          <p class="muted small">Maus = zielen · linke Maustaste halten = Kraft, loslassen = Stoß · Esc = abbrechen</p>
-          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+          <p class="muted small">Maus = zielen (Shift = fein) · linke Maustaste halten und vom Ziel weg ziehen = Kraft, loslassen = Stoß · Esc = abbrechen</p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
       </div>
 
       <div data-game="Mensch ärgere dich nicht">
         <aside id="md-panel" class="sheet maedn"></aside>
         <div class="dock">
-          <p class="muted small" data-hint="Würfelteller anklicken, Würfel werfen oder Leertaste = würfeln · leuchtende Figur anklicken oder aufs Feld stellen = ziehen" data-hint-free="Würfelteller anklicken oder Leertaste = würfeln · eigene Figur anklicken, dann Zielfeld anklicken · Esc = abwählen"></p>
-          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad = zoomen</p>
+          <p class="muted small" data-hint="Würfelteller anklicken, Würfel werfen oder Leertaste = würfeln · leuchtende Figur anklicken oder aufs Feld stellen = ziehen" data-hint-free="Würfelteller anklicken oder Leertaste = würfeln (auch nochmal) · eigene Figur anklicken, dann Zielfeld anklicken · „Weiter“ = Zug abgeben · Esc = abwählen"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
       </div>
     </div>

@@ -2,12 +2,13 @@
 // Zu zweit: Der Host hält den vollen Stand und schickt dem Gast nur dessen Sicht (viewFor: eigene
 // Karten offen, vom Host nur die Anzahl). Der Gast schickt Wünsche (legen, ziehen, weiter, Revanche),
 // der Host prüft sie. Allein (level gesetzt): Spieler 1 ist der Computer (ai.js) – auch er sieht nur seine Sicht.
-// free = „Ohne Hilfen“ (nur zu zweit): keine abgedunkelten Karten, jede Karte legbar, „Geschummelt!“-Knopf.
-import { newGame, play, draw, pass, again, accuse, viewFor, playable, handSize, MAU_PENALTY, CHEAT_PENALTY, FALSE_ALARM_PENALTY } from './game.js';
+// free = „Ohne Hilfen“: keine abgedunkelten Karten, kein Regel-Hinweis im Status, jede Karte legbar, „Geschummelt!“-Knopf.
+// Allein schummelt der Computer dann ab und zu selbst und prüft jeden Zug des Menschen einmal (schummeln.js).
+import { newGame, play, draw, pass, again, accuse, waive, viewFor, playable, handSize, MAU_PENALTY, CHEAT_PENALTY, FALSE_ALARM_PENALTY } from './game.js';
 import { computerMove } from './ai.js';
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
-import { rematchBlocked } from '../schummeln.js';
+import { rematchBlocked, cpuCheats, cpuAccuses } from '../schummeln.js';
 import { cardName, isCard, rankOf, SUIT_NAMES, SUITS } from '../karten/cards.js';
 import { paintSuit } from '../karten/faces.js';
 
@@ -94,13 +95,18 @@ export function startMauMau({ room, board, canvas, me, send, onLeave, ask, level
     }
   }
 
-  // Der Computer zieht, sobald die Karten liegen und er kurz „überlegt“ hat
+  // Der Computer zieht, sobald die Karten liegen und er kurz „überlegt“ hat. Ohne Hilfen prüft er vorher einmal den
+  // offenen Zug des Menschen – auch nach dessen Sieg; ruft er dann nicht, ist die Frist vorbei (waive).
   function computerTurn() {
     clearTimeout(timer);
-    if (state.winner !== null || state.turn === me) return;
+    const cpu = 1 - me;
+    const judge = state.cheat?.player === me && (state.turn === cpu || state.winner !== null);
+    if (!judge && (state.winner !== null || state.turn === me)) return;
     timer = setTimeout(() => {
-      const m = computerMove(viewFor(state, 1 - me), 1 - me);
-      const next = apply(m.t, 1 - me, m.arg);
+      if (judge && cpuAccuses(!state.cheat.legal || state.cheat.forgot)) return commit(accuse(state, cpu));
+      if (judge && state.winner !== null) return commit(waive(state, cpu));
+      const m = computerMove(viewFor(state, cpu), cpu, state.free && cpuCheats());
+      const next = apply(m.t, cpu, m.arg);
       if (next) commit(next);
     }, THINK_MS + board.busy() * 1000);
   }
@@ -187,13 +193,17 @@ export function startMauMau({ room, board, canvas, me, send, onLeave, ask, level
     if (mine.winner !== null) return 'Spiel vorbei';
     if (waiting) return 'Wird gesendet …';
     if (mine.turn !== me) return solo ? 'Der Computer überlegt …' : `${other()} ist dran …`;
-    if (mine.sevens) return `Zieh ${2 * mine.sevens} Karten – oder leg eine 7 drauf`;
-    if (mine.drawn) return 'Gezogene Karte legen – oder „Weiter“';
+    if (mine.sevens && !mine.free) return `Zieh ${2 * mine.sevens} Karten – oder leg eine 7 drauf`; // ohne Hilfen keine Regel-Hinweise
+    if (mine.drawn && !mine.free) return 'Gezogene Karte legen – oder „Weiter“';
     if (mine.wish) return `Du bist dran – gewünscht ist ${SUIT_NAMES[mine.wish]}`;
     return 'Du bist dran';
   }
 
   function verdictText(e) {
+    if (e.type === 'caught' && e.mau) {
+      return e.player === me ? `Erwischt! Du hast „Mau“ vergessen – ${MAU_PENALTY} Strafkarte.`
+        : `Erwischt! ${other()} hat „Mau“ vergessen und zieht ${MAU_PENALTY} Strafkarte.`;
+    }
     if (e.type === 'caught') {
       return e.player === me ? `Erwischt! Deine Karte geht zurück, dazu ${CHEAT_PENALTY} Strafkarten.`
         : `Erwischt! ${other()} hat geschummelt – Karte zurück und ${CHEAT_PENALTY} Strafkarten.`;
@@ -253,7 +263,7 @@ export function startMauMau({ room, board, canvas, me, send, onLeave, ask, level
   };
   const stopFrames = room.onFrame((dt) => board.update(dt));
 
-  if (isHost) commit(newGame(Math.random() < 0.5 ? 0 : 1, Math.random, { free: free && !solo })); // wer anfängt, entscheidet der Zufall
+  if (isHost) commit(newGame(Math.random() < 0.5 ? 0 : 1, Math.random, { free })); // wer anfängt, entscheidet der Zufall
 
   return {
     handle,

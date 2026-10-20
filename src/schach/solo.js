@@ -1,7 +1,9 @@
 // Allein gegen den Computer: Stockfish als Gegner (gedrosselt je Stufe) und die Bilanz je Stufe.
 // Bewertung, Tipp und Abzeichen kommen aus analysis.js.
+// Ohne Hilfen (free) schummelt der Computer ab und zu selbst und prüft jeden Zug des Menschen einmal (schummeln.js).
 import { createEngine } from './engine.js';
-import { turnOf } from './game.js';
+import { turnOf, cheatMove, kingExposed, anyMove } from './game.js';
+import { cpuCheats, cpuAccuses } from '../schummeln.js';
 
 // Skill Level 0–20 lässt Stockfish absichtlich schwächere Züge wählen; die Suchtiefe bremst zusätzlich
 export const LEVELS = [
@@ -35,22 +37,39 @@ function saveOutcome(level, outcome) {
 }
 
 // me = mein Spieler (0), der Computer ist 1 - me
-export function createSolo({ level, me = 0, onComputerMove }) {
+// onJudge(accuses): ohne Hilfen – der Computer ruft „Geschummelt!“ (true) oder verzichtet nach Partieende (false)
+export function createSolo({ level, me = 0, onComputerMove, onJudge }) {
   const computer = createEngine({ 'Skill Level': LEVELS[level].skill });
   let state = null;
   let gen = 0; // jede neue Stellung zählt hoch; veraltete Computerzüge werden verworfen
 
   function update(s) {
-    if (s.result && !state?.result) saveOutcome(level, s.result.winner === me ? 'w' : s.result.winner === null ? 'd' : 'l');
+    // Ohne Hilfen zählt nicht zur Bilanz: Eine Partie mit Schummeln ist kein faires Ergebnis
+    if (s.result && !state?.result && !s.free) saveOutcome(level, s.result.winner === me ? 'w' : s.result.winner === null ? 'd' : 'l');
     state = s;
     computer.cancel(); // laufende Rechnung ist jetzt veraltet
     gen++;
-    if (!s.result && turnOf(s) !== me) think(gen);
+    // Ohne Hilfen prüft der Computer den Zug des Menschen genau einmal, bevor er selbst zieht – auch wenn der Zug
+    // die Partie beendet hat (dann schließt sein Verzicht die Frist)
+    const open = s.free && s.cheat?.player === me;
+    // Lässt der Mensch seinen König im Schach stehen, sagt man es am Brett immer – und Stockfish könnte die Stellung nicht rechnen
+    const accuses = open && (kingExposed(s) || cpuAccuses(!s.cheat.legal));
+    if (accuses || (open && s.result)) judge(gen, accuses);
+    else if (!s.result && turnOf(s) !== me) think(gen);
+  }
+
+  async function judge(g, accuses) {
+    await new Promise((resolve) => setTimeout(resolve, MIN_THINK_MS)); // erst sieht man den Zug, dann ruft er
+    if (g === gen) onJudge(accuses);
   }
 
   async function think(g) {
     const started = performance.now();
-    const { best } = await computer.analyse(state.fen, LEVELS[level].go);
+    // Ohne Hilfen ab und zu ein Schummelzug. Steht der König des Menschen im Schach (sollte nach update() nicht
+    // vorkommen – dann ruft der Computer vorher), bekommt Stockfish die Stellung nicht – dann irgendein erlaubter Zug.
+    let best = state.free && cpuCheats() ? cheatMove(state) : null;
+    if (!best && state.free && kingExposed(state)) best = anyMove(state);
+    best ??= (await computer.analyse(state.fen, LEVELS[level].go)).best;
     await new Promise((resolve) => setTimeout(resolve, MIN_THINK_MS - (performance.now() - started)));
     if (g === gen) onComputerMove(best);
   }

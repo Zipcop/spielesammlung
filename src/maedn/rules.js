@@ -23,11 +23,16 @@
 // Farbwahl: Jeder Mensch sucht sich vorher eine Farbe aus (pick). Der Host sitzt immer auf Sitz 0; die Farben
 // liegen wie auf dem Brett reihum, also wird das Brett so gedreht, dass seine Farbe vor ihm liegt (colors).
 //
-// „Ohne Hilfen“ (free, nur Menschen – Computer ziehen immer regelgerecht): Nach dem Wurf darf ein Mensch jede eigene
-// Figur auf ein beliebiges Feld voraus setzen (move mit { piece, to }). Bis der andere Mensch selbst würfelt, kann
-// er „Geschummelt!“ rufen (accuse) – ist er fertig oder setzt aus, bis sein Zug übersprungen wird. Stimmt es, gehen die regelwidrig gezogenen Figuren zurück ins Haus, von ihnen
+// „Ohne Hilfen“ (free): Nach dem Wurf darf ein Mensch jede eigene Figur auf ein beliebiges Feld voraus setzen
+// (move mit { piece, to }). Nichts geschieht von selbst: Auch ohne passenden Wurf zieht er selbst oder gibt weiter
+// (pass), und nochmal würfeln geht jederzeit – war es nicht erlaubt, gilt der Rest des Zugs als geschummelt (tainted).
+// Bis der andere Mensch selbst würfelt, kann er „Geschummelt!“ rufen (accuse) – ist er fertig oder setzt aus, bis sein
+// Zug übersprungen wird. Stimmt es, gehen die regelwidrig gezogenen Figuren zurück ins Haus, von ihnen
 // geschlagene Figuren zurück auf ihr Feld (wenn es frei ist), und ein laufender Zug des Schummlers ist vorbei.
 // Fehlalarm: Der Ankläger setzt einmal aus.
+// Zu zweit ziehen die Computer immer regelgerecht und rufen nicht. Allein (ein Mensch, Nico 20.10.2026) schummeln die
+// Computer selbst (move mit { piece, to }) und prangern an: Ihre Züge sammeln sich bis zum nächsten Wurf des Menschen,
+// den Zug des Menschen prüft der Computer, der als Nächster würfelt (nach Spielende: waive oder accuse).
 //
 // Plätze (Sitz 0–3) reihum im Uhrzeigersinn, von oben gesehen: 0 = Host (+z), 1 = links, 2 = gegenüber, 3 = rechts.
 // Figuren-Stand je Sitz: HOUSE (-1) = im Haus, 0–39 = Felder seit dem eigenen A-Feld, 40–43 = Zielfelder a–d.
@@ -42,6 +47,19 @@ export const TRIES = 3; // „Dreimal würfeln“
 
 const next = (seat) => (seat + 1) % SEATS;
 
+// Ohne Hilfen: Wer schummeln und anprangern darf – Menschen, allein auch die Computer
+const takesPart = (s, player) => s.free && (s.humans.includes(player) || s.humans.length === 1);
+// Partei: jeder Mensch für sich, die Computer zusammen – anprangern kann man nur die andere Partei
+const side = (s, player) => (s.humans.includes(player) ? player : 'cpu');
+const freeHuman = (s, player) => s.free && s.humans.includes(player);
+
+// Aktion an die offenen Züge der eigenen Partei hängen (bad = regelwidriger Eintrag oder null)
+function record(s, player, bad) {
+  const open = s.cheat && side(s, s.cheat.player) === side(s, player) ? s.cheat.bad : [];
+  const entry = bad && (s.humans.includes(player) ? bad : { ...bad, player });
+  return { player, bad: entry ? [...open, entry] : open };
+}
+
 // Feld der Laufbahn (0–39, gezählt ab dem A-Feld von Sitz 0) für einen Figuren-Stand – im Haus/Ziel null
 export function fieldOf(seat, pos) {
   return pos >= 0 && pos < TRACK ? (seat * (TRACK / SEATS) + pos) % TRACK : null;
@@ -52,7 +70,10 @@ export function newGame({ humans = [0], starter = 0, free = false, colors = [0, 
   return {
     colors: [...colors],
     free, // ohne Hilfen: Schummeln möglich
-    cheat: null, // Züge des Menschen, der zuletzt gezogen hat, solange man sie anprangern kann: { player, bad: [{ piece, hits }] }
+    // Züge der Partei, die zuletzt gezogen hat, solange man sie anprangern kann: { player, bad: [{ piece, hits }] } –
+    // piece null = „Weiter“ trotz möglichem Zug; allein bei den Computern zusätzlich player je Eintrag (mehrere ziehen)
+    cheat: null,
+    tainted: false, // ohne Hilfen: in diesem Zug unerlaubt nochmal gewürfelt
     skip: [], // Sitze, die ihren nächsten Zug aussetzen (Fehlalarm)
     humans: [...humans],
     starter,
@@ -139,11 +160,19 @@ export function mayRollThrice(mine) {
 }
 
 // Würfeln. value = Augenzahl, die der Würfel des Spielers zeigt (1–6).
-export function roll(s, player, value) {
-  if (s.phase !== 'roll' || s.turn !== player || !Number.isInteger(value) || value < 1 || value > 6) return null;
-  const closes = s.cheat && s.cheat.player !== player && s.humans.includes(player); // wer würfelt, verzichtet auf die Anklage
+// Ohne Hilfen würfelt ein Mensch auch statt zu ziehen nochmal – erlaubt nur bei „Dreimal würfeln“.
+// keep = allein ohne Hilfen: Der Computer bleibt auch ohne erlaubten Zug in der Zugphase, um zu schummeln.
+export function roll(s, player, value, keep = false) {
+  const reroll = s.phase === 'move' && freeHuman(s, player);
+  if ((s.phase !== 'roll' && !reroll) || s.turn !== player || !Number.isInteger(value) || value < 1 || value > 6) return null;
+  if (reroll) {
+    const allowed = !legalMoves(s, player).length && mayRollThrice(s.pieces[player]) && s.tries + 1 < TRIES;
+    return { ...s, die: value, tries: s.tries + 1, tainted: s.tainted || !allowed, seq: s.seq + 1, events: [{ type: 'roll', player, value, again: true }] };
+  }
+  // Wer würfelt, verzichtet auf die Anklage gegen die andere Partei
+  const closes = s.cheat && takesPart(s, player) && side(s, s.cheat.player) !== side(s, player);
   const base = { ...s, die: value, seq: s.seq + 1, events: [{ type: 'roll', player, value }], cheat: closes ? null : s.cheat };
-  if (movesFor(s.pieces, player, value).length) return { ...base, phase: 'move' };
+  if (movesFor(s.pieces, player, value).length || freeHuman(s, player) || (keep === true && takesPart(s, player))) return { ...base, phase: 'move' };
   const tries = s.tries + 1;
   if (mayRollThrice(s.pieces[player]) && tries < TRIES) {
     return { ...base, die: null, tries, events: [...base.events, { type: 'retry', player, tries }] };
@@ -154,13 +183,13 @@ export function roll(s, player, value) {
 // Figur ziehen. arg = Index 0–3 der eigenen Figur – ohne Hilfen auch { piece, to }: beliebiges freies Feld voraus
 export function move(s, player, arg) {
   if (s.phase !== 'move') return null; // z. B. noch Farbwahl
-  const free = s.free && s.humans.includes(player) && typeof arg === 'object' && arg !== null;
+  const free = takesPart(s, player) && typeof arg === 'object' && arg !== null;
   const piece = free ? arg.piece : arg;
   if (player !== s.turn || s.phase !== 'move' || !(free ? placeable(s.pieces[player], piece, arg.to) : legalMoves(s, player).includes(piece))) return null;
   const from = s.pieces[player][piece];
   const to = free ? arg.to : reach(s.pieces[player], piece, s.die);
   // Figuren im Haus sind gleich – regelgerecht ist der Zug, wenn eine Figur vom selben Stand dorthin dürfte
-  const legal = legalMoves(s, player).some((i) => s.pieces[player][i] === from && reach(s.pieces[player], i, s.die) === to);
+  const legal = !s.tainted && legalMoves(s, player).some((i) => s.pieces[player][i] === from && reach(s.pieces[player], i, s.die) === to);
   const pieces = s.pieces.map((mine) => [...mine]);
   pieces[player][piece] = to;
   const events = [{ type: 'move', player, piece, from, to, die: s.die }];
@@ -178,12 +207,11 @@ export function move(s, player, arg) {
     });
   }
 
-  let cheat = s.cheat; // Computer ziehen regelgerecht und ändern nichts daran
-  if (s.free && s.humans.includes(player)) {
+  let cheat = s.cheat; // zu zweit ziehen Computer regelgerecht und ändern nichts daran
+  if (takesPart(s, player)) {
     // Ein noch offener eigener Schummelzug (z. B. vor der 6) bleibt anfechtbar
-    const open = s.cheat?.player === player ? s.cheat.bad : [];
     const hits = events.filter((e) => e.type === 'hit').map(({ player: q, piece: j, from: at }) => ({ player: q, piece: j, from: at }));
-    cheat = { player, bad: legal ? open : [...open, { piece, hits }] };
+    cheat = record(s, player, legal ? null : { piece, hits });
   }
   let state = { ...s, pieces, die: null, tries: 0, seq: s.seq + 1, events, cheat };
   if (pieces[player].every((p) => p >= GOAL)) {
@@ -195,10 +223,24 @@ export function move(s, player, arg) {
   return nextTurn(state);
 }
 
-// „Geschummelt!“ – player (Mensch) prangert die letzten Züge des anderen Menschen an, solange er nicht selbst gewürfelt hat.
+// Ohne Hilfen: Zug abgeben („Weiter“) – regelgerecht nur, wenn keine Figur ziehen kann
+export function pass(s, player) {
+  if (s.phase !== 'move' || s.turn !== player || !freeHuman(s, player)) return null;
+  const legal = !s.tainted && !legalMoves(s, player).length;
+  const cheat = record(s, player, legal ? null : { piece: null, hits: [] });
+  return nextTurn({ ...s, cheat, seq: s.seq + 1, events: [{ type: 'weiter', player, die: s.die }] });
+}
+
+// Allein: Der Computer lässt die Frist gegen den Menschen verstreichen (nach Spielende würfelt keiner mehr)
+export function waive(s, player) {
+  if (!s.cheat || !takesPart(s, player) || side(s, s.cheat.player) === side(s, player)) return null;
+  return { ...s, cheat: null, seq: s.seq + 1, events: [] };
+}
+
+// „Geschummelt!“ – player prangert die letzten Züge der anderen Partei an, solange er nicht selbst gewürfelt hat.
 export function accuse(s, player) {
   const c = s.cheat;
-  if (!s.free || !c || c.player === player || !s.humans.includes(player)) return null;
+  if (!c || !takesPart(s, player) || side(s, c.player) === side(s, player)) return null;
   const base = { ...s, cheat: null, seq: s.seq + 1 };
   if (!c.bad.length) {
     const events = [{ type: 'fehlalarm', player }];
@@ -206,12 +248,16 @@ export function accuse(s, player) {
     return { ...base, skip: [...s.skip, player], events };
   }
   const pieces = s.pieces.map((mine) => [...mine]);
-  const events = [{ type: 'caught', player: c.player, by: player }];
-  for (const { piece } of c.bad) {
-    if (pieces[c.player][piece] === HOUSE) continue; // schon wieder im Haus (geschlagen)
-    events.push({ type: 'home', player: c.player, piece, from: pieces[c.player][piece] });
-    pieces[c.player][piece] = HOUSE;
+  const cheaters = [...new Set(c.bad.map((b) => b.player ?? c.player))];
+  const events = cheaters.map((q) => ({ type: 'caught', player: q, by: player }));
+  for (const { piece, player: q = c.player } of c.bad) {
+    if (piece === null || pieces[q][piece] === HOUSE) continue; // „Weiter“ oder schon wieder im Haus (geschlagen)
+    events.push({ type: 'home', player: q, piece, from: pieces[q][piece] });
+    pieces[q][piece] = HOUSE;
   }
+  // „Weiter“ trotz möglichem Zug: keine Figur muss zurück – dafür setzt der Schummler einmal aus (eigene Festlegung)
+  const sitOut = cheaters.filter((q) => q !== s.turn && !s.skip.includes(q) && c.bad.some((b) => b.piece === null && (b.player ?? c.player) === q));
+  events.push(...sitOut.map((q) => ({ type: 'sitout', player: q })));
   for (const { player: q, piece: j, from } of c.bad.flatMap((b) => b.hits)) {
     const field = fieldOf(q, from);
     if (pieces[q][j] !== HOUSE || pieces.some((mine, k) => mine.some((p) => fieldOf(k, p) === field))) continue; // schon draußen oder Feld besetzt
@@ -221,13 +267,14 @@ export function accuse(s, player) {
   // Wer nicht mehr alle Figuren im Ziel hat, ist auch nicht mehr fertig
   const places = s.places.filter((q) => pieces[q].every((p) => p >= GOAL));
   // Kam eine Figur des Spielers am Zug zurück aufs Feld, gilt „Dreimal würfeln“ nicht mehr
-  const state = { ...base, pieces, places, events, tries: mayRollThrice(pieces[s.turn]) ? s.tries : 0 };
+  const state = { ...base, pieces, places, events, skip: [...s.skip, ...sitOut], tries: mayRollThrice(pieces[s.turn]) ? s.tries : 0 };
   if (s.phase === 'over') {
     const open = [0, 1, 2, 3].filter((q) => !places.includes(q));
     if (open.length === 1) return { ...state, places: [...places, open[0]] }; // bleibt vorbei
     if (s.humans.every((h) => places.includes(h))) return state;
   }
-  if (s.phase === 'over' || s.turn === c.player) return nextTurn({ ...state, turn: c.player }); // Zug des Schummlers ist vorbei
+  if (s.phase === 'over') return nextTurn({ ...state, turn: c.player });
+  if (cheaters.includes(s.turn)) return nextTurn(state); // Zug des Schummlers ist vorbei
   if (s.phase === 'move' && !legalMoves(state).length) return nextTurn(state); // Figur zurückgekehrt, kein Zug mehr möglich
   return state;
 }
@@ -255,10 +302,10 @@ function nextTurn(s) {
       skip.splice(skip.indexOf(turn), 1);
       events.push({ type: 'skipped', player: turn });
     }
-    if (cheat && cheat.player !== turn && s.humans.includes(turn)) cheat = null;
+    if (cheat && s.humans.includes(turn) && side(s, cheat.player) !== side(s, turn)) cheat = null;
     turn = next(turn);
   }
-  return { ...s, turn, skip, cheat, phase: 'roll', die: null, tries: 0, events: [...events, { type: 'turn', player: turn }] };
+  return { ...s, turn, skip, cheat, phase: 'roll', die: null, tries: 0, tainted: false, events: [...events, { type: 'turn', player: turn }] };
 }
 
 // Wohin die Figur mit dem aktuellen Wurf käme (für die Vorschau), sonst null

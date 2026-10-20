@@ -46,8 +46,8 @@ const GAMES = {
 for (const [n, g] of Object.entries(GAMES)) g.board.group.visible = n === 'Kniffel'; // nur ein Spiel liegt auf dem Tisch
 // Brett greifen, schieben, umwerfen, aufbauen – für alle Spiele gleich
 const tisch = createTisch({ room, canvas, send: (msg) => lobby?.send(msg) });
-// Geführter Rundgang je Spiel – beim ersten Öffnen auf diesem PC, danach über den „?“-Knopf
-const tutorial = createTutorial({ room });
+// Spielanleitung je Spiel – am Tisch vor dem Start und im Spiel über den „?“-Knopf
+const tutorial = createTutorial();
 const applyDesigns = (s) => Object.values(GAMES).forEach((g) => g.board.setDesign?.(s)); // Würfel, Filz, Figuren, Kartenrücken
 applyDesigns(settings);
 
@@ -153,7 +153,7 @@ function startGame(name, me, level) {
   const g = GAMES[name];
   tisch.setBoard(g.board);
   const onLeave = level === undefined ? bothToShelf : () => toShelf();
-  const free = settings.free && level === undefined && !!PLAYABLE.get(name).free; // nur zu zweit; der Host entscheidet
+  const free = settings.free && !!PLAYABLE.get(name).free; // allein oder zu zweit; zu zweit entscheidet der Host
   game = g.start({ room, board: g.board, canvas, me, level, ask, names, free, send: (msg) => lobby?.send(msg), onLeave });
   room.shelf.setHover(null);
   room.shelf.setTaken(name);
@@ -162,8 +162,6 @@ function startGame(name, me, level) {
   // Bedienhinweis je nach Modus – der Gast erfährt „ohne Hilfen“ erst mit dem ersten Spielstand, deshalb fragt das Spiel nach
   document.querySelectorAll('[data-hint]').forEach((el) => (el.textContent = el.dataset.hint));
   show('playing');
-  $('btn-help').hidden = !tutorial.has(name);
-  tutorial.maybe(name, g.board);
 }
 
 // Seitenfeld am Tisch: Name, Untertitel, bei Schach und Mau-Mau auch „Gegen Computer“ (Schach mit Stufe und Bilanz)
@@ -301,7 +299,7 @@ function changeSettings(next) {
 const menu = createMenu({ get: () => settings, onChange: changeSettings });
 $('btn-settings').onclick = () => menu.open();
 $('btn-view').onclick = () => room.resetView();
-$('btn-help').onclick = () => tutorial.show(table, GAMES[table].board);
+$('btn-help').onclick = $('btn-rules').onclick = () => tutorial.show(table);
 $('fps').hidden = !settings.fps;
 if (!settings.name) askName((name) => changeSettings({ ...settings, name }));
 

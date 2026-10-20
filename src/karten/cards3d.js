@@ -79,14 +79,14 @@ export function createCards(parent) {
   parent.add(group);
 
   const geometry = cardGeometry();
-  const backMat = new THREE.MeshStandardMaterial({ map: cardBack(), color: 0xb0b0b0, roughness: 0.6 }); // etwas dunkler, sonst wirkt das Rot unter der Lampe blass
+  const backMat = new THREE.MeshStandardMaterial({ map: cardBack(), color: 0xb0b0b0, roughness: 0.8 }); // etwas dunkler, sonst wirkt das Rot unter der Lampe blass
   const edgeMat = new THREE.MeshStandardMaterial({ color: 0xe9e3d6, roughness: 0.8, side: THREE.DoubleSide });
   let anims = [];
   let clock = 0;
 
   // Neue Karte, zunächst unbekannt (beidseitig Rückseite – so verrät sie nichts)
   function make() {
-    const front = new THREE.MeshStandardMaterial({ map: cardBack(), roughness: 0.5 });
+    const front = new THREE.MeshStandardMaterial({ map: cardBack(), roughness: 0.85 }); // matt wie Karton – glänzend spiegelte die Lampe
     const mesh = new THREE.Mesh(geometry, [front, backMat, edgeMat]);
     mesh.castShadow = mesh.receiveShadow = true;
     group.add(mesh);

@@ -1,99 +1,66 @@
-// Geführter Rundgang je Spiel: eine kleine Karte oben links erklärt Schritt für Schritt Ziel, Bedienung und
-// Besonderheiten. Ein pulsierender Ring zeigt auf das passende Teil am Tisch (board.anchor(name) → Weltpunkt) oder
-// eine Stelle im Seitenfeld leuchtet (el = CSS-Selektor). Erscheint beim ersten Öffnen eines Spiels auf diesem PC,
-// danach jederzeit über den „?“-Knopf. Die Texte stehen in tutorials.js. Texte nur per textContent.
+// Spielanleitung je Spiel als Buchseite: kurze Abschnitte mit Bild und Text (tutorials.js). Am Tisch vor dem Start
+// über „Spielanleitung“, im Spiel über den „?“-Knopf. Texte nur per textContent.
 import './tutorial.css';
 import { TUTORIALS } from './tutorials.js';
 
-const KEY = 'spielesammlung-rundgang'; // welche Rundgänge dieser PC schon gesehen hat
+export function createTutorial() {
+  const shade = document.createElement('div');
+  shade.className = 'book-shade';
+  shade.hidden = true;
+  shade.innerHTML = `
+    <article class="book" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="book-title">
+      <button class="book-close" data-close title="Schließen" aria-label="Schließen">×</button>
+      <p class="book-kicker">Spielanleitung</p>
+      <h2 id="book-title" data-title></h2>
+      <div data-body></div>
+      <p class="book-foot">Kamera: rechte Maustaste ziehen = drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
+      <button class="book-done" data-done>Alles klar</button>
+    </article>`;
+  document.body.append(shade);
+  const q = (name) => shade.querySelector(`[data-${name}]`);
 
-function seen() {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(KEY) ?? '[]'));
-  } catch {
-    return new Set();
-  }
-}
-
-function remember(name) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify([...seen().add(name)]));
-  } catch {
-    // ohne Speicher erscheint der Rundgang eben beim nächsten Mal wieder
-  }
-}
-
-export function createTutorial({ room }) {
-  const card = document.createElement('div');
-  card.className = 'tut-card';
-  card.hidden = true;
-  card.innerHTML = `
-    <div class="tut-head"><span data-head></span><button class="tut-close" data-close title="Rundgang beenden" aria-label="Rundgang beenden">×</button></div>
-    <h3 data-title></h3>
-    <p data-text></p>
-    <div class="tut-nav"><button class="secondary small" data-back>Zurück</button><button class="small" data-next>Weiter</button></div>`;
-  const ring = document.createElement('div');
-  ring.className = 'tut-ring';
-  ring.hidden = true;
-  document.body.append(card, ring);
-  const q = (name) => card.querySelector(`[data-${name}]`);
-  let tour = null; // { name, steps, k, board }
-  let marked = null; // gerade hervorgehobenes Element im Seitenfeld
-
-  function render() {
-    const step = tour.steps[tour.k];
-    q('head').textContent = `So geht's: ${tour.name} · ${tour.k + 1}/${tour.steps.length}`;
-    q('title').textContent = step.title;
-    q('text').textContent = step.text;
-    q('back').disabled = tour.k === 0;
-    q('next').textContent = tour.k === tour.steps.length - 1 ? 'Los geht’s' : 'Weiter';
-    marked?.classList.remove('tut-mark');
-    marked = step.el ? document.querySelector(step.el) : null;
-    marked?.classList.add('tut-mark');
-    card.hidden = false;
+  // flip = Bild rechts statt links (Bilder wechseln sich ab)
+  function section({ title, text, img }, flip) {
+    const sec = document.createElement('section');
+    sec.className = flip ? 'book-sec flip' : 'book-sec';
+    if (img) {
+      const pic = new Image();
+      pic.src = `anleitung/${img}`;
+      pic.alt = '';
+      sec.append(pic);
+    }
+    const words = document.createElement('div');
+    words.append(Object.assign(document.createElement('h3'), { textContent: title }), Object.assign(document.createElement('p'), { textContent: text }));
+    sec.append(words);
+    return sec;
   }
 
-  function show(name, board) {
-    const steps = TUTORIALS[name];
-    if (!steps?.length) return;
-    tour = { name, steps, k: 0, board };
-    render();
+  function show(name) {
+    let pics = 0;
+    q('title').textContent = name;
+    q('body').replaceChildren(...TUTORIALS[name].map((s) => section(s, !!s.img && pics++ % 2 === 1)));
+    shade.hidden = false;
+    shade.scrollTop = 0;
+    shade.querySelector('.book').focus({ preventScroll: true }); // Pfeiltasten und Leertaste blättern
   }
 
-  function close() {
-    if (!tour) return;
-    remember(tour.name);
-    tour = null;
-    card.hidden = ring.hidden = true;
-    marked?.classList.remove('tut-mark');
-    marked = null;
-  }
-
-  q('close').onclick = close;
-  q('back').onclick = () => {
-    if (tour.k === 0) return;
-    tour.k--;
-    render();
-  };
-  q('next').onclick = () => {
-    if (tour.k === tour.steps.length - 1) return close();
-    tour.k++;
-    render();
-  };
-
-  // Der Ring folgt seinem Teil – auch wenn sich die Kamera dreht oder das Teil bewegt
-  room.onFrame(() => {
-    const at = tour?.steps[tour.k].at;
-    const point = at ? tour.board?.anchor?.(at) : null;
-    const p = point ? room.toScreen(point) : null;
-    ring.hidden = !p;
-    if (p) ring.style.transform = `translate(${p.x}px, ${p.y}px)`;
-  });
+  const close = () => (shade.hidden = true);
+  q('close').onclick = q('done').onclick = close;
+  // Klick daneben schließt – aber nicht, wenn nur beim Markieren von Text die Maus neben dem Buch losgelassen wurde
+  let downOnShade = false;
+  shade.addEventListener('pointerdown', (e) => (downOnShade = e.target === shade));
+  shade.addEventListener('click', (e) => downOnShade && e.target === shade && close());
+  // Solange die Seite offen ist, bekommt das Spiel keine Tasten (Leertaste würfelt sonst dahinter); Esc schließt.
+  // Tab bleibt aus – sonst landet der Fokus auf Knöpfen hinter der Seite (Enter würde dort würfeln)
+  window.addEventListener('keydown', (e) => {
+    if (shade.hidden) return;
+    e.stopPropagation();
+    if (e.key === 'Tab') e.preventDefault();
+    if (e.key === 'Escape') close();
+  }, true);
 
   return {
-    show, // name = Spiel (wie im Schrank), board = sein Brett (für die Ringe)
-    maybe: (name, board) => !seen().has(name) && show(name, board), // nur beim ersten Mal
+    show, // name = Spiel (wie im Schrank)
     close,
-    has: (name) => !!TUTORIALS[name]?.length,
   };
 }

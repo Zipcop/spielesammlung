@@ -282,3 +282,16 @@ test('Revanche: wer zuletzt gezogen hat, kann die offene Anklage nicht wegklicke
   assert.equal(rematchBlocked(won, 1), false);
   assert.equal(rematchBlocked({ ...won, free: false }, 0), false);
 });
+
+// --- Nico 20.10.2026: Ohne Hilfen auch allein – der Computer schummelt ab und zu und ruft „Geschummelt!“ ---
+import { cpuCheats, cpuAccuses, CPU_CHEAT, CPU_CATCH, CPU_FALSE_ALARM } from '../src/schummeln.js';
+
+test('Computer allein ohne Hilfen: schummelt selten, erwischt jeden zweiten Schummelzug, selten Fehlalarm', () => {
+  assert.deepEqual([CPU_CHEAT, CPU_CATCH, CPU_FALSE_ALARM], [0.12, 0.5, 0.05]);
+  assert.equal(cpuCheats(() => 0.119), true);
+  assert.equal(cpuCheats(() => 0.12), false);
+  assert.equal(cpuAccuses(true, () => 0.499), true);
+  assert.equal(cpuAccuses(true, () => 0.5), false);
+  assert.equal(cpuAccuses(false, () => 0.049), true);
+  assert.equal(cpuAccuses(false, () => 0.05), false);
+});

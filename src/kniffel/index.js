@@ -28,16 +28,16 @@ export function startKniffel({ room, board, canvas, me, send, onLeave, names, fr
     if (!state.free) return act('score', field);
     if (claiming) return;
     claiming = true;
-    sheet.askClaim(field, (claim) => {
+    sheet.askClaim(field, (claim, extra) => {
       claiming = false;
       if (claim === null) render();
-      else act('score', { field, claim });
+      else act('score', { field, claim, extra }); // extra = Zusatz-Kniffel selbst angesagt – der Host prüft: nur true/false
     });
   }
 
   function apply(type, player, arg) {
     if (type === 'hold') return toggleHold(state, player, arg);
-    if (type === 'score') return typeof arg === 'object' && arg ? scoreField(state, player, arg.field, arg.claim) : scoreField(state, player, arg);
+    if (type === 'score') return typeof arg === 'object' && arg ? scoreField(state, player, arg.field, arg.claim, arg.extra) : scoreField(state, player, arg);
     if (type === 'roll') return applyRoll(state, player, arg);
     if (type === 'accuse') return accuse(state, player);
     if (type === 'again') return state.over && !rematchBlocked(state, player) ? newGame(1 - state.starter, { free: state.free }) : null; // abwechselnd anfangen
@@ -101,10 +101,10 @@ export function startKniffel({ room, board, canvas, me, send, onLeave, names, fr
     $('status').textContent = state.over ? 'Spiel vorbei'
       : rolling ? 'Die Würfel rollen …'
       : mine ? (state.rolls === 0 ? 'Du bist dran – Becher greifen und schütteln, Würfel packen und werfen oder „Würfeln“'
-        : state.free ? `Wurf ${state.rolls}: Würfel behalten, weiterwürfeln oder Feld wählen und Punkte eintippen`
+        : state.free ? 'Würfel behalten, weiterwürfeln oder Feld wählen und Punkte eintippen'
           : state.rolls < ROLLS_PER_TURN ? `Wurf ${state.rolls}${of}: Würfel behalten oder Feld wählen`
             : 'Letzter Wurf – trag ein Feld ein')
-        : state.rolls === 0 ? `${other} ist dran …` : `${other} würfelt (Wurf ${state.rolls}${of})`;
+        : state.rolls === 0 ? `${other} ist dran …` : state.free ? `${other} würfelt …` : `${other} würfelt (Wurf ${state.rolls}${of})`;
     $('roll').disabled = busy || !canRoll(state, me);
     $('roll').textContent = state.free ? 'Würfeln' : `Würfeln · noch ${ROLLS_PER_TURN - state.rolls}`;
     $('roll').hidden = !mine || state.over;
@@ -115,7 +115,7 @@ export function startKniffel({ room, board, canvas, me, send, onLeave, names, fr
       const who = v.player === me ? 'Du' : other;
       const filled = state.cards.reduce((n, c) => n + Object.keys(c).length, 0); // unterscheidet gleiche Meldungen in verschiedenen Runden
       cheat.say(`${filled}:${JSON.stringify(v)}`, v.caught
-        ? `Erwischt! ${v.player === me ? 'Du hast' : `${other} hat`} geschummelt – ${LABELS[v.field]} wird mit 0 gestrichen.`
+        ? `Erwischt! ${v.player === me ? 'Du hast' : `${other} hat`} geschummelt – ${LABELS[v.field]} wird mit 0 gestrichen${v.extra ? ', der Zusatz-Kniffel fällt weg' : ''}.`
         : `Fehlalarm! ${who} ${v.player === me ? 'bekommst' : 'bekommt'} ${FALSE_ALARM_POINTS} Minuspunkte.`, v.caught);
     }
 

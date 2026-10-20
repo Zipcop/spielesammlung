@@ -1,77 +1,111 @@
-/* Geführter Rundgang (tutorial.js): Karte oben links, Ring am Tisch, Markierung im Seitenfeld */
-.tut-card {
+/* Spielanleitung (tutorial.js): Buchseite über dem Spiel – Papier, Abschnitte mit Bild und Text */
+.book-shade {
   position: fixed;
-  top: 72px;
-  left: 16px;
-  width: min(340px, calc(100vw - 32px));
-  padding: 14px 16px 12px;
-  color: var(--text);
-  background: var(--panel);
-  border: 1px solid var(--accent);
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
-  z-index: 8;
-}
-.tut-head {
+  inset: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--muted);
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow: auto;
+  background: rgba(10, 6, 3, 0.62);
+  z-index: 25;
 }
-.tut-close {
-  width: 28px;
-  height: 28px;
+.book {
+  position: relative;
+  width: min(780px, 100%);
+  margin: auto 0;
+  padding: 30px 38px 26px;
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: 4px 10px 10px 4px;
+  /* Buchrücken links, leichte Seitenkante */
+  box-shadow: inset 14px 0 18px -14px rgba(42, 33, 24, 0.45), inset 0 0 0 1px rgba(42, 33, 24, 0.12), 0 18px 50px rgba(0, 0, 0, 0.6);
+  outline: none;
+}
+.book-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
   padding: 0;
-  font-size: 18px;
+  font-size: 24px;
   line-height: 1;
-  color: var(--muted);
+  color: rgba(42, 33, 24, 0.6);
   background: none;
   border: none;
 }
-.tut-card h3 {
-  margin: 6px 0 6px;
-  font-size: 19px;
-  color: var(--accent);
+.book-close:hover {
+  color: var(--ink);
+  background: rgba(42, 33, 24, 0.08);
 }
-.tut-card p {
-  margin: 0 0 12px;
-  font-size: 15px;
-  line-height: 1.45;
+.book-kicker {
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(42, 33, 24, 0.6);
 }
-.tut-nav {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
+.book h2 {
+  margin: 2px 0 18px;
+  padding-bottom: 10px;
+  font: bold 30px Georgia, serif;
+  letter-spacing: 0.04em;
+  color: #b3261e;
+  border-bottom: 2px solid var(--ink);
 }
-.tut-ring {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 76px;
-  height: 76px;
-  margin: -38px 0 0 -38px;
-  border: 3px solid var(--accent);
-  border-radius: 50%;
-  box-shadow: 0 0 18px var(--accent);
-  pointer-events: none;
-  animation: tut-pulse 1.3s ease-in-out infinite;
-  z-index: 7;
+.book-sec {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(42, 33, 24, 0.15);
 }
-.tut-mark {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
-  animation: tut-glow 1.3s ease-in-out infinite;
+/* Bild breiter als der Text – sonst werden die Beschriftungen im Bild zu klein */
+.book-sec:has(img) {
+  grid-template-columns: minmax(0, 58%) minmax(0, 1fr);
 }
-@keyframes tut-pulse {
-  0%, 100% { opacity: 0.95; scale: 1; }
-  50% { opacity: 0.45; scale: 1.18; }
+/* Bilder abwechselnd links und rechts wie in einem Spieleheft (flip setzt tutorial.js) */
+.book-sec.flip:has(img) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 58%);
 }
-@keyframes tut-glow {
-  0%, 100% { outline-color: var(--accent); }
-  50% { outline-color: transparent; }
+.book-sec.flip img {
+  order: 2;
 }
-@media (prefers-reduced-motion: reduce) {
-  .tut-ring, .tut-mark { animation: none; }
+.book-sec img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 3px 10px rgba(42, 33, 24, 0.3);
+}
+.book-sec h3 {
+  margin: 0 0 4px;
+  font: bold 19px Georgia, serif;
+}
+.book-sec p {
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+.book-foot {
+  margin-top: 16px;
+  font-size: 13.5px;
+  color: rgba(42, 33, 24, 0.7);
+}
+.book-done {
+  display: block;
+  margin: 16px auto 0;
+  min-width: 180px;
+}
+@media (max-width: 640px) {
+  .book {
+    padding: 24px 18px 20px;
+  }
+  .book-sec:has(img),
+  .book-sec.flip:has(img) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .book-sec.flip img {
+    order: 0;
+  }
 }

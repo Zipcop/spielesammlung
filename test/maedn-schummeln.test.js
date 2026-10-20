@@ -1,7 +1,8 @@
 // Mensch ärgere Dich nicht „Ohne Hilfen“: Figur auf ein beliebiges Feld voraus setzen, „Geschummelt!“ bis zum eigenen Wurf.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, roll, move, accuse, again, legalMoves, HOUSE } from '../src/maedn/rules.js';
+import { newGame, roll, move, pass, accuse, waive, again, legalMoves, HOUSE } from '../src/maedn/rules.js';
+import { cheatMove } from '../src/maedn/ai.js';
 import { rematchBlocked } from '../src/schummeln.js';
 
 const H = HOUSE;
@@ -159,4 +160,149 @@ test('Zug merkt sich den Wurf (für den Verlauf: „würfelt eine 3 und zieht“
 test('Revanche behält „Ohne Hilfen“', () => {
   assert.equal(again({ ...setup(), phase: 'over' }).free, true);
   assert.equal(again({ ...setup({ free: false }), phase: 'over' }).free, false);
+});
+
+// --- Nico 20.10.2026: Ohne Hilfen nimmt das Spiel nichts ab – und geht auch allein gegen die Computer ---
+
+// Ein Mensch (Sitz 0) gegen drei Computer
+function solo({ pieces = {}, turn = 0, places = [] } = {}) {
+  const s = newGame({ humans: [0], starter: turn, free: true });
+  return { ...s, places, pieces: [0, 1, 2, 3].map((q) => pieces[q] ?? [H, H, H, H]) };
+}
+
+test('Ohne Hilfen gibt das Spiel nicht von selbst weiter: ohne passenden Wurf ziehen (geschummelt) oder „Weiter“', () => {
+  const r = roll(setup({ pieces: { 0: [H, H, H, H] } }), 0, 3);
+  assert.equal(r.phase, 'move'); // mit Hilfen: nochmal würfeln bzw. verfällt
+  assert.equal(r.turn, 0);
+  assert.equal(r.tries, 0);
+  assert.deepEqual(move(r, 0, { piece: 1, to: 0 }).cheat.bad, [{ piece: 1, hits: [] }]); // ohne 6 heraus
+  const w = pass(r, 0);
+  assert.equal(w.turn, 1);
+  assert.equal(w.events[0].type, 'weiter');
+  assert.deepEqual(w.cheat, { player: 0, bad: [] }); // regelgerecht – anprangern wäre Fehlalarm
+  // mit Hilfen bleibt alles wie bisher
+  const strict = roll(setup({ pieces: { 0: [H, H, H, H] }, free: false }), 0, 3);
+  assert.equal(strict.phase, 'roll');
+  assert.equal(strict.tries, 1);
+  assert.equal(pass(strict, 0), null);
+});
+
+test('Ohne Hilfen: „Weiter“, obwohl eine Figur ziehen kann, ist Schummeln', () => {
+  const r = rolled(setup({ pieces: { 0: [5, H, H, H] } }), 0, 3);
+  assert.equal(pass(r, 2), null); // nicht dran
+  const w = pass(r, 0);
+  assert.deepEqual(w.cheat.bad, [{ piece: null, hits: [] }]);
+  const c = accuse(w, 2);
+  assert.deepEqual(types(c), ['caught', 'sitout']); // keine Figur gezogen – dafür setzt der Schummler einmal aus
+  assert.equal(c.pieces[0][0], 5);
+  assert.deepEqual(c.skip, [0]);
+});
+
+test('Ohne Hilfen: nochmal würfeln – bis zu dreimal, wenn keine Figur draußen ist; sonst gilt der Rest des Zugs als Schummeln', () => {
+  const second = roll(roll(setup({ pieces: { 0: [H, H, H, H] } }), 0, 2), 0, 4);
+  assert.equal(second.phase, 'move');
+  assert.equal(second.tries, 1);
+  const third = roll(second, 0, 6);
+  assert.equal(third.tries, 2);
+  assert.deepEqual(move(third, 0, { piece: 0, to: 0 }).cheat.bad, []); // dritter Wurf eine 6 – regelgerecht heraus
+  const fourth = roll(roll(second, 0, 1), 0, 6);
+  assert.deepEqual(move(fourth, 0, { piece: 0, to: 0 }).cheat.bad, [{ piece: 0, hits: [] }]);
+
+  // Figur draußen: ein zweiter Wurf ist nicht erlaubt
+  const again6 = roll(rolled(setup({ pieces: { 0: [5, H, H, H] } }), 0, 2), 0, 6);
+  assert.equal(again6.phase, 'move');
+  const out = move(again6, 0, { piece: 1, to: 0 }); // mit der 6 heraus – passt zum Wurf, aber der Wurf war geschummelt
+  assert.deepEqual(out.cheat.bad, [{ piece: 1, hits: [] }]);
+  assert.equal(out.phase, 'roll'); // die 6 zählt, bis jemand „Geschummelt!“ ruft
+  assert.equal(move(rolled(out, 0, 1), 0, 1).cheat.bad.length, 2); // auch der Rest des Zugs (A-Feld räumen wäre regelgerecht)
+  const next = pass(rolled(setup({ pieces: { 0: [5, H, H, H] } }), 0, 2), 0);
+  assert.equal(next.tainted, false); // der nächste Zug ist wieder sauber
+});
+
+test('Nochmal würfeln statt ziehen und „Weiter“ gibt es nur ohne Hilfen und nur für Menschen', () => {
+  const strict = rolled(setup({ pieces: { 0: [5, H, H, H] }, free: false }), 0, 3);
+  assert.equal(roll(strict, 0, 4), null);
+  const cpu = rolled(setup({ pieces: { 1: [5, H, H, H] }, turn: 1 }), 1, 3);
+  assert.equal(roll(cpu, 1, 4), null);
+  assert.equal(pass(cpu, 1), null);
+  const soloCpu = rolled(solo({ pieces: { 1: [5, H, H, H] }, turn: 1 }), 1, 3);
+  assert.equal(roll(soloCpu, 1, 4), null);
+  assert.equal(pass(soloCpu, 1), null);
+});
+
+test('Allein ohne Hilfen: Computer dürfen schummeln – der Mensch erwischt sie bis zu seinem eigenen Wurf', () => {
+  const s = solo({ pieces: { 0: [20, H, H, H], 1: [5, H, H, H], 2: [5, H, H, H] }, turn: 1 });
+  const m1 = move(rolled(s, 1, 3), 1, { piece: 0, to: 9 }); // Computer 1 schummelt
+  assert.deepEqual(m1.cheat, { player: 1, bad: [{ piece: 0, hits: [], player: 1 }] });
+  const m2 = move(rolled(m1, 2, 2), 2, 0); // Computer 2 zieht regelgerecht – die Frist läuft weiter
+  assert.equal(m2.cheat.player, 2);
+  assert.equal(m2.cheat.bad.length, 1);
+  assert.equal(accuse(m2, 3), null); // Computer prangern keine Computer an
+  const c = accuse(m2, 0);
+  assert.deepEqual(types(c), ['caught', 'home']);
+  assert.equal(c.events[0].player, 1);
+  assert.equal(c.pieces[1][0], H);
+  assert.equal(c.turn, 3); // Computer 3 ist weiter dran
+
+  const toHuman = roll(roll(roll(m2, 3, 1), 3, 2), 3, 3); // Computer 3 hat nichts draußen
+  assert.equal(toHuman.turn, 0);
+  assert.ok(toHuman.cheat); // Würfe der Computer schließen die Frist nicht
+  const own = roll(toHuman, 0, 4);
+  assert.equal(own.cheat, null);
+  assert.equal(accuse(own, 0), null);
+});
+
+test('Allein ohne Hilfen: der Computer am Zug darf den Menschen anprangern – würfelt er, ist die Frist vorbei', () => {
+  const s = solo({ pieces: { 0: [5, H, H, H], 1: [10, H, H, H] } });
+  const m = move(rolled(s, 0, 3), 0, { piece: 0, to: 9 });
+  assert.equal(m.turn, 1);
+  const c = accuse(m, 1);
+  assert.equal(c.pieces[0][0], H);
+  assert.equal(c.turn, 1);
+  assert.equal(c.phase, 'roll');
+  assert.equal(roll(m, 1, 2).cheat, null); // gewürfelt = verzichtet
+
+  const f = accuse(move(rolled(s, 0, 3), 0, 0), 1); // regelgerecht gezogen
+  assert.deepEqual(types(f), ['fehlalarm', 'skipped', 'turn']); // der Computer setzt sofort aus
+  assert.equal(f.turn, 2);
+
+  // zu zweit rufen die Computer weiterhin nicht
+  assert.equal(accuse(move(rolled(setup({ pieces: { 0: [5, H, H, H] } }), 0, 3), 0, { piece: 0, to: 9 }), 1), null);
+});
+
+test('Allein nach Spielende: der Computer prangert an oder lässt die Frist verstreichen (waive)', () => {
+  const m = move(rolled(solo({ pieces: { 0: [40, 41, 42, 35] } }), 0, 3), 0, { piece: 3, to: 43 });
+  assert.equal(m.phase, 'over');
+  assert.equal(rematchBlocked(m, 0), true);
+  assert.equal(waive(m, 0), null); // nicht der Schummler selbst
+  const w = waive(m, 1);
+  assert.equal(w.cheat, null);
+  assert.equal(w.phase, 'over');
+  assert.equal(rematchBlocked(w, 0), false);
+  assert.equal(waive(w, 1), null);
+  const c = accuse(m, 1);
+  assert.equal(c.phase, 'roll');
+  assert.equal(c.pieces[0][3], H);
+});
+
+test('Schummelzug des Computers: ein Feld weiter als gewürfelt oder ohne 6 heraus – am liebsten mit Schlag', () => {
+  // Gelb steht auf Stand 19 = Feld 9 von Sitz 1
+  const s = rolled(solo({ pieces: { 0: [19, H, H, H], 1: [5, H, H, H] }, turn: 1 }), 1, 3);
+  assert.deepEqual(cheatMove(s, 1, () => 0), { piece: 0, to: 9 });
+  const m = move(s, 1, cheatMove(s, 1, () => 0));
+  assert.equal(m.pieces[0][0], H);
+  assert.equal(m.cheat.bad.length, 1);
+  // nichts draußen: ohne 6 heraus – dafür bleibt der Computer nach dem Wurf in der Zugphase (keep), nur allein ohne Hilfen
+  const home = roll(solo({ turn: 1 }), 1, 2, true);
+  assert.equal(home.phase, 'move');
+  assert.deepEqual(cheatMove(home, 1, () => 0), { piece: 0, to: 0 });
+  assert.equal(move(home, 1, cheatMove(home, 1, () => 0)).cheat.bad.length, 1);
+  assert.equal(roll(solo({ turn: 1 }), 1, 2).phase, 'roll'); // ohne keep wie bisher: nochmal würfeln
+  assert.equal(roll(setup({ turn: 1 }), 1, 2, true).phase, 'roll'); // zu zweit schummeln Computer nicht
+  // nie auf eine eigene Figur, nie über d hinaus
+  for (let k = 0; k < 20; k++) {
+    const t = cheatMove({ ...solo({ pieces: { 1: [5, 9, 39, H] }, turn: 1 }), phase: 'move', die: 3 }, 1);
+    assert.ok(t.to !== 9 && t.to <= 43, JSON.stringify(t));
+  }
+  assert.equal(cheatMove({ ...solo({ pieces: { 1: [40, 41, 42, 43] }, turn: 1 }), phase: 'move', die: 1 }, 1), null);
 });

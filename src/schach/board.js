@@ -308,7 +308,6 @@ export function createChessBoard(parent) {
     reset,
     update,
     busy: () => anims.length > 0, // eine Figur gleitet noch
-    anchor: (name) => (name === 'brett' ? group.getWorldPosition(new THREE.Vector3()) : null), // für den Rundgang (tutorial.js)
     loose: () => [...pieces.children], // Figuren fliegen beim Umwerfen einzeln (tisch.js)
     // Design dieses PCs: Figuren-Set (settings.js)
     setDesign(s) {

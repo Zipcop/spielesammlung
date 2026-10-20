@@ -3,13 +3,14 @@
 // passend gedreht; der Gast sitzt bei seiner Farbe (gegenüber oder an der Seite). Freie Sitze spielt der Computer.
 // Der Host hält den Spielstand, würfelt und zieht für die Computer und führt Pflichtzüge (nur eine Möglichkeit)
 // selbst aus. Der Gast würfelt mit eigener Physik (Wurf wird gestreamt) und schickt Wünsche (roll, move, accuse, again).
-// free = „Ohne Hilfen“: nichts leuchtet, kein Pflichtzug von selbst – Figur anklicken, dann ein beliebiges Feld voraus.
-import { newPick, pick, roll, move, accuse, again, legalMoves, targetOf, HOUSE, GOAL, LAST } from './rules.js';
-import { chooseMove } from './ai.js';
+// free = „Ohne Hilfen“: nichts leuchtet, nichts zieht oder gibt von selbst weiter – Figur anklicken, dann ein beliebiges
+// Feld voraus, oder „Weiter“; nochmal würfeln geht immer. Allein schummeln die Computer ab und zu und rufen „Geschummelt!“.
+import { newPick, pick, roll, move, pass, accuse, waive, again, legalMoves, targetOf, HOUSE, GOAL, LAST } from './rules.js';
+import { chooseMove, cheatMove } from './ai.js';
 import { createPanel } from './panel.js';
 import { COLORS } from './print.js';
 import { createCheatUI } from '../cheat-ui.js';
-import { rematchBlocked } from '../schummeln.js';
+import { rematchBlocked, cpuCheats, cpuAccuses } from '../schummeln.js';
 
 const $ = (id) => document.getElementById(id);
 const VIEW = ['maedn0', 'maednL', 'maedn1', 'maednR']; // Kamera je Sitz (room.js)
@@ -19,7 +20,7 @@ const LOG = 4; // Zeilen im Verlauf
 const fields = (n) => (n === 1 ? '1 Feld' : `${n} Felder`);
 
 // Was der Gast sehen darf: ob die letzten Züge regelgerecht waren, muss er selbst merken
-const forGuest = (s) => (s.free ? { ...s, cheat: s.cheat && { player: s.cheat.player } } : s);
+const forGuest = (s) => (s.free ? { ...s, tainted: false, cheat: s.cheat && { player: s.cheat.player } } : s);
 
 // names = { me(), other() } aus main.js (Spielernamen, können sich während der Partie ändern)
 export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level, names, free = false }) {
@@ -42,6 +43,7 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
   const panel = createPanel($('md-panel'), {
     solo,
     onRoll: throwDie,
+    onPass: () => act('pass'),
     onAgain: () => act('again'),
     onPick: (color) => act('pick', color),
     onLeave: (confirm) => (confirm && state?.phase !== 'over' ? ask('Spiel beenden und zurück zum Schrank?', onLeave) : onLeave()),
@@ -60,6 +62,7 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
     if (seat === undefined) return null;
     if (type === 'roll') return roll(state, seat, arg);
     if (type === 'move') return move(state, seat, arg);
+    if (type === 'pass') return pass(state, seat);
     if (type === 'accuse') return accuse(state, seat);
     if (type === 'again') return rematchBlocked(state, seat) ? null : again(state);
     return null;
@@ -103,7 +106,9 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
     }
   }
 
-  const canRoll = () => state && state.phase === 'roll' && state.turn === mine && !rolling && !waiting && !board.busy();
+  // ohne Hilfen auch statt zu ziehen (nochmal würfeln – ob das erlaubt war, prüft der Mitspieler)
+  const canRoll = () => state && (state.phase === 'roll' || (state.free && state.phase === 'move')) && state.turn === mine && !rolling && !waiting && !board.busy();
+  const canPass = () => !!state?.free && state.phase === 'move' && state.turn === mine && !rolling && !waiting && !board.busy();
 
   // byHand = Würfel mit der Maus gepackt: schütteln (dragDie), loslassen (releaseDie) = Wurf
   async function throwDie(byHand = false) {
@@ -136,21 +141,38 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
     }
   }
 
-  // Host: Computer würfeln und ziehen lassen, Pflichtzüge ausführen – erst, wenn das Brett ruhig ist
+  // Host: Computer würfeln und ziehen lassen, Pflichtzüge ausführen – erst, wenn das Brett ruhig ist.
+  // Allein ohne Hilfen prüft der Computer, der als Nächster würfelt, vorher einmal den Zug des Menschen
+  // (nach Spielende Sitz 1 – allein immer ein Computer), und er schummelt ab und zu selbst.
   function schedule() {
     clearTimeout(timer);
-    if (stopped || !isHost || state.phase === 'over' || state.phase === 'colors') return;
+    if (stopped || !isHost || state.phase === 'colors') return;
     const seat = state.turn;
     const cpu = !state.humans.includes(seat);
+    const cheating = solo && state.free;
+    const judge = cheating && !!state.cheat && state.humans.includes(state.cheat.player);
+    const caught = () => cpuAccuses(state.cheat.bad.length > 0);
+    if (state.phase === 'over') {
+      if (judge) later(THINK_MS, () => commit(caught() ? accuse(state, 1) : waive(state, 1)));
+      return;
+    }
     const options = legalMoves(state);
     if (state.phase === 'move' && (cpu || (options.length === 1 && !state.free))) { // ohne Hilfen zieht jeder selbst
-      later(cpu ? THINK_MS : AUTO_MS, () => commit(move(state, seat, cpu ? chooseMove(state) : options[0])));
+      later(cpu ? THINK_MS : AUTO_MS, () => {
+        // ohne erlaubten Zug ist er nur hier, weil er schummeln will (keep beim Wurf)
+        const sly = cpu && cheating && (!options.length || cpuCheats()) ? cheatMove(state, seat) : null;
+        commit(move(state, seat, sly ?? (cpu ? chooseMove(state) : options[0])));
+      });
     } else if (state.phase === 'roll' && cpu) {
       later(THINK_MS, async () => {
+        if (judge && caught()) return commit(accuse(state, seat));
         const value = await board.roll(seat);
         if (stopped) return;
+        // Kein erlaubter Zug (z. B. alle im Haus): allein schummelt er manchmal trotzdem heraus –
+        // entschieden nur beim ersten Wurf, damit „Dreimal würfeln“ nicht dreimal so oft schummeln lässt
+        const keep = cheating && state.tries === 0 && cpuCheats() && !!cheatMove({ ...state, die: value }, seat);
         // Kam während des Wurfs „Geschummelt!“, gilt der gezeigte Wurf trotzdem, solange der Computer noch würfeln soll
-        const next = state.turn === seat && state.phase === 'roll' ? roll(state, seat, value) : null;
+        const next = state.turn === seat && state.phase === 'roll' ? roll(state, seat, value, keep) : null;
         if (next) commit(next);
       });
     }
@@ -173,7 +195,7 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
     if (state.phase === 'colors') return renderPick();
     const myTurn = state.turn === mine && state.phase !== 'over';
     const options = myTurn && state.phase === 'move' && !waiting ? legalMoves(state, mine) : [];
-    if (!state.free || !options.length) selected = -1; // Zug vorbei oder abgegeben
+    if (!state.free || !myTurn || state.phase !== 'move') selected = -1; // Zug vorbei oder abgegeben (ohne Hilfen auch ohne erlaubten Zug wählbar)
     board.setMovable(mine, state.free ? (selected >= 0 ? [selected] : []) : options); // ohne Hilfen leuchtet nur die gewählte
     if (state.free ? selected < 0 : !options.length) board.setHover(mine, -1, null);
     // nicht mehr, sobald der eigene Würfel rollt – der Wurf beendet die Frist
@@ -196,7 +218,10 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
       })),
       status: statusText(myTurn, options),
       canRoll: canRoll(),
-      rollText: state.tries > 0 && myTurn ? `Würfeln · Versuch ${state.tries + 1} von 3` : 'Würfeln',
+      canPass: canPass(),
+      // ohne Hilfen zählt niemand die Versuche mit
+      rollText: state.free ? (myTurn && state.phase === 'move' ? 'Nochmal würfeln' : 'Würfeln')
+        : state.tries > 0 && myTurn ? `Würfeln · Versuch ${state.tries + 1} von 3` : 'Würfeln',
       log,
       free: state.free,
       end: over ? {
@@ -227,22 +252,27 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
     if (waiting) return 'Wird gesendet …';
     if (!myTurn) return `${label(state.turn)} ist dran …`;
     if (state.phase === 'roll') return state.tries > 0 ? 'Noch keine 6 – nochmal würfeln!' : 'Du bist dran – würfle!';
-    if (state.free) return selected >= 0 ? `Du hast eine ${state.die} – jetzt das Zielfeld anklicken (Esc = abwählen)` : `Du hast eine ${state.die} – eigene Figur anklicken, dann ihr Zielfeld`;
+    if (state.free) return selected >= 0 ? `Du hast eine ${state.die} – jetzt das Zielfeld anklicken (Esc = abwählen)` : `Du hast eine ${state.die} – eigene Figur anklicken, dann ihr Zielfeld · oder „Weiter“`;
     if (options.length === 1) return `Du hast eine ${state.die} – deine Figur zieht …`;
     return `Du hast eine ${state.die} – klick eine leuchtende Figur`;
   }
 
   // „Geschummelt!“ – Ergebnis einmal groß einblenden
+  // (allein schummeln und rufen mehrere Computer – dann mit Farbe, z. B. „Grün (Computer)“)
   function sayVerdict() {
-    const caught = state.events.find((e) => e.type === 'caught');
+    const caught = state.events.filter((e) => e.type === 'caught');
     const alarm = state.events.find((e) => e.type === 'fehlalarm');
     const key = `${games}:${state.seq}`;
-    if (caught) {
+    const named = (seat) => (state.humans.includes(seat) ? who(seat) : label(seat));
+    if (caught.length) {
       const n = state.events.filter((e) => e.type === 'home').length;
-      const back = n === 1 ? ' – die Figur muss zurück ins Haus' : n > 1 ? ` – ${n} Figuren müssen zurück ins Haus` : '';
-      cheat.say(key, `Erwischt! ${caught.player === mine ? 'Du hast' : `${who(caught.player)} hat`} geschummelt${back}.`, true);
+      const out = state.events.some((e) => e.type === 'sitout') ? ' und setzt einmal aus' : ''; // „Weiter“ trotz möglichem Zug
+      const back = n === 1 ? ' – die Figur muss zurück ins Haus' : n > 1 ? ` – ${n} Figuren müssen zurück ins Haus` : out;
+      const guilty = caught.some((e) => e.player === mine) ? 'Du hast' : `${caught.map((e) => named(e.player)).join(' und ')} ${caught.length > 1 ? 'haben' : 'hat'}`;
+      cheat.say(key, `Erwischt! ${guilty} geschummelt${back}.`, true);
     } else if (alarm) {
-      cheat.say(key, `Fehlalarm! ${alarm.player === mine ? 'Du setzt' : `${who(alarm.player)} setzt`} einmal aus.`, false);
+      const penalty = state.phase === 'over' ? 'hat sich geirrt.' : 'einmal aus.'; // nach Spielende gibt es nichts mehr auszusetzen
+      cheat.say(key, `Fehlalarm! ${alarm.player === mine ? `Du ${state.phase === 'over' ? 'hast' : 'setzt'}` : `${named(alarm.player)} ${state.phase === 'over' ? 'hat' : 'setzt'}`} ${penalty}`, false);
     }
   }
 
@@ -253,7 +283,9 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
     for (const e of events) {
       const n = e.player === undefined ? '' : name(e.player); // „over“ hat keinen Spieler
       if (e.type === 'start') parts.push(`Neues Spiel – ${name(e.player)} fängt an.`);
+      else if (e.type === 'roll' && e.again) parts.push(`${n} würfelt nochmal.`);
       else if (e.type === 'roll') rolled = e;
+      else if (e.type === 'weiter') parts.push(`${n} würfelt eine ${e.die} und gibt weiter.`);
       else if (e.type === 'retry') parts.push(`${n} würfelt eine ${rolled.value} – noch ${3 - e.tries === 1 ? 'ein Versuch' : `${3 - e.tries} Versuche`}.`);
       else if (e.type === 'pass') parts.push(`${n} würfelt eine ${rolled.value} – kein Zug möglich.`);
       else if (e.type === 'move') {
@@ -271,6 +303,7 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
       else if (e.type === 'back') parts.push(`${n} kommt zurück aufs Feld.`);
       else if (e.type === 'fehlalarm') parts.push(`${n} ruft „Geschummelt!“ – Fehlalarm.`);
       else if (e.type === 'skipped') parts.push(`${n} setzt aus.`);
+      else if (e.type === 'sitout') parts.push(`${n} setzt beim nächsten Mal aus.`);
     }
     return parts.join(' ');
   }
@@ -349,7 +382,7 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
       const piece = board.pickPiece(ray, mine, ownPieces(), selected >= 0);
       const to = piece < 0 ? freeTarget(ray) : null;
       board.setHover(mine, to !== null ? selected : -1, to);
-      canvas.style.cursor = piece >= 0 || to !== null ? 'pointer' : '';
+      canvas.style.cursor = piece >= 0 || to !== null || (canRoll() && board.hitTray(ray)) ? 'pointer' : '';
       return;
     }
     const options = movable();
@@ -374,7 +407,7 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
         const chosen = selected;
         selected = -1;
         return act('move', { piece: chosen, to });
-      }
+      } else if (canRoll() && board.hitTray(ray)) return throwDie(); // nochmal würfeln
       return render();
     }
     const options = movable();

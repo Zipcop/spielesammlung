@@ -396,11 +396,6 @@ export function createRommeBoard(parent) {
     },
     hitTalon: (raycaster) => raycaster.intersectObject(talonHit, false).length > 0 || !!cards.pick(raycaster, model.talon.slice(-1)),
     hitPile: (raycaster) => raycaster.intersectObject(pileHit, false).length > 0 || !!cards.pick(raycaster, model.pile.slice(-1)),
-    // Weltpunkt eines Teils für den Rundgang (tutorials.js): 'stapel', 'ablage', 'hand', 'auslage' (vor mir) oder null
-    anchor(name) {
-      const local = { stapel: [TALON.x, 0, TALON.z], ablage: [PILE.x, 0, PILE.z], hand: [0, HAND.at.y, signOf(me) * HAND.at.z], auslage: [0, 0, signOf(me) * ROWS[0]] }[name];
-      return local ? cards.group.localToWorld(new THREE.Vector3(...local)) : null;
-    },
     // Karte zu einem Mesh (mit der Hand gepackt, tisch.js): { id, from: 'hand' | 'talon' | 'pile' | 'meld', index } oder null
     cardOf(mesh) {
       const c = mesh.userData.card;

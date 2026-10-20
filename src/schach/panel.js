@@ -147,7 +147,8 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
         q('live-verdict').innerHTML = live.on ? lastVerdict(state, analysis, false) : ''; // zu zweit kein Engine-Zug, solange die Partie läuft
         return;
       }
-      q('oracle').hidden = !!review;
+      q('oracle').hidden = !!review || !analysis; // ohne Hilfen kein Orakel – damit auch kein Tipp, kein Zug zurück
+      if (!analysis) return;
       const known = analysis.curve.filter((v) => v !== null);
       const percent = known.at(-1) ?? 50;
       q('percent').textContent = `Gewinnchance ${Math.round(percent)} %`;

@@ -13,6 +13,7 @@
 // „Ohne Hilfen“ (free): Jede Karte der Hand darf gelegt werden, auch regelwidrig, und eine gezogene Karte
 // darf man immer behalten oder legen. Bis zum nächsten Zug kann der andere „Geschummelt!“ rufen (accuse):
 // Stimmt es, kommt die Karte zurück auf die Hand und es gibt 2 Strafkarten, sonst 1 Karte für den Ankläger.
+// Ein vergessenes „Mau“ bestraft dann nicht das Spiel – der andere muss es erwischen: 1 Strafkarte, die Karte bleibt liegen.
 import { makeDeck, shuffle, suitOf, rankOf, SUITS } from '../karten/cards.js';
 
 export const HAND_SIZE = 5;
@@ -38,7 +39,7 @@ export function newGame(starter = 0, rng = Math.random, { free = false } = {}) {
     seq: 0, // zählt die Aktionen (für die Anzeige)
     events: [{ type: 'deal' }], // was die letzte Aktion bewirkt hat – für Animation und Text
     free, // ohne Hilfen: Schummeln möglich
-    cheat: null, // letzter gelegter Zug, solange man ihn anprangern kann: { player, legal, prev }
+    cheat: null, // letzter gelegter Zug, solange man ihn anprangern kann: { player, legal, forgot (= „Mau“ vergessen), prev }
   };
 }
 
@@ -69,6 +70,8 @@ export function play(s, player, arg) {
   const rest = s.hands[player].filter((c) => c !== card);
   const jack = rankOf(card) === 'J' && rest.length > 0; // mit der letzten Karte muss niemand mehr wünschen
   if (jack && !SUITS.includes(wish)) return null;
+  const forgot = rest.length === 1 && mau !== true;
+  const own = s.cheat?.player === player && (!s.cheat.legal || s.cheat.forgot) ? s.cheat : null;
   let next = {
     ...s,
     hands: withHand(s.hands, player, rest),
@@ -78,15 +81,13 @@ export function play(s, player, arg) {
     drawn: null,
     seq: s.seq + 1,
     events: [{ type: 'play', player, card, wish: jack ? wish : null }],
-    // Ein noch offener eigener Schummelzug (z. B. vor einer 8) bleibt anfechtbar – sonst könnte der Schummler
+    // Ein noch offener eigener Fehler (z. B. vor einer 8) bleibt anfechtbar – sonst könnte der Schummler
     // die Frist mit seinem nächsten Zug selbst schließen
-    cheat: !s.free ? null : s.cheat?.player === player && !s.cheat.legal ? s.cheat : { player, legal, prev: { ...s, cheat: null } },
+    cheat: !s.free ? null : own ? { ...own, legal: own.legal && legal, forgot: own.forgot || forgot } : { player, legal, forgot, prev: { ...s, cheat: null } },
   };
   if (!rest.length) return { ...next, winner: player };
-  if (rest.length === 1) {
-    next.events.push({ type: 'mau', player, said: mau === true });
-    if (mau !== true) next = take(next, player, MAU_PENALTY, 'mau');
-  }
+  if (rest.length === 1 && !(s.free && forgot)) next.events.push({ type: 'mau', player, said: !forgot }); // ohne Hilfen hört man nur ein gesagtes „Mau“
+  if (forgot && !s.free) next = take(next, player, MAU_PENALTY, 'mau');
   if (rankOf(card) === '7') return { ...next, sevens: s.sevens + 1, turn: other(player) };
   if (rankOf(card) === '8') return { ...next, events: [...next.events, { type: 'skip', player: other(player) }] }; // gleich nochmal dran
   return { ...next, turn: other(player) };
@@ -113,6 +114,7 @@ export function pass(s, player) {
 
 // „Geschummelt!“ – nur gegen den letzten Zug des anderen, solange danach nichts passiert ist.
 // Erwischt: alles wie vor dem Zug, die Karte ist wieder auf der Hand, dazu 2 Strafkarten; der Schummler ist wieder dran.
+// Nur „Mau“ vergessen: die Karte bleibt liegen, 1 Strafkarte – ein Sieg gleich danach (nach einer 8) zählt nicht, der andere ist dran.
 // Fehlalarm: der Ankläger zieht 1 Karte.
 export function accuse(s, player, rng = Math.random) {
   const c = s.cheat;
@@ -121,8 +123,18 @@ export function accuse(s, player, rng = Math.random) {
     const back = { ...c.prev, seq: s.seq + 1, events: [{ type: 'caught', player: c.player, by: player }] };
     return take(back, c.player, CHEAT_PENALTY, 'strafe', rng);
   }
+  if (c.forgot) {
+    const base = { ...s, seq: s.seq + 1, cheat: null, winner: null, turn: s.winner === null ? s.turn : player, events: [{ type: 'caught', player: c.player, by: player, mau: true }] };
+    return take(base, c.player, MAU_PENALTY, 'mau', rng);
+  }
   const base = { ...s, seq: s.seq + 1, cheat: null, events: [{ type: 'fehlalarm', player }] };
   return take(base, player, FALSE_ALARM_PENALTY, 'fehlalarm', rng);
+}
+
+// Allein: Der Computer ruft nicht – die Frist ist vorbei (nach Spielende, sonst blockiert rematchBlocked den Menschen)
+export function waive(s, player) {
+  const c = s.cheat;
+  return s.free && c && c.player !== player && (player === 0 || player === 1) ? { ...s, cheat: null } : null;
 }
 
 // Revanche: der andere fängt an
