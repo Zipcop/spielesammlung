@@ -1,0 +1,166 @@
+/* --- Memory: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.memory {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+}
+
+.sheet.memory > * {
+  flex-shrink: 0;
+}
+
+.mem-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.mem-head .brand {
+  font: bold 19px Georgia, serif;
+  letter-spacing: 0.04em;
+  color: #1f5c8a;
+}
+
+.mem-round {
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.7);
+}
+
+.mem-players {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mem-players li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  font-size: 14px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+}
+
+.mem-players li.turn {
+  border-color: var(--accent);
+  background: rgba(217, 151, 63, 0.16);
+}
+
+.mem-pairs {
+  font-weight: bold;
+}
+
+.mem-score {
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.75);
+}
+
+.mem-status {
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.mem-hint {
+  margin: 0;
+  font-size: 14px;
+  text-align: center;
+  color: #b3261e;
+}
+
+.mem-setup {
+  display: grid;
+  gap: 8px;
+}
+
+.mem-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.mem-choice button.on,
+.mem-actions button.on,
+.mem-actions button.on:hover {
+  color: #1c1108;
+  background: var(--accent);
+}
+
+.mem-level {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.mem-level select {
+  flex: 1;
+}
+
+.mem-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mem-actions [data-pass] {
+  flex-basis: 100%;
+}
+
+.mem-log {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-height: 4.2em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13.5px;
+}
+
+.mem-log li:first-child {
+  font-weight: bold;
+}
+
+.mem-log li:not(:first-child) {
+  color: rgba(42, 33, 24, 0.65);
+}
+
+.mem-end {
+  display: grid;
+  gap: 8px;
+}
+
+.mem-end h3 {
+  margin: 0;
+  color: #1f5c8a;
+}
+
+.mem-end p {
+  margin: 0;
+}
+
+.mem-rules {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px 8px 26px;
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.8);
+  background: rgba(42, 33, 24, 0.06);
+  border-radius: 6px;
+}

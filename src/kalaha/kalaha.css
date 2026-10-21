@@ -1,0 +1,126 @@
+/* --- Kalaha: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.kalaha {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+}
+
+.sheet.kalaha > * {
+  flex-shrink: 0;
+}
+
+.ka-head {
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.ka-head .brand {
+  font: bold 19px Georgia, serif;
+  letter-spacing: 0.04em;
+  color: #7a4a1e;
+}
+
+.ka-players {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ka-players li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 14px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+}
+
+.ka-players li.turn {
+  border-color: var(--accent);
+  background: rgba(217, 151, 63, 0.16);
+}
+
+.ka-score {
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.75);
+}
+
+.ka-status {
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.ka-hint {
+  margin: 0;
+  font-size: 14px;
+  text-align: center;
+  color: #b3261e;
+}
+
+.ka-level,
+.ka-seeds {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.ka-level select,
+.ka-seeds select {
+  flex: 1;
+}
+
+.ka-log {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-height: 4.2em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13.5px;
+}
+
+.ka-log li:first-child {
+  font-weight: bold;
+}
+
+.ka-log li:not(:first-child) {
+  color: rgba(42, 33, 24, 0.65);
+}
+
+.ka-end {
+  display: grid;
+  gap: 8px;
+}
+
+.ka-end h3 {
+  margin: 0;
+  color: #7a4a1e;
+}
+
+.ka-end p {
+  margin: 0;
+}
+
+.ka-rules {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px 8px 26px;
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.8);
+  background: rgba(42, 33, 24, 0.06);
+  border-radius: 6px;
+}

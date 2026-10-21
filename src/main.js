@@ -22,18 +22,32 @@ import { createVierBoard } from './viergewinnt/board.js';
 import { startVierGewinnt } from './viergewinnt/index.js';
 import { createReversiBoard } from './reversi/board.js';
 import { startReversi } from './reversi/index.js';
+import { createKalahaBoard } from './kalaha/board.js';
+import { startKalaha } from './kalaha/index.js';
 import { createMuehleBoard } from './muehle/board.js';
 import { startMuehle } from './muehle/index.js';
 import { createDameBoard } from './dame/board.js';
 import { startDame } from './dame/index.js';
 import { createMaexchenBoard } from './maexchen/board.js';
 import { startMaexchen } from './maexchen/index.js';
+import { createZehntausendBoard } from './zehntausend/board.js';
+import { startZehntausend } from './zehntausend/index.js';
+import { createSchockenBoard } from './schocken/board.js';
+import { startSchocken } from './schocken/index.js';
 import { createElferBoard } from './elferraus/board.js';
 import { startElferRaus } from './elferraus/index.js';
+import { createSchwimmenBoard } from './schwimmen/board.js';
+import { startSchwimmen } from './schwimmen/index.js';
 import { createPokerBoard } from './poker/board.js';
 import { startPoker } from './poker/index.js';
+import { createBlackjackBoard } from './blackjack/board.js';
+import { startBlackjack } from './blackjack/index.js';
 import { createDuelBoard } from './kartenduell/board.js';
 import { startKartenduell } from './kartenduell/index.js';
+import { createMemoryBoard } from './memory/board.js';
+import { startMemory } from './memory/index.js';
+import { createSchiffeBoard } from './schiffe/board.js';
+import { startSchiffe } from './schiffe/index.js';
 import { unlockAudio } from './sound.js';
 import { createTisch } from './tisch.js';
 import { createTutorial } from './tutorial.js';
@@ -68,16 +82,30 @@ const GAMES = {
   // Rahmen steht aufrecht in der Mitte: Host sieht ihn von vorn (+z), Gast von hinten
   'Vier gewinnt': { board: createVierBoard(room.tableTop), start: startVierGewinnt, seat: 'vier' },
   Reversi: { board: createReversiBoard(room.tableTop), start: startReversi, seat: 'reversi' },
+  // Langes Brett quer zwischen beiden: Host (+z) hat die vordere Reihe und das Kalaha rechts (+x)
+  Kalaha: { board: createKalahaBoard(room.tableTop), start: startKalaha, seat: 'kalaha' },
   Mühle: { board: createMuehleBoard(room.tableTop), start: startMuehle, seat: 'muehle' },
   Dame: { board: createDameBoard(room.tableTop), start: startDame, seat: 'dame' },
   // Vier Sitze wie Doppelkopf; Becherlagen gehen als 'mx' zum anderen PC
   Mäxchen: { board: createMaexchenBoard(room.tableTop, { onStream: (msg) => lobby?.send(msg) }), start: startMaexchen, seat: 'mx' },
+  // Sitze wie Doppelkopf (2–4 am Tisch, freie spielt der Computer); Würfel- und Becherlagen gehen als 'zt' zum anderen PC
+  Zehntausend: { board: createZehntausendBoard(room.tableTop, { onStream: (msg) => lobby?.send(msg) }), start: startZehntausend, seat: 'zt' },
+  // Sitze wie Doppelkopf (2–4 am Tisch, freie spielt der Computer); Becherlagen gehen als 'sk' zum anderen PC
+  Schocken: { board: createSchockenBoard(room.tableTop, { onStream: (msg) => lobby?.send(msg) }), start: startSchocken, seat: 'sk' },
   // Sitze wie Doppelkopf (2–4 am Tisch, freie spielt der Computer); die Reihen liegen in der Mitte
   'Elfer raus': { board: createElferBoard(room.tableTop), start: startElferRaus, seat: 'elfer' },
+  // Sitze wie Doppelkopf (2–4 am Tisch, freie spielt der Computer); drei offene Karten in der Mitte
+  Schwimmen: { board: createSchwimmenBoard(room.tableTop), start: startSchwimmen, seat: 'sw' },
   // Sechs Plätze: Host, Gast gegenüber, die freien spielt der Computer; Spielgeld-Konto je PC (spielgeld.js)
   "Texas Hold'em": { board: createPokerBoard(room.tableTop), start: startPoker, seat: 'poker' },
+  // Fünf Boxen gegen die Bank: Host Box 1, Gast Box 3 (beide auf der Spielerseite); Spielgeld-Konto je PC wie Poker
+  Blackjack: { board: createBlackjackBoard(room.tableTop), start: startBlackjack, seat: 'bj' },
   // Zwei Plätze: Host (+z), Gast bzw. Computer gegenüber; Spielmatte mit Zonen in der Mitte
   Kartenduell: { board: createDuelBoard(room.tableTop), start: startKartenduell, seat: 'kd' },
+  // Zwei Plätze: Host (+z), Gast bzw. Computer gegenüber; Kärtchen-Raster in der Mitte, eingesteckte Paare rechts
+  Memory: { board: createMemoryBoard(room.tableTop), start: startMemory, seat: 'memory' },
+  // Zwei Koffer Rücken an Rücken: Host (+z), Gast bzw. Computer gegenüber; Meer flach, Zielraster im aufrechten Deckel
+  'Schiffe versenken': { board: createSchiffeBoard(room.tableTop), start: startSchiffe, seat: 'sv' },
 };
 for (const [n, g] of Object.entries(GAMES)) g.board.group.visible = n === 'Kniffel'; // nur ein Spiel liegt auf dem Tisch
 // Brett greifen, schieben, umwerfen, aufbauen – für alle Spiele gleich

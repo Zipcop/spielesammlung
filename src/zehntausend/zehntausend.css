@@ -1,0 +1,166 @@
+/* --- Zehntausend: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.zehntausend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+
+.sheet.zehntausend > * {
+  flex-shrink: 0;
+}
+
+.zt-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 14px;
+}
+
+.zt-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.sheet .zt-players {
+  width: 100%;
+  font-size: 14px;
+}
+
+.sheet .zt-players td {
+  width: auto;
+  padding: 3px 4px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  border: none;
+}
+
+.zt-players tr.turn {
+  background: rgba(79, 159, 74, 0.16);
+}
+
+.zt-players tr.out {
+  color: rgba(42, 33, 24, 0.45);
+}
+
+.sheet .zt-players td.zt-arrow {
+  width: 1em;
+  color: #2f6b2a;
+}
+
+.zt-status {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.zt-turn {
+  margin: 0;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.sheet .zt-players td.zt-score {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet .zt-players td.zt-goal {
+  color: #b8860b;
+}
+
+.zt-dice {
+  display: flex;
+  gap: 4px;
+}
+
+.zt-dice button {
+  flex: 1;
+  padding: 0;
+  font-size: 34px;
+  line-height: 1.15;
+  color: var(--ink);
+  background: #f6f1e7;
+  border: 2px solid rgba(42, 33, 24, 0.25);
+}
+
+.zt-dice button.marked {
+  background: #f2d27a;
+  border-color: #b8860b;
+}
+
+.zt-dice button.aside {
+  opacity: 0.45;
+}
+
+.zt-dice button:disabled {
+  cursor: default;
+}
+
+.zt-acts button.on {
+  outline: 3px solid #b3261e;
+}
+
+.zt-acts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.zt-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.zt-last p {
+  margin: 0 0 3px;
+  font-size: 13.5px;
+}
+
+.zt-last p + p {
+  color: rgba(42, 33, 24, 0.6);
+}
+
+.zt-end {
+  display: grid;
+  gap: 6px;
+}
+
+.zt-end h3,
+.zt-end p {
+  margin: 0;
+}
+
+.zt-rules summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.zt-rules ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.zt-setup {
+  display: grid;
+  gap: 6px;
+}
+
+.zt-setup p {
+  margin: 0;
+  font-weight: bold;
+}

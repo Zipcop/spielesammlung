@@ -112,6 +112,7 @@ export function startElferRaus({ room, board, canvas, me, send, onLeave, ask, le
       setState(msg.state);
       if (same && asked === 'again') hint = blocked();
       if (asked === 'accuse' && !msg.state.events.some((e) => e.type === 'caught' || e.type === 'fehlalarm')) hint = 'Zu spät – inzwischen hat der Nächste gespielt.';
+      asked = null; // nur die Antwort auf diesen Wunsch – sonst hinge „Zu spät“ an jedem weiteren Stand
       return render();
     }
     if (isHost && state) {

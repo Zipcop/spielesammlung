@@ -25,6 +25,7 @@ export const OUTCOME = {
   Doppelkopf: (s) => (s.phase === 'over' && s.result ? better(-s.result.points[0], -s.result.points[2]) : undefined),
   'Vier gewinnt': byResult,
   Reversi: byResult,
+  Kalaha: byResult,
   Mühle: byResult,
   Dame: byResult,
   // Wer länger im Spiel blieb (Host Sitz 0, Gast Sitz 2): noch dabei vor später ausgeschieden vor früher ausgeschieden.
@@ -34,6 +35,14 @@ export const OUTCOME = {
     if (s.phase !== 'over') return undefined;
     const out = s.lives.every((x) => x === 0) && s.out.length ? [s.out.at(-1), ...s.out.slice(0, -1)] : s.out;
     return better(-rank(out, 0), -rank(out, 2));
+  },
+  // Je Partie: mehr Punkte (Host Sitz 0, Gast humans[1]); gleich viele = Remis
+  Zehntausend: (s) => (s.phase === 'over' ? better(-s.scores[0], -s.scores[s.humans[1]]) : undefined),
+  // Je Partie: wer die Partie verliert, ist hinten; sonst weniger verlorene Hälften (Host Sitz 0, Gast humans[1]); gleich = Remis
+  Schocken: (s) => {
+    if (s.phase !== 'over') return undefined;
+    const bad = (p) => (s.loser === p ? 10 : 0) + s.halves.filter((x) => x === p).length;
+    return better(bad(0), bad(s.humans[1]));
   },
   // Je Runde: wer raus ist gewinnt; sonst weniger Restpunkte (Host Sitz 0, Gast humans[1])
   'Elfer raus': (s) => {
@@ -49,9 +58,24 @@ export const OUTCOME = {
     const [host, guest] = [s.payout[0], s.payout[s.humans[1]]];
     return host > 0 || guest > 0 ? better(-host, -guest) : undefined;
   },
+  // Je Runde, nur wenn beide gesetzt haben (Host humans[0], Gast humans[1]): mehr gewonnen bzw. weniger verloren =
+  // Sieg, gleich viel = Remis. Erwischt nach dem Abrechnen: sein Gewinn ist zurückgebucht (payout 0)
+  Blackjack: (s) => {
+    const [host, guest] = s.humans ?? [];
+    if (s.phase !== 'done' || guest === undefined || !s.staked[host] || !s.staked[guest]) return undefined;
+    const net = (p) => s.payout[p] - s.staked[p];
+    return better(-net(host), -net(guest));
+  },
   // Je Duell: Host Sitz 0, Gast Sitz 1; beide gleichzeitig auf 0 LP = Remis
   Kartenduell: (s) => (s.phase === 'over' ? s.winner : undefined),
+  // Je Partie: mehr Paare gewinnen, gleich viele = Remis (result = { winner: 0 | 1 | null }, in der Auswahl null)
+  Memory: byResult,
+  // Je Partie: wer die ganze Flotte versenkt hat (oder nach drei Verwarnungen / aberkanntem Sieg übrig bleibt)
+  'Schiffe versenken': byResult,
+  // Je Partie: wer länger dabei war (Host Sitz 0, Gast humans[1]); gone = Runde des Ausscheidens, in derselben Runde = Remis
+  Schwimmen: (s) => (s.done ? better(-(s.gone[0] ?? Infinity), -(s.gone[s.humans[1]] ?? Infinity)) : undefined),
 };
 
 // Kam der Stand von einem erwischten Schummelzug? Dann ist ein Spielende zurückgenommen, die Runde läuft weiter.
-export const reverted = (s) => s.verdict?.caught === true || (Array.isArray(s.events) && s.events.some((e) => e?.type === 'caught'));
+// (Schocken: dort kann nach dem Ende auch ein Fehlalarm die letzte Runde neu entscheiden – Ereignis mit reopened.)
+export const reverted = (s) => s.verdict?.caught === true || (Array.isArray(s.events) && s.events.some((e) => e?.type === 'caught' || e?.reopened === true));

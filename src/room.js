@@ -53,18 +53,39 @@ const VIEWS = {
   // Reversi: Brett 35 cm, die Steintürme rechts daneben – Blick etwas nach rechts, links neben das Seitenfeld
   reversi0: [[0, TABLE_TOP + 0.56, 0.5], [0.09, TABLE_TOP, 0.03]],
   reversi1: [[0, TABLE_TOP + 0.56, -0.5], [-0.09, TABLE_TOP, -0.03]],
+  // Kalaha: langes Brett (56 cm) quer vor dem Spieler – etwas höher und weiter weg, Blick nach rechts neben das Seitenfeld
+  kalaha0: [[0.02, TABLE_TOP + 0.48, 0.48], [0.08, TABLE_TOP, 0.02]],
+  kalaha1: [[-0.02, TABLE_TOP + 0.48, -0.48], [-0.08, TABLE_TOP, -0.02]],
   // Mäxchen: Becher in der Mitte, Lebenswürfel vor allen vier Plätzen – Blick etwas nach rechts, neben das Seitenfeld
   mx0: [[0.05, TABLE_TOP + 0.56, 0.5], [0.1, TABLE_TOP, 0.01]],
   mx1: [[-0.05, TABLE_TOP + 0.56, -0.5], [-0.1, TABLE_TOP, -0.01]],
+  // Zehntausend: Arena in der Mitte, die eigene Ablage vorn – Blick etwas nach rechts, neben das Seitenfeld
+  zt0: [[0.06, TABLE_TOP + 0.68, 0.58], [0.1, TABLE_TOP, 0.09]],
+  zt1: [[-0.06, TABLE_TOP + 0.68, -0.58], [-0.1, TABLE_TOP, -0.09]],
+  // Schocken: Becher vor allen Plätzen, Deckelstapel in der Mitte – Blick etwas nach rechts, neben das Seitenfeld
+  sk0: [[0.06, TABLE_TOP + 0.7, 0.6], [0.1, TABLE_TOP, 0.08]],
+  sk1: [[-0.06, TABLE_TOP + 0.7, -0.6], [-0.1, TABLE_TOP, -0.08]],
   // Elfer raus: Reihen in der Mitte, vier Hände rundum wie Doppelkopf – hoch genug für die seitlichen Fächer
   elfer0: [[0.08, TABLE_TOP + 0.84, 0.72], [0.12, TABLE_TOP, 0.07]],
   elfer1: [[-0.08, TABLE_TOP + 0.84, -0.72], [-0.12, TABLE_TOP, -0.07]],
+  // Schwimmen: drei Karten in der Mitte, vier kleine Hände rundum wie Doppelkopf, Streichhölzer vor den Plätzen
+  sw0: [[0.08, TABLE_TOP + 0.74, 0.64], [0.12, TABLE_TOP, 0.07]],
+  sw1: [[-0.08, TABLE_TOP + 0.74, -0.64], [-0.12, TABLE_TOP, -0.07]],
   // Texas Hold'em: runder Tisch mit sechs Plätzen – hoch genug, dass alle Stapel und die Mitte ins Bild passen
   poker0: [[0.06, TABLE_TOP + 0.86, 0.8], [0.1, TABLE_TOP, 0.1]],
   poker1: [[-0.06, TABLE_TOP + 0.86, -0.8], [-0.1, TABLE_TOP, -0.1]],
   // Kartenduell: Matte 80 × 58 cm, die eigene Hand vorn – Blick etwas nach rechts, neben das Seitenfeld
   kd0: [[0.08, TABLE_TOP + 0.84, 0.74], [0.12, TABLE_TOP, 0.11]],
   kd1: [[-0.08, TABLE_TOP + 0.84, -0.74], [-0.12, TABLE_TOP, -0.11]],
+  // Black Jack: beide auf der Spielerseite (+z), die Bank gegenüber – Host hinter Box 1 (rechts), Gast hinter Box 3 (links)
+  bj0: [[0.2, TABLE_TOP + 0.8, 0.72], [0.12, TABLE_TOP, -0.06]],
+  bj1: [[-0.02, TABLE_TOP + 0.8, 0.72], [0.1, TABLE_TOP, -0.06]],
+  // Memory: Raster bis 47 × 35 cm, eigene Paare rechts daneben – steil von oben, Blick nach rechts neben das Seitenfeld
+  memory0: [[0.07, TABLE_TOP + 0.62, 0.52], [0.1, TABLE_TOP, 0.05]],
+  memory1: [[-0.07, TABLE_TOP + 0.62, -0.52], [-0.1, TABLE_TOP, -0.05]],
+  // Schiffe versenken: eigenes Meer vorn flach, Zielraster im aufrechten Deckel dahinter – Blick schräg darauf
+  sv0: [[0.07, TABLE_TOP + 0.6, 0.76], [0.1, TABLE_TOP + 0.1, 0.07]],
+  sv1: [[-0.07, TABLE_TOP + 0.6, -0.76], [-0.1, TABLE_TOP + 0.1, -0.07]],
 };
 
 export function createRoom(canvas) {

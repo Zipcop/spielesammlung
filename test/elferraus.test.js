@@ -294,3 +294,26 @@ test('Computer-Partien zu 2, 3 und 4 laufen durch – mit und ohne Hilfen, jede 
     }
   }
 });
+
+// Ablauf in index.js (Review 21.10.2026): Der Gast ruft „Geschummelt!“, der Host antwortet – danach darf ein ganz
+// normaler neuer Stand nicht mehr „Zu spät“ zeigen.
+test('index.js Gast: „Zu spät“ nur als Antwort auf die eigene Anklage, nicht bei jedem weiteren Stand', async () => {
+  const { ui, base: io } = await import('../test-stubs/index-harness.js');
+  const { startElferRaus } = await import('../src/elferraus/index.js');
+  const sent = [];
+  const g = startElferRaus({ ...io, me: 1, free: true, send: (m) => sent.push(m) });
+  const s = setup(newGame({ humans: [0, 2], free: true }), 0, 2, seeded(5));
+  const view = (extra) => ({ ...viewFor(s, 2), ...extra });
+  g.handle({ t: 'state', state: view({ cheat: { player: 0 } }) });
+  ui.cheat.onAccuse();
+  assert.equal(sent.at(-1).t, 'accuse');
+  g.handle({ t: 'state', state: view({ seq: s.seq + 1, cheat: null, events: [{ type: 'fehlalarm', player: 2, target: 0 }] }) });
+  assert.equal(ui.shown.hint, '');
+  g.handle({ t: 'state', state: view({ seq: s.seq + 2, cheat: null, events: [] }) }); // z. B. der nächste Zug des Hosts
+  assert.equal(ui.shown.hint, '', 'kein hängender „Zu spät“-Hinweis');
+  g.handle({ t: 'state', state: view({ seq: s.seq + 3, cheat: { player: 0 }, events: [] }) });
+  ui.cheat.onAccuse();
+  g.handle({ t: 'state', state: view({ seq: s.seq + 4, cheat: null, events: [] }) }); // Anklage kam zu spät
+  assert.match(ui.shown.hint, /Zu spät/);
+  g.stop();
+});

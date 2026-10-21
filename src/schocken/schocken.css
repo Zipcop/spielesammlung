@@ -1,0 +1,203 @@
+/* --- Schocken: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.schocken {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+
+.sheet.schocken > * {
+  flex-shrink: 0;
+}
+
+.sk-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 14px;
+}
+
+.sk-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.sheet .sk-players {
+  width: 100%;
+  font-size: 14px;
+}
+
+.sheet .sk-players td {
+  width: auto;
+  padding: 3px 4px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  white-space: nowrap;
+  border: none;
+}
+
+.sk-players tr.turn {
+  background: rgba(79, 159, 74, 0.16);
+}
+
+.sk-players tr.out {
+  color: rgba(42, 33, 24, 0.45);
+}
+
+.sheet .sk-players td.sk-arrow {
+  width: 1em;
+  color: #2f6b2a;
+}
+
+.sk-status {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.sheet .sk-players td.sk-stones {
+  text-align: right;
+  color: #9b2a22;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet .sk-players td.sk-halves {
+  color: #b3261e;
+  font-weight: bold;
+}
+
+.sheet .sk-players td.sk-note {
+  font-size: 12.5px;
+  color: rgba(42, 33, 24, 0.65);
+}
+
+.sk-pot {
+  margin: 0;
+  font-size: 14px;
+}
+
+.sk-mine {
+  margin: 0;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.sk-accuse {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  font-size: 14px;
+  background: rgba(179, 38, 30, 0.1);
+  border-radius: 4px;
+}
+
+.sk-accuse p {
+  margin: 0;
+  font-weight: bold;
+}
+
+.sk-shown p {
+  margin: 0 0 2px;
+  font-size: 13.5px;
+}
+
+.sk-shown p.high {
+  color: #2f6b2a;
+  font-weight: bold;
+}
+
+.sk-shown p.low {
+  color: #b3261e;
+  font-weight: bold;
+}
+
+.sk-dice {
+  display: flex;
+  gap: 4px;
+}
+
+.sk-dice button {
+  flex: 1;
+  padding: 0;
+  font-size: 34px;
+  line-height: 1.15;
+  color: var(--ink);
+  background: #f6f1e7;
+  border: 2px solid rgba(42, 33, 24, 0.25);
+}
+
+.sk-dice button.out {
+  background: #f2d27a;
+  border-color: #b8860b;
+}
+
+.sk-dice button:disabled {
+  cursor: default;
+}
+
+.sk-acts button.on {
+  outline: 3px solid #b3261e;
+}
+
+.sk-acts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.sk-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.sk-last p {
+  margin: 0 0 3px;
+  font-size: 13.5px;
+}
+
+.sk-last p + p {
+  color: rgba(42, 33, 24, 0.6);
+}
+
+.sk-end {
+  display: grid;
+  gap: 6px;
+}
+
+.sk-end h3,
+.sk-end p {
+  margin: 0;
+}
+
+.sk-rules summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.sk-rules ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.sk-setup {
+  display: grid;
+  gap: 6px;
+}
+
+.sk-setup p {
+  margin: 0;
+  font-weight: bold;
+}

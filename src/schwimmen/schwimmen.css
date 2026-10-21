@@ -1,0 +1,139 @@
+/* --- Schwimmen: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.schwimmen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+
+.sheet.schwimmen > * {
+  flex-shrink: 0;
+}
+
+.sw-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 14px;
+}
+
+.sw-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.sheet .sw-players {
+  width: 100%;
+  font-size: 14px;
+}
+
+.sheet .sw-players td {
+  width: auto;
+  font: inherit;
+  color: inherit;
+  border: none;
+}
+
+.sheet .sw-players td {
+  padding: 3px 4px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sw-players tr.turn {
+  background: rgba(79, 159, 74, 0.16);
+}
+
+.sheet .sw-players td.sw-arrow {
+  width: 1em;
+  color: #2f6b2a;
+}
+
+.sheet .sw-players td.sw-score {
+  text-align: right;
+  font-weight: bold;
+}
+
+.sw-status {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.sw-last {
+  margin: 0;
+  font-size: 14px;
+}
+
+.sw-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.sw-end {
+  display: grid;
+  gap: 6px;
+}
+
+.sw-end h3,
+.sw-end p {
+  margin: 0;
+}
+
+.sw-rules summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+
+
+
+
+.sw-rules ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.sw-setup {
+  display: grid;
+  gap: 6px;
+}
+
+.sw-setup p {
+  margin: 0;
+}
+
+.sw-actions {
+  flex-wrap: wrap;
+}
+
+.sw-actions button {
+  flex: 1;
+}
+
+.sw-hand {
+  margin: 0;
+  font-size: 14px;
+  text-align: center;
+}
+
+.sheet .sw-players td.sw-lives {
+  letter-spacing: 0.1em;
+  color: #a3261c;
+}
+
+.sw-players tr.out {
+  opacity: 0.5;
+}

@@ -18,10 +18,17 @@ export const PLAYABLE = new Map([
   ['Dame', { info: 'Deutsche Dame auf 8 × 8 mit fliegender Dame – zu zweit oder gegen den Computer (3 Stufen)', solo: true, free: true }],
   ['Vier gewinnt', { info: 'Vier in einer Reihe – zu zweit oder gegen den Computer (4 Stufen)', solo: true, free: true }],
   ['Reversi', { info: 'Einschließen und umdrehen auf 8 × 8 – zu zweit oder gegen den Computer (4 Stufen)', solo: true, free: true }],
+  ['Kalaha', { info: 'Steine säen, fangen, sammeln – zu zweit oder gegen den Computer (4 Stufen)', solo: true, free: true }],
   ['Mäxchen', { info: 'Bluffen mit Becher und zwei Würfeln – zu zweit mit 2 Computer-Spielern oder allein gegen 3', solo: true, free: true }],
+  ['Zehntausend', { info: 'Sechs Würfel, wer zuerst 10.000 hat – 2 bis 4 am Tisch, freie Plätze spielt der Computer', solo: true, free: true }],
+  ['Schocken', { info: 'Drei Würfel unter dem Becher, 13 Deckel, zwei Hälften – 2 bis 4 am Tisch, freie Plätze spielt der Computer', solo: true, free: true }],
   ['Elfer raus', { info: 'Zahlenreihen ab der 11 auf- und abwärts – 2 bis 4 am Tisch, freie Plätze spielt der Computer', solo: true, free: true }],
+  ['Schwimmen', { info: 'Auf 31 tauschen, schieben, klopfen – 3 Leben, dann schwimmst du; 2 bis 4 am Tisch, freie Plätze spielt der Computer', solo: true, free: true }],
   ["Texas Hold'em", { info: 'No-Limit-Poker an 6 Plätzen mit deinem Spielgeld-Konto – freie Plätze spielt der Computer', solo: true, free: true }],
+  ['Blackjack', { info: 'Gegen die Bank wie in der Spielbank, mit deinem Spielgeld-Konto – auf Wunsch spielen Computer an den freien Boxen mit', solo: true, free: true }],
   ['Kartenduell', { info: 'Sammelkarten-Duell mit Monstern, Zaubern und Fallen – 3 feste Decks oder dein eigenes, zu zweit oder gegen den Computer', solo: true, free: true }],
+  ['Memory', { info: 'Paare finden mit 12, 18 oder 24 Paaren – zu zweit oder gegen den Computer (3 Stufen)', solo: true, free: true }],
+  ['Schiffe versenken', { info: 'Flotte verdeckt aufstellen, abwechselnd schießen – zu zweit oder gegen den Computer (3 Stufen)', solo: true, free: true }],
 ]);
 
 export const SHELF = [
@@ -31,7 +38,7 @@ export const SHELF = [
     perPile: 4,
     games: [
       'Schach', 'Schach-Rätsel', 'Dame', 'Mühle', 'Mensch ärgere dich nicht', 'Backgammon', 'Vier gewinnt',
-      'Reversi', 'Go', 'Halma', 'Malefiz', 'Fang den Hut', 'Mancala', 'Abalone-artig', 'Quarto',
+      'Reversi', 'Go', 'Halma', 'Malefiz', 'Fang den Hut', 'Kalaha', 'Abalone-artig', 'Quarto',
     ],
   },
   {
