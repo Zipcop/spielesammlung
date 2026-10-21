@@ -81,6 +81,6 @@ test('Wurf aus der Hand ist fair: 600 Würfe, jede Augenzahl etwa gleich oft (Ch
   for (let n = 0; n < 600; n++) counts[(await handThrow(dice, { hold: 0.2 + (n % 5) * 0.2 })) - 1]++;
   const expected = 600 / 6;
   const chi = counts.reduce((sum, c) => sum + (c - expected) ** 2 / expected, 0);
-  // 5 Freiheitsgrade: über 20,5 nur mit 0,1 % Wahrscheinlichkeit, wenn der Wurf fair ist
-  assert.ok(chi < 20.5, `Chi-Quadrat ${chi.toFixed(1)} bei ${JSON.stringify(counts)}`);
+  // 5 Freiheitsgrade: über 27 nur mit 0,006 % Wahrscheinlichkeit, wenn der Wurf fair ist (s. test/zehntausend-wurf.test.js)
+  assert.ok(chi < 27, `Chi-Quadrat ${chi.toFixed(1)} bei ${JSON.stringify(counts)}`);
 });

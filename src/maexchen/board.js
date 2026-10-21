@@ -10,6 +10,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { feltOf, diceFaces, woodTexture, canvasTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { randomQuat, randomTurn } from '../wuerfel.js';
 
 const DIE = 2.0; // Kantenlänge der Spielwürfel
 const DIE_R = 0.25;
@@ -190,11 +191,11 @@ export function createMaexchenBoard(parent, { onStream = () => {} } = {}) {
       const p = d.position.clone().setY(COASTER.h + DIE / 2 + 0.3).add(roll.rest);
       const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(p.x, p.y, p.z)
-        .setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler(rand(0, 7), rand(0, 7), rand(0, 7))))
+        .setRotation(randomQuat()) // Euler-Winkel waren nicht gleichverteilt: von Hand kamen 3 und 4 nur bei je 12 %
         .setAngvel({ x: rand(-6, 6), y: rand(-6, 6), z: rand(-6, 6) })
         .setLinearDamping(0.1).setAngularDamping(0.4));
       const half = DIE / 2 - DIE_R;
-      const c = world.createCollider(RAPIER.ColliderDesc.roundCuboid(half, half, half, DIE_R)
+      const c = world.createCollider(RAPIER.ColliderDesc.roundCuboid(half, half, half, DIE_R).setRotation(randomTurn()) // s. wuerfel.js
         .setDensity(1.2).setFriction(0.45).setRestitution(0.35).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS), body);
       kindOf.set(c.handle, i);
       roll.bodies[i] = body;

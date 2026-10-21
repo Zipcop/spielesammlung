@@ -206,7 +206,8 @@ export function createBoard(parent, { onStream }) {
         .setLinearDamping(0.1)
         .setAngularDamping(0.4));
       const half = DIE / 2 - DIE_R;
-      const collider = world.createCollider(RAPIER.ColliderDesc.roundCuboid(half, half, half, DIE_R)
+      // Collider zufällig in Vierteln gedreht: Rapier behandelt seine Seiten nicht ganz gleich (Seite +x kam zu oft oben)
+      const collider = world.createCollider(RAPIER.ColliderDesc.roundCuboid(half, half, half, DIE_R).setRotation(randomTurn(0))
         .setDensity(1.2).setFriction(0.45).setRestitution(0.35)
         .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS), body);
       kindOf.set(collider.handle, i);

@@ -88,8 +88,9 @@ for (const [name, hand, seat] of [['Würfeln-Knopf', false, 0], ['Würfeln-Knopf
     const counts = [0, 0, 0, 0, 0, 0];
     for (let n = 0; n < 900; n++) counts[(await throwOnce(board, seat, TWO_OUT, hand))[2] - 1]++;
     const chi = chiSquare(counts);
-    // 5 Freiheitsgrade: über 20,5 nur mit 0,1 % Wahrscheinlichkeit, wenn der Wurf fair ist
-    assert.ok(chi < 20.5, `Chi-Quadrat ${chi.toFixed(1)} bei ${JSON.stringify(counts)}`);
+    // 5 Freiheitsgrade: über 27 nur mit 0,006 % Wahrscheinlichkeit, wenn der Wurf fair ist (Begründung in
+    // test/zehntausend-wurf.test.js; mit 20,5 fiel bei allen Würfel-Tests zusammen etwa jeder 60. faire Lauf durch)
+    assert.ok(chi < 27, `Chi-Quadrat ${chi.toFixed(1)} bei ${JSON.stringify(counts)}`);
   });
 }
 
@@ -98,5 +99,5 @@ test('Alle drei unter dem Becher sind fair: 500 Würfe = 1500 Würfel (Chi-Quadr
   const counts = [0, 0, 0, 0, 0, 0];
   for (let n = 0; n < 500; n++) for (const v of await throwOnce(board, n % 4, NONE, false)) counts[v - 1]++;
   const chi = chiSquare(counts);
-  assert.ok(chi < 20.5, `Chi-Quadrat ${chi.toFixed(1)} bei ${JSON.stringify(counts)}`);
+  assert.ok(chi < 27, `Chi-Quadrat ${chi.toFixed(1)} bei ${JSON.stringify(counts)}`);
 });

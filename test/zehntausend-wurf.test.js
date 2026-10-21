@@ -81,15 +81,21 @@ test('Herausgelegte Würfel bleiben liegen, nur die freien fallen neu', async ()
   for (let i = 1; i < 6; i++) assert.ok(dice[i].position.distanceTo(before[i]) < 1e-6, `Würfel ${i} hat sich bewegt`);
 });
 
-// Je Art und Sitz: ein einzelner Würfel ist am anfälligsten für feste Wege
-for (const [name, mode, seat] of [['Würfeln-Knopf', 'auto', 0], ['Würfeln-Knopf', 'auto', 3], ['Becher von Hand', 'cup', 2], ['Handvoll', 'hand', 1]]) {
-  test(`${name} mit 1 freien Würfel ist fair (Sitz ${seat}): 900 Würfe (Chi-Quadrat)`, async () => {
+// 5 Freiheitsgrade: über 27 nur mit 0,006 % Wahrscheinlichkeit, wenn der Wurf fair ist – bei allen ~17 Würfel-Fairness-
+// Tests zusammen fällt ein fairer Lauf etwa 1-mal in 1000 grundlos durch (mit 20,5 = 0,1 % je Test war es 1-mal in 60).
+const CHI_MAX = 27;
+
+// Je Art und Sitz: ein einzelner Würfel ist am anfälligsten für feste Wege. Am empfindlichsten ist der Becher von Hand
+// (kaum Schwung, der Würfel kippt fast vorherbestimmt über eine Kante): Dort kam die 2 bei 20 % statt 16,7 % der Würfe,
+// weil Rapier die Seiten des Colliders nicht ganz gleich behandelt (Messung 21.10.2026, s. randomTurn in wuerfel.js).
+// So eine Schieflage finden 6000 Würfe zu über 99 % (900 Würfe nur zu ~6 %); die anderen Arten waren auch vorher fair.
+for (const [name, mode, seat, throws] of [['Würfeln-Knopf', 'auto', 0, 900], ['Würfeln-Knopf', 'auto', 3, 900], ['Becher von Hand', 'cup', 2, 6000], ['Handvoll', 'hand', 1, 900]]) {
+  test(`${name} mit 1 freien Würfel ist fair (Sitz ${seat}): ${throws} Würfe (Chi-Quadrat)`, async () => {
     const { board } = setup();
     const counts = [0, 0, 0, 0, 0, 0];
-    for (let n = 0; n < 900; n++) counts[(await throwOnce(board, ONE, seat, mode))[0] - 1]++;
+    for (let n = 0; n < throws; n++) counts[(await throwOnce(board, ONE, seat, mode))[0] - 1]++;
     const chi = chiSquare(counts);
-    // 5 Freiheitsgrade: über 20,5 nur mit 0,1 % Wahrscheinlichkeit, wenn der Wurf fair ist
-    assert.ok(chi < 20.5, `Chi-Quadrat ${chi.toFixed(1)} bei ${JSON.stringify(counts)}`);
+    assert.ok(chi < CHI_MAX, `Chi-Quadrat ${chi.toFixed(1)} bei ${JSON.stringify(counts)}`);
   });
 }
 
@@ -98,7 +104,7 @@ test('Alle sechs aus dem Becher sind fair: 300 Würfe = 1800 Würfel (Chi-Quadra
   const counts = [0, 0, 0, 0, 0, 0];
   for (let n = 0; n < 300; n++) for (const v of await throwOnce(board, ALL, n % 4, 'auto')) counts[v - 1]++;
   const chi = chiSquare(counts);
-  assert.ok(chi < 20.5, `Chi-Quadrat ${chi.toFixed(1)} bei ${JSON.stringify(counts)}`);
+  assert.ok(chi < CHI_MAX, `Chi-Quadrat ${chi.toFixed(1)} bei ${JSON.stringify(counts)}`);
 });
 
 test('Ablage: nach einem Anschluss liegen alle herausgelegten Würfel auf dem Brettchen (nicht daneben)', async () => {
