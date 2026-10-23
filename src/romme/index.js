@@ -13,6 +13,7 @@ import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { rematchBlocked, cpuCheats, cpuAccuses } from '../schummeln.js';
 import { cardName, SUIT_NAMES } from '../karten/cards.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const THINK_MS = { draw: 800, discard: 700, other: 450, accuse: 900 }; // so lange „überlegt“ der Computer je Schritt, nachdem die Karten liegen
@@ -276,6 +277,7 @@ export function startRomme({ room, board, canvas, me, send, onLeave, ask, level,
   function render() {
     board.sync(mine, me);
     if (!mine) return;
+    board.names(seatLabels(2, { mySeat: me, humans: solo ? [me] : [0, 1], me: names.me(), other: names.other(), cpu: () => 'Computer' }), mine.winner === null ? mine.turn : null);
     board.setSelected(selected);
     cheat.update({ free: mine.free, canAccuse: !!mine.cheat && mine.cheat.player !== me && !waiting });
     const verdict = mine.events.find((e) => e.type === 'caught' || e.type === 'fehlalarm');

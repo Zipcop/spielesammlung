@@ -11,6 +11,7 @@ import { createPanel } from './panel.js';
 import { COLORS } from './print.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { rematchBlocked, cpuCheats, cpuAccuses } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const VIEW = ['maedn0', 'maednL', 'maedn1', 'maednR']; // Kamera je Sitz (room.js)
@@ -193,6 +194,8 @@ export function startMaedn({ room, board, canvas, me, send, onLeave, ask, level,
   function render() {
     board.sync(state);
     if (!state) return;
+    const labels = state.phase === 'colors' ? [] : seatLabels(4, { mySeat: mine, humans: state.humans, me: names?.me(), other: names?.other(), cpu: () => 'Computer' });
+    board.names(labels, state.phase === 'over' ? null : state.turn, viewSeat);
     if (state.phase === 'colors') return renderPick();
     const myTurn = state.turn === mine && state.phase !== 'over';
     const options = myTurn && state.phase === 'move' && !waiting ? legalMoves(state, mine) : [];

@@ -6,7 +6,8 @@ import { woodTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
 import { HOUSE, GOAL, TRACK } from './rules.js';
-import { cellOf, pathOf, TRACK_CELLS, GOAL_CELLS } from './layout.js';
+import { cellOf, pathOf, TRACK_CELLS, GOAL_CELLS, HOUSE_CELLS } from './layout.js';
+import { createPlates } from '../plates.js';
 import { boardTexture, COLORS, BOARD, STEP, FIELD_R } from './print.js';
 import { createDice } from './dice.js';
 
@@ -18,6 +19,15 @@ const HOME_S = 0.75; // geschlagene Figur fliegt heim
 const HOME_H = 14;
 
 const toWorld = ([c, r]) => new THREE.Vector3((c - 5) * STEP, THICK, (r - 5) * STEP);
+const SIDE = [0, -Math.PI / 2, Math.PI, Math.PI / 2]; // Blickrichtung je Sitz (0 unten, 1 links, 2 oben, 3 rechts)
+
+// Namensschild eines Sitzes (Rasterfeld der Mitte): im Viertel seines Hauses der freie Streifen aus 4 × 2 Feldern
+// neben dem Haus, der quer vor dem Zuschauer liegt (viewer = Sitz der Kamera)
+function plateCell(seat, viewer) {
+  const [c, r] = [0, 1].map((i) => HOUSE_CELLS[seat].reduce((a, cell) => a + cell[i], 0) / 4); // Mitte des Hauses
+  const [qc, qr] = [c, r].map((v) => v + (v < 5 ? 1 : -1)); // Mitte des Viertels (4 × 4 Felder)
+  return viewer % 2 === 0 ? [qc, 2 * qr - r] : [2 * qc - c, qr];
+}
 
 // Punkt auf dem Brett (lokal, cm) → Stand für seat (0–39 Laufbahn ab dem eigenen A-Feld, 40–43 eigenes Ziel) oder null
 function fieldOf(at, seat) {
@@ -84,7 +94,8 @@ export function createMaednBoard(parent, { onStream = () => {} } = {}) {
   let hoverTarget = null;
   let clock = 0;
   let colors = [0, 1, 2, 3]; // Farbe je Sitz (Index in COLORS) – je nach Farbwahl gedreht
-  const prints = new Map([['0,1,2,3', body.material[2].map]]); // Aufdruck je Drehung, höchstens 4
+  const plates = createPlates(group, 4, { w: 14, h: 3.5 });
+  const prints =new Map([['0,1,2,3', body.material[2].map]]); // Aufdruck je Drehung, höchstens 4
 
   // Brett und Figuren in den Farben dieser Partie
   function setColors(next) {
@@ -200,6 +211,7 @@ export function createMaednBoard(parent, { onStream = () => {} } = {}) {
   function reset() {
     shown = null;
     setColors([0, 1, 2, 3]);
+    plates.set([]);
     movable = { seat: -1, list: [] };
     setHover(-1, -1, null);
     dice.reset();
@@ -227,6 +239,8 @@ export function createMaednBoard(parent, { onStream = () => {} } = {}) {
       else if (s.pieces && (!shown || s.seq !== shown.seq || !shown.pieces)) snap(s);
       shown = s;
     },
+    // Namensschilder in der Ecke jeder Farbe: labels[sitz] = Text, turn = wer dran ist (oder null), viewer = Sitz der Kamera
+    names: (labels, turn, viewer) => plates.set(labels, { at: (s) => toWorld(plateCell(s, viewer)), view: SIDE[viewer], turn }),
     // Figuren, die gerade ziehen dürfen (leuchten, Ring darunter)
     setMovable(seat, list) {
       movable = { seat, list: [...list] };

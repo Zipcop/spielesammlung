@@ -13,6 +13,7 @@ import { RANKS } from '../karten/cards.js';
 import { faceOf, isJoker, suitOf, rankOf } from './game.js';
 import { playHit, playShuffle } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates } from '../plates.js';
 
 const DECK = 110;
 const TALON = { x: -8, z: 0 };
@@ -23,6 +24,8 @@ const ROW_W = 72; // so breit dürfen die Reihen werden (rechts liegt das Seiten
 const REVEAL_Z = 31; // aufgedeckte Restkarten am Rundenende
 const SUIT_ORDER = ['c', 'h', 's', 'd']; // Hand nach Farbe: Kreuz, Herz, Pik, Karo – schwarz und rot im Wechsel
 const sideOf = (player) => (player === 0 ? 0 : Math.PI);
+const PLATE = new THREE.Vector3(32, 0, 37); // Namensschild am Rand rechts neben der Hand (aus Sicht des Platzes auf +z)
+const UP = new THREE.Vector3(0, 1, 0);
 const signOf = (player) => (player === 0 ? 1 : -1);
 
 const talonSpot = (k) => flat(TALON.x, k * CARD.t, TALON.z, 0.03, false);
@@ -38,6 +41,7 @@ export function createRommeBoard(parent) {
   let sort = 'suit'; // Hand nach Farbe oder nach Wert
   let reveal = false; // Rundenende: Karten des anderen offen hinlegen
   let meldSpots = new Map(); // Figur → Lagen ihrer Karten (für Klicks und Ablegen mit der Hand)
+  const plates = createPlates(cards.group, 2);
 
   // Klickflächen von Stapel und Ablage – auch wenn sie gerade leer sind
   const hitBox = (x, z) => {
@@ -326,6 +330,7 @@ export function createRommeBoard(parent) {
     me = 0;
     setGlow('hover', []);
     setGlow('selected', []);
+    plates.set([]);
     rebuild({ talon: DECK, pile: [], melds: [], hands: [0, 0] });
   }
 
@@ -350,6 +355,8 @@ export function createRommeBoard(parent) {
     reset,
     update: (dt) => cards.update(dt),
     busy: cards.busy,
+    // Namensschilder: labels[spieler] = Text, turn = wer dran ist (oder null)
+    names: (labels, turn = null) => plates.set(labels, { at: (p) => PLATE.clone().applyAxisAngle(UP, sideOf(p)), view: sideOf(me), turn }),
     // v = Sicht eines Spielers (viewFor), player = wer zuschaut
     sync(v, player) {
       if (!v || v === shown) return;

@@ -67,3 +67,10 @@ test('Laden und Speichern', () => {
   assert.deepEqual(loadSettings(blocked), DEFAULTS);
   assert.doesNotThrow(() => saveSettings(DEFAULTS, blocked));
 });
+
+test('Helligkeit: nur erlaubte Stufen, sonst Normal', () => {
+  assert.equal(mergeSettings({}).brightness, 1);
+  assert.equal(mergeSettings({ brightness: 1.3 }).brightness, 1.3);
+  assert.equal(mergeSettings({ brightness: 5 }).brightness, 1);
+  assert.equal(levelOf({ ...withLevel(DEFAULTS, 'niedrig'), brightness: 1.7 }), 'niedrig', 'Helligkeit gehört nicht zur Grafik-Stufe');
+});

@@ -8,6 +8,7 @@ import { chessBoardTexture, glowTexture, woodTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
 import { BADGES } from './badges.js';
+import { createPlates, across } from '../plates.js';
 
 const SQ = 5; // Feldgröße
 const BORDER = 0.5; // Rahmen = halbes Feld
@@ -42,6 +43,8 @@ export function createChessBoard(parent) {
   boardMesh.position.y = THICK / 2;
   boardMesh.castShadow = boardMesh.receiveShadow = true;
   group.add(boardMesh);
+  // Namensschilder mittig vor dem Brettrand (die Geschlagenen stehen seitlich daneben); 0 = Weiß (+z), 1 = Schwarz
+  const plates = createPlates(group, 2, { w: 14, h: 3.5 });
 
   const geometries = createPieceGeometries();
   // Figuren-Sets (Design dieses PCs). Metall braucht mehr Spiegelung, sonst wirkt es im dunklen Zimmer stumpf.
@@ -295,6 +298,7 @@ export function createChessBoard(parent) {
     setGlow('hover', []);
     setGlow('selected', []);
     group.rotation.y = 0;
+    plates.set([]);
     badge.visible = false;
     rebuild(START, []);
     drawMarks();
@@ -315,6 +319,14 @@ export function createChessBoard(parent) {
       for (const c of ['w', 'b']) dress(woods[c], set[c]);
       for (const p of pieces.children) dress(p.material, set[p.userData.color]);
     },
+    // Namensschilder je Farbe: labels = [Weiß, Schwarz], turn = 0/1 (Farbe am Zug) oder null, viewer = 0/1 (Farbe des Zuschauers)
+    // Meins mittig vor dem Brett; das des anderen an seiner rechten vorderen Ecke neben dem Brett – mittig verdeckten es
+    // seine Figuren, dort stehen keine Geschlagenen (die beginnen an der anderen Ecke)
+    names: (labels, turn, viewer) => plates.set(labels, {
+      at: (c) => (c === viewer ? across(c, 0, SIZE / 2 + 2.5) : across(c, SIZE / 2 + 10.5, 18)),
+      view: viewer ? Math.PI : 0,
+      turn,
+    }),
     setBadge, // Plakette der Zuganalyse: setBadge('e4', 'best'), setBadge(null) = weg
     // ui = { selected: Feld, targets: [{ to, capture }], arrow: 'e2e4' }
     setMarks(next) {

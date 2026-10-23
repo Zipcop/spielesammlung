@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { canvasTexture, woodTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates, across } from '../plates.js';
 import { STONES, POINTS } from './game.js';
 
 export const BOARD = 32;
@@ -52,6 +53,7 @@ export function createMuehleBoard(parent) {
   group.scale.setScalar(0.01);
   parent.add(group);
   const body = buildBoard(group);
+  const plates = createPlates(group, 2, { w: 14, h: 3.5 });
 
   const geometry = stoneGeometry();
   // je Spieler 9 Steine, jeder mit eigenem Material (Aufleuchten)
@@ -193,6 +195,7 @@ export function createMuehleBoard(parent) {
     marks = { targets: [], takes: [], selected: null, hover: null };
     setGlow('hover', []);
     setGlow('selected', []);
+    plates.set([]);
     stones.forEach((st, n) => setLoc(st, { kind: 'hand', i: n % STONES }, false));
     dress();
   }
@@ -210,6 +213,8 @@ export function createMuehleBoard(parent) {
       look = SETS[s.chessSet] ?? SETS.holz;
       dress();
     },
+    // Namensschilder hinter den Steinen in der Hand: labels[spieler] = Text, turn = wer dran ist (oder null), viewer = wer zuschaut
+    names: (labels, turn, viewer) => plates.set(labels, { at: (p) => across(p, 0, BOARD / 2 + 7), view: viewer ? Math.PI : 0, turn }),
     // s = Spielstand (game.js) – Änderungen werden abgespielt, ein ganz neuer Stand direkt hingestellt
     sync(s) {
       if (!s || s === shown) return;

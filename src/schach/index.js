@@ -5,12 +5,13 @@
 // Zu zweit: Live-Bewertung der eigenen Züge (abschaltbar) und nach der Partie der Rückblick „Partie analysieren“ –
 // jeder PC rechnet für sich. free = „Ohne Hilfen“ (zu zweit und allein): keine erlaubten Felder, jede eigene Figur
 // darf überallhin, „Geschummelt!“-Knopf – und keine Analyse, kein Orakel, kein Zurücknehmen.
-import { newGame, move, resign, takeBack, again, accuse, waive, anyMove, turnOf, colorOf, legalMoves, positionAt, REASONS, MAX_STRIKES } from './game.js';
+import { newGame, whiteFor, move, resign, takeBack, again, accuse, waive, anyMove, turnOf, colorOf, legalMoves, positionAt, REASONS, MAX_STRIKES } from './game.js';
 import { createPanel } from './panel.js';
 import { createSolo, LEVELS, loadRecord } from './solo.js';
 import { createAnalyst } from './analysis.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { rematchBlocked } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const SYMBOLS = { w: { q: '♕', r: '♖', b: '♗', n: '♘' }, b: { q: '♛', r: '♜', b: '♝', n: '♞' } };
@@ -29,6 +30,26 @@ function loadLive() {
     return localStorage.getItem(LIVE_KEY) !== 'aus';
   } catch {
     return true;
+  }
+}
+
+// Farbwahl am Tisch (Nico: „Weiß oder Schwarz wählen“) – pro PC gemerkt; ohne Speicher gilt sie bis zum Neuladen
+const COLOR_KEY = 'spielesammlung-schach-farbe';
+let chosenColor = (() => {
+  try {
+    const c = localStorage.getItem(COLOR_KEY);
+    return c === 'w' || c === 'b' ? c : 'zufall';
+  } catch {
+    return 'zufall';
+  }
+})();
+export const loadColor = () => chosenColor;
+export function saveColor(color) {
+  chosenColor = color;
+  try {
+    localStorage.setItem(COLOR_KEY, color);
+  } catch {
+    // ohne Speicher gilt die Wahl nur bis zum Neuladen
   }
 }
 
@@ -206,6 +227,9 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     const shown = line ? [...state.moves.slice(0, review.ply - 1), ...line.slice(0, review.line).map((m) => m.uci)] : null;
     board.sync(!review ? state : line ? positionAt({ ...state, moves: shown }, shown.length) : positionAt(state, review.ply));
     const opponent = solo ? `Computer (${LEVELS[level].name})` : names.other();
+    const myColor = mine === 'w' ? 0 : 1; // Schilder je Farbe: 0 = Weiß, 1 = Schwarz
+    board.names(seatLabels(2, { mySeat: myColor, humans: solo ? [myColor] : [0, 1], me: names.me(), other: names.other(), cpu: () => opponent }),
+      state.result ? null : state.fen.split(' ')[1] === 'w' ? 0 : 1, myColor);
     // im Rückblick zeigt der Pfeil den besseren Zug (aus der Stellung vor dem gezeigten Zug)
     board.setMarks(review ? { selected: null, targets: [], arrow: (line ? line[review.line]?.uci : view?.arrows[review.ply - 1]) ?? null } : { selected, targets, arrow: showHint && myTurn() ? view?.hint : null });
     // Plakette: im Rückblick über dem gezeigten Zug, live über meinem letzten Zug
@@ -373,7 +397,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
   };
   const stopFrames = room.onFrame((dt) => board.update(dt));
 
-  if (isHost) commit(resume ?? newGame(Math.random() < 0.5 ? 0 : 1, { free })); // Farben per Zufall
+  if (isHost) commit(resume ?? newGame(whiteFor(loadColor()), { free })); // gewählte Farbe (oder Zufall); der Gast bekommt die andere
 
   return {
     handle,

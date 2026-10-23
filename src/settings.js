@@ -19,7 +19,8 @@ export const LEVELS = {
 
 // name '' = noch nicht gefragt · free = als Host „Ohne Hilfen“ spielen (Schummeln erlaubt)
 // Designs: Zimmer, Tageszeit und Spielmaterial – jeder PC sieht sein eigenes Design
-export const DESIGN_DEFAULTS = { room: 'wohnzimmer', daytime: 'nacht', dice: 'weiss', felt: 'gruen', chessSet: 'holz', cardBack: 'rot' };
+// brightness = Belichtung des Bildes (für dunkle oder schwache Bildschirme)
+export const DESIGN_DEFAULTS = { room: 'wohnzimmer', daytime: 'nacht', brightness: 1, dice: 'weiss', felt: 'gruen', chessSet: 'holz', cardBack: 'rot' };
 export const DEFAULTS = { name: '', ...LEVELS.mittel, fps: false, free: false, ...DESIGN_DEFAULTS };
 
 // Erlaubte Werte je Einstellung – alles andere (z. B. von Hand verändert) fällt auf den Standard zurück
@@ -39,6 +40,7 @@ export const OPTIONS = {
   free: ON_OFF,
   room: ['wohnzimmer', 'kamin', 'casino'],
   daytime: ['tag', 'abend', 'nacht'],
+  brightness: [1, 1.3, 1.7],
   dice: ['weiss', 'elfenbein', 'rot', 'schwarz'],
   felt: ['gruen', 'rot', 'blau'],
   chessSet: ['holz', 'marmor', 'metall'],

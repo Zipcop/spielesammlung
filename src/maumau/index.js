@@ -11,6 +11,7 @@ import { createCheatUI } from '../cheat-ui.js';
 import { rematchBlocked, cpuCheats, cpuAccuses } from '../schummeln.js';
 import { cardName, isCard, rankOf, SUIT_NAMES, SUITS } from '../karten/cards.js';
 import { paintSuit } from '../karten/faces.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const THINK_MS = 900; // so lange „überlegt“ der Computer, nachdem die Karten liegen
@@ -165,6 +166,7 @@ export function startMauMau({ room, board, canvas, me, send, onLeave, ask, level
   function render() {
     board.sync(mine, me);
     if (!mine) return;
+    board.names(seatLabels(2, { mySeat: me, humans: solo ? [me] : [0, 1], me: names.me(), other: names.other(), cpu: () => 'Computer' }), mine.winner === null ? mine.turn : null);
     board.setPlayable(myTurn() && !mine.free ? playable(mine, me) : null);
     cheat.update({ free: mine.free, canAccuse: !!mine.cheat && mine.cheat.player !== me && !waiting });
     const verdict = mine.events.find((e) => e.type === 'caught' || e.type === 'fehlalarm');

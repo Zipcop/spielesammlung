@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { canvasTexture, woodTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates, across } from '../plates.js';
 import { PIECES } from './game.js';
 
 const SQ = 4; // Feldgröße
@@ -78,6 +79,7 @@ export function createDameBoard(parent) {
   let shown = null;
   let shownBoard = null;
   let look = SETS.holz;
+  const plates = createPlates(group, 2, { w: 14, h: 3.5 });
   let white = 0;
   let marks = { targets: [], force: [], took: [], selected: null, hover: null };
   let clock = 0;
@@ -191,6 +193,7 @@ export function createDameBoard(parent) {
     marks = { targets: [], force: [], took: [], selected: null, hover: null };
     setGlow('hover', []);
     setGlow('selected', []);
+    plates.set([]);
     stones.forEach((st, n) => setLoc(st, { kind: 'spare', i: n % STONES }, false));
     dress();
   }
@@ -208,6 +211,8 @@ export function createDameBoard(parent) {
       look = SETS[s.chessSet] ?? SETS.holz;
       dress();
     },
+    // Namensschilder vor dem Brett: labels[spieler] = Text, turn = wer dran ist (oder null), viewer = wer zuschaut
+    names: (labels, turn, viewer) => plates.set(labels, { at: (p) => across(p, 0, HALF + 4), view: viewer ? Math.PI : 0, turn }),
     // s = Spielstand (game.js), board = gezeigtes Brett (Vorschau eines angefangenen Zugs, sonst s.board).
     // Änderungen werden abgespielt, ein ganz neuer Stand direkt hingestellt.
     sync(s, board = s?.board) {

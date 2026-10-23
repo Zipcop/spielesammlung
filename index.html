@@ -63,6 +63,11 @@
       <section data-view="table">
         <button id="btn-rules" class="secondary">Spielanleitung</button>
         <label id="free-row" class="free-row" hidden><input type="checkbox" id="free-toggle"> Ohne Hilfen – Schummeln erlaubt</label>
+        <select id="chess-color" aria-label="Deine Farbe beim Schach" hidden>
+          <option value="w">Deine Farbe: Weiß</option>
+          <option value="b">Deine Farbe: Schwarz</option>
+          <option value="zufall">Deine Farbe: Zufall</option>
+        </select>
         <button id="btn-resume" hidden>Letzte Partie fortsetzen</button>
         <button id="btn-host">Lobby hosten</button>
         <div id="solo" class="solo" hidden>

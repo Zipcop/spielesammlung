@@ -12,6 +12,7 @@ import { chooseMove, cheatTurn, LEVELS } from './ai.js';
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { cpuCheats, cpuAccuses } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const THINK_MS = 600; // so lange „überlegt“ der Computer mindestens
@@ -261,6 +262,7 @@ export function startReversi({ room, board, canvas, me, send, onLeave, ask, leve
     board.sync(state);
     if (!state) return;
     const s = state;
+    board.names(seatLabels(2, { mySeat: me, humans: solo ? [me] : [0, 1], me: names.me(), other: names.other(), cpu: () => `Computer (${LEVELS[lvl].name})` }), s.result ? null : s.turn, me);
     if (!myTurn()) hover = null;
     marks();
     const won = s.result?.winner === me;

@@ -10,6 +10,7 @@ import { chooseMove, cheatMove, LEVELS } from './ai.js';
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { cpuCheats, cpuAccuses } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const THINK_MS = 450; // so lange „überlegt“ der Computer, nachdem der Stein liegt
@@ -214,6 +215,7 @@ export function startVierGewinnt({ room, board, canvas, me, send, onLeave, ask, 
     board.sync(state);
     if (!state) return;
     const s = state;
+    board.names(seatLabels(2, { mySeat: me, humans: solo ? [me] : [0, 1], me: names.me(), other: names.other(), cpu: () => `Computer (${LEVELS[lvl].name})` }), s.result ? null : s.turn, me);
     if (!canDrop()) board.setGhost(null);
     const won = s.result?.winner === me;
     if (won && !cheered) room.celebrate(me);

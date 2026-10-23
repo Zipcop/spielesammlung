@@ -10,6 +10,7 @@ import { motifTexture, tileBack, setTileBack } from './motifs.js';
 import { GRID } from './game.js';
 import { playHit, playShuffle } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates, across } from '../plates.js';
 
 export const TILE = { w: 5.4, t: 0.22, r: 0.45 };
 const MAX = 48; // 24 Paare
@@ -76,6 +77,7 @@ export function createMemoryBoard(parent) {
     return tile;
   });
 
+  const plates = createPlates(group, 2);
   let anims = [];
   let clock = 0;
   let shown = null;
@@ -282,6 +284,7 @@ export function createMemoryBoard(parent) {
     hover = null;
     me = 0;
     setGlow('hover', []);
+    plates.set([]);
     rebuild({ phase: 'setup', set: 'tiere', size: 24 });
   }
 
@@ -294,6 +297,8 @@ export function createMemoryBoard(parent) {
     update,
     busy,
     reset,
+    // Namensschilder vor dem Raster: labels[spieler] = Text, turn = wer dran ist (oder null)
+    names: (labels, who = null) => plates.set(labels, { at: (p) => across(p, 0, 23), view: turn(), turn: who }),
     // v = Sicht eines Spielers (viewFor), seat = wer zuschaut
     sync(v, seat) {
       if (!v || v === shown) return;

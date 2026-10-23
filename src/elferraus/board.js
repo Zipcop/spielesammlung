@@ -12,6 +12,7 @@ import { setCardBack } from '../karten/faces.js';
 import { COLORS, colorOf, numOf } from './game.js';
 import { playHit, playShuffle } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates, seatSide } from '../plates.js';
 
 const DECK = 80;
 const SIDE = [0, -Math.PI / 2, Math.PI, Math.PI / 2]; // Drehung um die Hochachse: +z-Platz → Platz des Sitzes
@@ -22,6 +23,7 @@ const ROW_X = 7.2; // so weit liegen die Stapel 10 und 12 neben dem Elfer
 const STEP = 0.6; // jede weitere Karte so viel weiter außen
 const ROW_DZ = 10;
 const REVEAL_R = 26; // Rundenende: Restkarten offen vor den Spielern
+const PLATE = new THREE.Vector3(26, 0, 41); // Namensschild am Rand rechts neben der Hand (aus Sicht des Sitzes auf +z)
 const ORDER = { r: 0, y: 1, g: 2, b: 3 };
 
 const around = (v, seat) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), SIDE[seat]);
@@ -36,6 +38,7 @@ export function createElferBoard(parent) {
   let hover = null;
   let playable = null; // Set der Karten, die gerade passen (null = alle hell)
   let colors = COLORS;
+  const plates = createPlates(cards.group, 4);
 
   function empty() {
     return { talon: [], spare: [], hands: [[], [], [], []], rows: Object.fromEntries(COLORS.map((c) => [c, { mid: null, left: [], right: [] }])) };
@@ -215,6 +218,7 @@ export function createElferBoard(parent) {
     playable = null;
     me = 0;
     setGlow('hover', []);
+    plates.set([]);
     rebuild({ phase: 'setup', hands: [0, 0, 0, 0], rows: {} });
   }
 
@@ -255,6 +259,8 @@ export function createElferBoard(parent) {
         layout();
       }
     },
+    // Namensschilder: labels[sitz] = Text ('' = leerer Platz), turn = wer dran ist (oder null)
+    names: (labels, turn = null) => plates.set(labels, { at: (s) => around(new THREE.Vector3(seatSide(s, me) * PLATE.x, 0, PLATE.z), s), view: SIDE[me], turn }),
     // Karten, die gerade passen (die anderen werden abgedunkelt) – null = alle hell
     setPlayable(list) {
       playable = list ? new Set(list) : null;

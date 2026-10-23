@@ -5,7 +5,7 @@ import { PLAYABLE } from './games.js';
 import { createBoard } from './kniffel/board.js';
 import { startKniffel } from './kniffel/index.js';
 import { createChessBoard } from './schach/board.js';
-import { startSchach } from './schach/index.js';
+import { startSchach, loadColor, saveColor } from './schach/index.js';
 import { LEVELS, loadRecord } from './schach/solo.js';
 import { startRaetsel } from './schach/raetsel.js';
 import { createMauMauBoard } from './maumau/board.js';
@@ -302,6 +302,8 @@ function showTablePanel(name) {
   if (saved) $('btn-resume').textContent = `Letzte Partie fortsetzen (${savedAt(saved.at)})`;
   $('btn-solo').textContent = alone || 'Gegen Computer';
   $('level').hidden = $('solo-record').hidden = name !== 'Schach';
+  $('chess-color').hidden = name !== 'Schach'; // gilt allein und für den Host zu zweit
+  $('chess-color').value = loadColor();
   $('free-row').hidden = !PLAYABLE.get(name).free;
   $('free-toggle').checked = settings.free;
   showRecord();
@@ -438,6 +440,7 @@ $('btn-host').onclick = $('btn-resume').onclick = (e) => {
 $('level').innerHTML = LEVELS.map((l, i) => `<option value="${i}">Stufe ${i + 1} · ${l.name}</option>`).join('');
 $('level').value = '1';
 $('level').onchange = showRecord;
+$('chess-color').onchange = (e) => saveColor(e.target.value);
 $('btn-solo').onclick = () => startGame(table, 0, table === 'Schach' ? Number($('level').value) : 0);
 
 $('free-toggle').onchange = (e) => changeSettings({ ...settings, free: e.target.checked });

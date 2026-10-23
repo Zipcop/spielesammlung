@@ -10,6 +10,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { feltOf, woodTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates, seatSide } from '../plates.js';
 import { UP, rand, smooth, round, topFace, upright, randomTurn, yawOf, makeDie, restyleDie, pose, isPose } from '../wuerfel.js';
 
 const DIE = 2.2;
@@ -36,6 +37,9 @@ const HAND_Y = FLOOR + 6.5;
 const HAND_LIMIT = ARENA.r - HAND.w / 2 - 3.5;
 const TOSS_SPIN = 14;
 const TRAY = { w: 23, d: 6.5, h: 1, at: 29 }; // Ablage vor dem Platz (at = Abstand von der Mitte)
+// Namensschild (quer, Abstand): meins links vor der Ablage (rechts steht der Becher, mittig liegt der Bedienhinweis),
+// gegenüber mittig hinter der Ablage, bei den Nachbarn an der Ecke zu mir hin
+const PLATE = { mine: [-20, 30.5], front: [0, 36], side: [27, 32] };
 const TOWARD = [[0, 1], [-1, 0], [0, -1], [1, 0]];
 const SIDE = [0, -Math.PI / 2, Math.PI, Math.PI / 2]; // Drehung +z-Platz → Platz des Sitzes
 
@@ -66,6 +70,11 @@ export function createZehntausendBoard(parent, { onStream = () => {} } = {}) {
     return m;
   });
 
+  const plates = createPlates(group, 4, { w: 12, h: 3 });
+  const plateAt = (s) => {
+    const [x, z] = s === me ? PLATE.mine : (s - me) % 2 === 0 ? PLATE.front : [seatSide(s, me) * PLATE.side[0], PLATE.side[1]];
+    return local(s, x, 0, z);
+  };
   let view = null;
   let me = 0;
   let rest = []; // wo jeder Würfel nach dem letzten Wurf in der Arena liegt
@@ -496,6 +505,7 @@ export function createZehntausendBoard(parent, { onStream = () => {} } = {}) {
     }
     remote = null;
     view = null;
+    plates.set([]);
     rest = [];
     moves = [];
     cupMove = null;
@@ -517,6 +527,8 @@ export function createZehntausendBoard(parent, { onStream = () => {} } = {}) {
     group,
     ready,
     sync,
+    // Namensschilder: labels[sitz] = Text ('' = leerer Platz), turn = wer dran ist (oder null)
+    names: (labels, turn = null) => plates.set(labels, { at: plateAt, view: SIDE[me], turn }),
     applyRemote,
     roll: (thrown, seat) => throwDice(thrown, seat, 'auto'),
     // Von Hand: grab startet den Wurf, drag bewegt, release kippt aus · grabHand: Handvoll, release wirft

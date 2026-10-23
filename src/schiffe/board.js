@@ -102,9 +102,10 @@ function drawLid(g, w, h) {
   const s = w / (PLATE.x1 - PLATE.x0);
   const X = (x) => (x - PLATE.x0) * s;
   const Y = (y) => (LID.y1 - y) * s;
-  g.fillStyle = '#2b3542';
+  // hell gehalten: der Deckel steht aufrecht, die Lampe streift ihn nur – dunkel war er auf schwachen Bildschirmen kaum lesbar
+  g.fillStyle = '#4f6680';
   g.fillRect(0, 0, w, h);
-  g.fillStyle = '#34475c';
+  g.fillStyle = '#7f9bb8';
   g.fillRect(X(GX0), Y(LY0), N * P * s, N * P * s);
   grid(g, X, Y, (i) => cx(i), (j) => ly(j), s);
   g.fillStyle = '#e6ecf2';
@@ -191,7 +192,9 @@ export function createSchiffeBoard(parent) {
     // Deckel mit Zielraster
     const lh = LID.y1 - LID.y0;
     add(new THREE.BoxGeometry(pw, lh, LID.t), mat, px, LID.y0 + lh / 2, LID.z - LID.t / 2);
-    const lidFace = new THREE.Mesh(new THREE.PlaneGeometry(pw, lh), new THREE.MeshStandardMaterial({ map: canvasTexture(1024, Math.round((1024 * lh) / pw), drawLid), roughness: 0.5 }));
+    // leuchtet etwas selbst (emissiveMap), damit das Zielraster auch nachts und von der Seite lesbar bleibt
+    const lidTex = canvasTexture(1024, Math.round((1024 * lh) / pw), drawLid);
+    const lidFace = new THREE.Mesh(new THREE.PlaneGeometry(pw, lh), new THREE.MeshStandardMaterial({ map: lidTex, emissive: 0xffffff, emissiveMap: lidTex, emissiveIntensity: 0.35, roughness: 0.5 }));
     lidFace.position.set(px, LID.y0 + lh / 2, LID.z + 0.01);
     lidFace.receiveShadow = true;
     root.add(lidFace);

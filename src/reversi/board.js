@@ -9,6 +9,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { canvasTexture, woodTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates, across } from '../plates.js';
 import { N } from './game.js';
 
 const S = 3.6; // Feldgröße
@@ -54,6 +55,7 @@ export function createReversiBoard(parent) {
   const frame = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: woodTexture({ base: '#6e4122', boards: 3 }), roughness: 0.5, clearcoat: 0.35 });
   const wood = frame.map;
   buildBoard(group, frame);
+  const plates = createPlates(group, 2, { w: 14, h: 3.5 });
 
   const geometry = discGeometry();
   const looks = [
@@ -219,6 +221,7 @@ export function createReversiBoard(parent) {
     starter = 0;
     marks = { moves: [], hover: null, ghost: null, last: null, flip: null };
     setGlow('hover', []);
+    plates.set([]);
     ghost.visible = false;
     cells.fill(null);
     for (const d of discs) d.cell = null;
@@ -253,6 +256,8 @@ export function createReversiBoard(parent) {
     update,
     busy,
     reset,
+    // Namensschilder vor dem Brett: labels[spieler] = Text, turn = wer dran ist (oder null), viewer = wer zuschaut
+    names: (labels, turn, viewer) => plates.set(labels, { at: (p) => across(p, 0, BOARD / 2 + 4), view: viewer ? Math.PI : 0, turn }),
     // s = Spielstand; eine neue Aktion (oder die Revanche) wird abgespielt, sonst alles direkt hingestellt
     sync(s) {
       if (!s || s === shown) return;

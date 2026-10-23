@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { canvasTexture, woodTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates, across } from '../plates.js';
 import { isStore } from './game.js';
 
 const STONES = 72;
@@ -93,6 +94,7 @@ export function createKalahaBoard(parent) {
   const frame = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: wood, roughness: 0.5, clearcoat: 0.3 });
   const inner = new THREE.MeshStandardMaterial({ color: 0xffffff, map: woodTexture({ base: '#6a3f22', boards: 3 }), roughness: 0.65, side: THREE.DoubleSide });
   buildBoard(group, frame, inner);
+  const plates = createPlates(group, 2, { w: 14, h: 3.5 });
 
   const slots = { pit: pile(shapeOf(0)), store: pile(shapeOf(6)) };
   const slotOf = (i, k) => {
@@ -323,6 +325,7 @@ export function createKalahaBoard(parent) {
     preferred = null;
     marks = { legal: [], hover: null, last: null };
     setGlow('hover', []);
+    plates.set([]);
     for (const list of lists) list.length = 0;
     for (const d of stones) {
       d.pit = null;
@@ -367,6 +370,8 @@ export function createKalahaBoard(parent) {
     update,
     busy,
     reset,
+    // Namensschilder vor dem Brett: labels[spieler] = Text, turn = wer dran ist (oder null), viewer = wer zuschaut
+    names: (labels, turn, viewer) => plates.set(labels, { at: (p) => across(p, 0, BOARD_W / 2 + 8), view: viewer ? Math.PI : 0, turn }),
     // s = Spielstand; eine neue Aktion (oder eine neue Partie) wird abgespielt, sonst alles direkt hingelegt
     sync(s) {
       if (!s || s === shown) return;

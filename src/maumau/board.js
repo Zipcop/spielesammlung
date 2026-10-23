@@ -7,6 +7,7 @@ import { suitChip, setCardBack } from '../karten/faces.js';
 import { makeDeck, SUITS, RANKS } from '../karten/cards.js';
 import { playHit, playShuffle } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates } from '../plates.js';
 
 const DECK = makeDeck('7').length;
 const TALON = { x: -7.5, z: -1 };
@@ -14,6 +15,8 @@ const PILE = { x: 3.5, z: -1 };
 const HAND = { at: new THREE.Vector3(0, 7, 23), tilt: 0.95 }; // Platz auf der +z-Seite, der andere gegenüber
 const ORDER = ['c', 'h', 's', 'd']; // Hand sortiert: Kreuz, Herz, Pik, Karo – schwarz und rot im Wechsel
 const sideOf = (player) => (player === 0 ? 0 : Math.PI);
+const PLATE = new THREE.Vector3(21, 0, 25); // Namensschild rechts neben der Hand (aus Sicht des Platzes auf +z)
+const UP = new THREE.Vector3(0, 1, 0);
 
 const talonSpot = (k) => flat(TALON.x, k * CARD.t, TALON.z, 0.03, false);
 // Ablage etwas unordentlich – aus der Lage im Stapel berechnet, damit beide dasselbe sehen
@@ -27,6 +30,7 @@ export function createMauMauBoard(parent) {
   let me = 0;
   let hover = null;
   let canPlay = null; // Karten, die gerade passen (null = keine Abdunklung)
+  const plates = createPlates(cards.group, 2);
 
   // Wunsch-Chip neben der Ablage
   const chip = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.3, 0.5, 40), [
@@ -171,6 +175,7 @@ export function createMauMauBoard(parent) {
     canPlay = null;
     me = 0;
     chip.visible = false;
+    plates.set([]);
     rebuild({ talon: DECK, pile: [], hands: [0, 0] });
   }
 
@@ -183,6 +188,8 @@ export function createMauMauBoard(parent) {
     reset,
     update: (dt) => cards.update(dt),
     busy: cards.busy,
+    // Namensschilder: labels[spieler] = Text, turn = wer dran ist (oder null)
+    names: (labels, turn = null) => plates.set(labels, { at: (p) => PLATE.clone().applyAxisAngle(UP, sideOf(p)), view: sideOf(me), turn }),
     // v = Sicht eines Spielers (viewFor), player = wer zuschaut
     sync(v, player) {
       if (!v || v === shown) return;

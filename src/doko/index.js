@@ -13,6 +13,7 @@ import { chooseCall, chooseAnnounce, searchCard, cheatCard } from './ai.js';
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { cpuCheats, cpuAccuses } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 import { cardName, SUIT_NAMES } from '../karten/cards.js';
 
 const $ = (id) => document.getElementById(id);
@@ -242,6 +243,7 @@ export function startDoko({ room, board, canvas, me, send, onLeave, ask, level, 
     board.sync(mine, mySeat);
     if (!mine) return;
     const v = mine;
+    board.names(seatLabels(4, { mySeat, humans, me: names.me(), other: names.other(), cpu: nameOf }), v.phase === 'over' ? null : v.turn);
     board.setPlayable(v.free || v.phase !== 'play' || !myTurn() ? null : legalNow());
     const known = knownParties(v, mySeat);
     const over = v.phase === 'over';

@@ -18,6 +18,7 @@ const RAIL = { r: 46.5, tube: 3.2 }; // Polsterrand
 const Y = MAT.h + 0.02;
 const SIDE = [0, 1, 2, 3, 4, 5].map((k) => -k * Math.PI / 3); // Drehung +z-Platz → Platz des Sitzes
 const HOLE = new THREE.Vector3(0, 0, 33); // Mitte der beiden Handkarten (aus Sicht des Sitzes auf +z)
+const HOLE_TILT = 0.32; // eigene Handkarten zu mir hochgekippt (rad)
 const STACK = new THREE.Vector3(12.5, 0, 33); // Chipstapel rechts daneben
 const BET = new THREE.Vector3(0, 0, 21.5); // Einsatz der Setzrunde
 const BUTTON = new THREE.Vector3(-9.5, 0, 26); // Dealer-Knopf
@@ -226,8 +227,9 @@ export function createPokerBoard(parent) {
     const turn = (open ? SIDE[me] : SIDE[seat]) + (i - 0.5) * 0.12;
     const spot = flat(p.x, Y + i * CARD.t, p.z, turn, open);
     if (seat === me && open && !showOf(seat)) {
-      spot.pos.y += 0.6;
-      spot.quat.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0).applyAxisAngle(UP, SIDE[seat]), -0.32));
+      // so hoch, dass die weggekippte Kante über dem Filz bleibt (vorher 0,6 cm – die Kante steckte ~7 mm im Tisch)
+      spot.pos.y += (CARD.h / 2) * Math.sin(HOLE_TILT) + 0.1;
+      spot.quat.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0).applyAxisAngle(UP, SIDE[seat]), -HOLE_TILT));
     }
     return spot;
   };

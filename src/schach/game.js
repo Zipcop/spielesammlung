@@ -30,6 +30,9 @@ export function newGame(white = 0, { free = false } = {}) {
   return { ...s, free: true, strikes: [0, 0], positions: [positionKey(s.fen)], cheat: null, verdict: null };
 }
 
+// Farbwahl am Tisch (allein bzw. der Host zu zweit; er ist Spieler 0): 'w', 'b' oder 'zufall' → wer Weiß hat
+export const whiteFor = (color, rng = Math.random) => (color === 'w' ? 0 : color === 'b' ? 1 : rng() < 0.5 ? 0 : 1);
+
 export const colorOf = (s, player) => (player === s.white ? 'w' : 'b');
 const playerOf = (s, color) => (color === 'w' ? s.white : 1 - s.white);
 

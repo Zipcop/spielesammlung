@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { feltOf, woodTexture, canvasTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates, seatSide } from '../plates.js';
 import { UP, rand, smooth, round, topFace, upright, randomQuat, randomTurn, yawOf, makeDie, restyleDie, pose, isPose } from '../wuerfel.js';
 
 const DIE = 2.0;
@@ -22,6 +23,7 @@ const OUT = { x: [-2.5, 0, 2.5], z: 7.4 }; // herausgelegte Würfel: vor dem Bec
 const OPEN_X = 10.5; // aufgedeckt: Becher steht rechts neben dem Deckel
 const LID = { r: 4.6, h: 0.32 }; // Strafdeckel
 const PILE = [-13, 21]; // Deckel eines Spielers: links vor seinem Platz
+const PLATE = [24, 33]; // Namensschild: rechts vor dem Platz, neben der Matte
 const TOWARD = [[0, 1], [-1, 0], [0, -1], [1, 0]];
 const SIDE = [0, -Math.PI / 2, Math.PI, Math.PI / 2];
 const STEP = 1 / 120;
@@ -78,6 +80,7 @@ export function createSchockenBoard(parent, { onStream = () => {} } = {}) {
     return { mesh: m, owner: 'pot', k: i, anim: null };
   });
 
+  const plates = createPlates(group, 4);
   let view = null;
   let me = 0;
   let roll = null; // eigener Wurf mit Physik
@@ -488,6 +491,7 @@ export function createSchockenBoard(parent, { onStream = () => {} } = {}) {
     }
     remote = null;
     view = null;
+    plates.set([]);
     for (const u of units) {
       u.local = null;
       u.anim = null;
@@ -526,6 +530,8 @@ export function createSchockenBoard(parent, { onStream = () => {} } = {}) {
     group,
     ready,
     sync,
+    // Namensschilder: labels[sitz] = Text ('' = leerer Platz), turn = wer dran ist (oder null), out(sitz) = raus (blass)
+    names: (labels, turn = null, out = () => false) => plates.set(labels, { at: (s) => local(s, seatSide(s, me) * PLATE[0], 0, PLATE[1]), view: SIDE[me], turn, faded: out }),
     roll: (seat, out) => throwDice(seat, out, 'auto'),
     grab: (seat, out) => throwDice(seat, out, 'hand'),
     drag,

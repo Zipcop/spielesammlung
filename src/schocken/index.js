@@ -15,6 +15,7 @@ import { chooseMove } from './ai.js';
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { cpuCheats, cpuAccuses } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const THINK_MS = { roll: 650, act: 700, accuse: 900, round: 3200 }; // so lange „überlegt“ der Computer
@@ -298,6 +299,9 @@ export function startSchocken({ room, board, canvas, me, send, onLeave, ask, lev
     if (!waiting) board.sync(mine, mySeat);
     if (!mine) return;
     const v = mine;
+    const at = v.seats.length ? v.seats : humans;
+    board.names(seatLabels(4, { mySeat, humans, me: names.me(), other: names.other(), cpu: nameOf, taken: (s) => at.includes(s) }),
+      v.phase === 'play' ? v.turn : null, (s) => v.phase === 'play' && !v.active.includes(s));
     const over = v.phase === 'over';
     const lost = over && v.loser === mySeat;
     if (over && !lost && !cheered) room.celebrate(me); // verloren hat ein anderer – Konfetti

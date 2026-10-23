@@ -7,6 +7,7 @@ import { LABELS } from './rules.js';
 import { createSheet } from './sheet.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { rematchBlocked } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -96,6 +97,7 @@ export function startKniffel({ room, board, canvas, me, send, onLeave, names, fr
     const mine = state.turn === me;
     const busy = rolling || waiting;
     const other = names.other();
+    board.names(seatLabels(2, { mySeat: me, humans: [0, 1], me: names.me(), other }), state.over ? null : state.turn, me);
     if (!claiming) sheet.render(state, mine && !busy && state.rolls > 0, me === 0 ? [names.me(), other] : [other, names.me()]);
 
     const of = state.free ? '' : ` von ${ROLLS_PER_TURN}`; // ohne Hilfen zählt niemand mit

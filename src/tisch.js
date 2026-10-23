@@ -146,7 +146,7 @@ export function createTisch({ room, canvas, send }) {
     board.group.traverse((o) => {
       if (loose.has(o)) return;
       for (let p = o.parent; p && p !== board.group; p = p.parent) if (loose.has(p)) return;
-      if (visibleMesh(o)) out.push(o);
+      if (visibleMesh(o) && !o.userData.plate) out.push(o); // Namensschilder (plates.js) sind kein Teil des Bretts
     });
     return out;
   }

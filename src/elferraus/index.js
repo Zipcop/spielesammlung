@@ -14,6 +14,7 @@ import { chooseMove, cheatMove } from './ai.js';
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { cpuCheats, cpuAccuses } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const THINK_MS = { play: 650, accuse: 900 }; // so lange „überlegt“ der Computer, nachdem die Karten liegen
@@ -227,6 +228,8 @@ export function startElferRaus({ room, board, canvas, me, send, onLeave, ask, le
     board.sync(mine, mySeat);
     if (!mine) return;
     const v = mine;
+    const at = v.seats.length ? v.seats : humans;
+    board.names(seatLabels(4, { mySeat, humans, me: names.me(), other: names.other(), cpu: nameOf, taken: (s) => at.includes(s) }), v.phase === 'play' ? v.turn : null);
     const turn = myTurn();
     board.setPlayable(!v.free && turn ? playable(v, mySeat) : null);
     const canAccuse = v.free && v.phase !== 'setup' && !!v.cheat && v.cheat.player !== mySeat && !waiting;

@@ -15,6 +15,7 @@ import { chooseShot, LEVELS } from './ai.js';
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { cpuCheats, cpuAccuses } from '../schummeln.js';
+import { createPlates, seatLabels, across } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const THINK_MS = 650; // so lange zielt der Computer, nachdem der Stecker steckt
@@ -25,6 +26,10 @@ const LOOK = 0.25;
 const LOG = 4;
 const LEVEL_KEY = 'spielesammlung-schiffe-stufe';
 const DRAG_PX = 6; // ab so viel Mausweg wird aus dem Anklicken (drehen) ein Ziehen
+// Namensschilder links neben jedem Koffer (rechts steht das Fach) – das des anderen liegt seitlich hinter dem Deckel
+// frei im Blick. Einmal je Brett angelegt (das Brett gibt es nur einmal, startSchiffe läuft je Partie).
+const PLATE = { x: -26, z: 16 };
+let plates = null;
 
 function loadLevel() {
   try {
@@ -358,6 +363,10 @@ export function startSchiffe({ room, board, canvas, me, send, onLeave, ask, leve
     if (!mine) return;
     const s = mine;
     board.sync(s, me, own());
+    plates ??= createPlates(board.group, 2);
+    plates.set(seatLabels(2, { mySeat: me, humans: solo ? [me] : [0, 1], me: names.me(), other: names.other(), cpu: () => `Computer (${LEVELS[lvl].name})` }), {
+      at: (p) => across(p, PLATE.x, PLATE.z), view: me ? Math.PI : 0, turn: s.phase === 'play' && !s.result ? s.turn : null,
+    });
     if (drag) holdDrag();
     if (!canShoot()) board.setGhost(me, null);
     const won = s.result?.winner === me;
@@ -502,6 +511,7 @@ export function startSchiffe({ room, board, canvas, me, send, onLeave, ask, leve
       canvas.style.cursor = '';
       stopFrames();
       board.reset();
+      plates?.set([]);
     },
   };
 }

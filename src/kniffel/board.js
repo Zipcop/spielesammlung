@@ -8,6 +8,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { feltOf, diceFaces, woodTexture, blockTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates } from '../plates.js';
 
 const DIE = 2.4; // Kantenlänge
 const DIE_R = 0.3; // Rundung der Kanten
@@ -46,6 +47,9 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const side = (player) => (player === 0 ? 1 : -1); // Host sitzt auf der +z-Seite
+// Namensschild (quer, Abstand): meins links vor dem Platz neben den beiseitegelegten Würfeln (mittig unten liegt der
+// Würfeln-Knopf), das des anderen mittig hinter der Schale – so weit weg, dass der Rand es nicht verdeckt
+const PLATE = { mine: [-14, 15], other: [0, 22.5] };
 const round = (v, digits) => Math.round(v * 10 ** digits) / 10 ** digits;
 
 // Welche Zahl liegt oben? up = 1 heißt: liegt ganz flach
@@ -83,6 +87,7 @@ export function createBoard(parent, { onStream }) {
   const felt = buildTray(group);
   const deco = buildBlock(group);
   const cup = buildCup(group);
+  const plates = createPlates(group, 2, { w: 12, h: 3 });
 
   const faces = diceFaces('weiss');
   const geometry = new RoundedBoxGeometry(DIE, DIE, DIE, 4, DIE_R);
@@ -544,6 +549,7 @@ export function createBoard(parent, { onStream }) {
     state = null;
     hover = -1;
     setGlow('hover', []);
+    plates.set([]);
     rest = [];
     moves = [];
     showIdle();
@@ -556,6 +562,15 @@ export function createBoard(parent, { onStream }) {
     group,
     ready,
     sync,
+    // Namensschilder vor jedem Platz: labels[spieler] = Text, turn = wer dran ist (oder null), viewer = wer zuschaut
+    names: (labels, turn, viewer) => plates.set(labels, {
+      at: (p) => {
+        const [x, z] = p === viewer ? PLATE.mine : PLATE.other;
+        return new THREE.Vector3(side(p) * x, 0, side(p) * z);
+      },
+      view: viewer ? Math.PI : 0,
+      turn,
+    }),
     applyRemote,
     roll: (held, player) => throwDice(held, player, 'auto'),
     // Von Hand: grab startet den Wurf (Promise mit den Augenzahlen), dragCup bewegt, release kippt aus

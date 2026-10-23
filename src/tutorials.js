@@ -12,7 +12,7 @@ export const TUTORIALS = {
     { title: 'Alles ist echt', text: 'Würfel, Becher und Block kannst du packen und werfen. Ist etwas verrutscht, stellt „Aufbauen“ alles wieder hin.' },
   ],
   Schach: [
-    { title: 'Worum geht’s?', text: 'Setz den gegnerischen König matt: Er steht im Schach und kann nicht mehr entkommen. Weiß fängt an.', img: 'schach-figuren.webp' },
+    { title: 'Worum geht’s?', text: 'Setz den gegnerischen König matt: Er steht im Schach und kann nicht mehr entkommen. Weiß fängt an. Deine Farbe wählst du am Tisch (Weiß, Schwarz oder Zufall) – zu zweit wählt der Gastgeber, bei der Revanche wird getauscht.', img: 'schach-figuren.webp' },
     { title: 'Die Figuren', text: 'Bauer: ein Feld vor (beim ersten Zug auch zwei), schlägt schräg. Turm gerade, Läufer schräg, Dame beides, Springer im „L“ (darf springen), König ein Feld in jede Richtung.' },
     { title: 'Ziehen', text: 'Figur anklicken – die erlaubten Felder leuchten – dann das Zielfeld anklicken. Oder die Figur mit der Maus packen und aufs Feld stellen. Esc wählt ab.', img: 'schach-ziehen.webp' },
     { title: 'Sonderzüge', text: 'Rochade: König zwei Felder zum Turm, der Turm springt über ihn. En passant: Ein Bauer schlägt einen danebengezogenen Doppelschritt. Erreicht ein Bauer die letzte Reihe, wählst du, was er wird (meist Dame).' },

@@ -12,6 +12,7 @@ import { setCardBack } from '../karten/faces.js';
 import { canvasTexture } from '../textures.js';
 import { playHit, playShuffle } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates, seatSide } from '../plates.js';
 
 const DECK = 32;
 const SIDE = [0, -Math.PI / 2, Math.PI, Math.PI / 2]; // Drehung um die Hochachse: +z-Platz → Platz des Sitzes
@@ -22,6 +23,7 @@ const DISCARD = { x: -24, z: 22 };
 const POT = { x: -23, z: -21 }; // verlorene Leben
 const LIFE = { x: 13, z: 24, gap: 1.5 }; // Streichhölzer rechts vor dem Platz (aus Sicht des Sitzes auf +z)
 const REVEAL_R = 23; // Rundenende: Karten offen vor den Spielern
+const PLATE = new THREE.Vector3(24, 0, 36); // Namensschild rechts neben der Hand (aus Sicht des Sitzes auf +z)
 const UP = new THREE.Vector3(0, 1, 0);
 
 const around = (v, seat) => v.clone().applyAxisAngle(UP, SIDE[seat]);
@@ -52,7 +54,8 @@ function ringTexture() {
 export function createSchwimmenBoard(parent) {
   const cards = createCards(parent);
   const pool = Array.from({ length: DECK }, () => cards.make());
-  const wood = new THREE.MeshStandardMaterial({ color: 0xd9b98a, roughness: 0.85 });
+  const plates = createPlates(cards.group, 4);
+  const wood =new THREE.MeshStandardMaterial({ color: 0xd9b98a, roughness: 0.85 });
   const head = new THREE.MeshStandardMaterial({ color: 0xa3261c, roughness: 0.7 });
   // je Sitz 3 Streichhölzer (als „Karte“ für cards.fly: { mesh, target })
   const sticks = [0, 1, 2, 3].map(() => [0, 1, 2].map(() => {
@@ -322,6 +325,7 @@ export function createSchwimmenBoard(parent) {
     picked = { hand: [], middle: [] };
     me = 0;
     setGlow('hover', []);
+    plates.set([]);
     rebuild({ hands: [0, 0, 0, 0] });
     lives(null, true);
   }
@@ -336,6 +340,8 @@ export function createSchwimmenBoard(parent) {
     reset,
     update: (dt) => cards.update(dt),
     busy: cards.busy,
+    // Namensschilder: labels[sitz] = Text ('' = leerer Platz), turn = wer dran ist (oder null), out(sitz) = raus (blass)
+    names: (labels, turn = null, out = () => false) => plates.set(labels, { at: (s) => around(new THREE.Vector3(seatSide(s, me) * PLATE.x, 0, PLATE.z), s), view: SIDE[me], turn, faded: out }),
     // v = Sicht eines Spielers (viewFor), seat = wer zuschaut
     sync(v, seat) {
       if (!v || v === shown) return;

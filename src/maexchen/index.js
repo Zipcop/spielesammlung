@@ -14,6 +14,7 @@ import { chooseClaim, chooseDecision, wantsReroll, wantsPeek, observe } from './
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { cpuCheats, cpuAccuses } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const THINK_MS = { roll: 650, announce: 900, decide: 1100, accuse: 900, round: 2600 }; // so lange „überlegt“ der Computer
@@ -279,6 +280,8 @@ export function startMaexchen({ room, board, canvas, me, send, onLeave, ask, lev
     if (!mine) return;
     const v = mine;
     const over = v.phase === 'over';
+    board.names(seatLabels(4, { mySeat, humans, me: names.me(), other: names.other(), cpu: nameOf, taken: (s) => v.seats.includes(s) }),
+      over ? null : v.turn, (s) => v.lives[s] <= 0);
     const won = over && v.winner === mySeat;
     if (won && !cheered) room.celebrate(me);
     cheered = won;

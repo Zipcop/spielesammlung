@@ -11,6 +11,7 @@ import { setCardBack } from '../karten/faces.js';
 import { faceOf, suitOf, rankOf, isTrump, power, orderFrom } from './game.js';
 import { playHit, playShuffle } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates, seatSide } from '../plates.js';
 
 const DECK = 48;
 const SIDE = [0, -Math.PI / 2, Math.PI, Math.PI / 2]; // Drehung um die Hochachse: +z-Platz → Platz des Sitzes
@@ -20,6 +21,7 @@ const PILE = new THREE.Vector3(24, 0, 31); // gewonnene Stiche: rechts neben der
 const DECK_R = 12; // Kartenstapel beim Austeilen: vor dem Geber
 const REVEAL_R = 24; // aufgedeckte Restkarten (erwischt): vor dem Spieler
 const PAUSE = 1.1; // so lange bleibt ein voller Stich liegen, bevor er eingesammelt wird
+const PLATE = new THREE.Vector3(26, 0, 41); // Namensschild am Rand rechts neben der Hand (aus Sicht des Sitzes auf +z)
 const SUIT_ORDER = ['c', 's', 'h', 'd']; // Fehlfarben in der Hand: Kreuz, Pik, Herz, Karo
 const FEHL = ['A', 'T', 'K', 'Q', 'J', '9'];
 
@@ -37,6 +39,7 @@ export function createDokoBoard(parent) {
   let reveal = false;
   let clock = 0;
   let collectEnd = 0; // bis dahin liegt der letzte Stich noch in der Mitte (nächste Karte wartet)
+  const plates = createPlates(cards.group, 4);
 
   function setFace(c, id) {
     c.did = id;
@@ -212,6 +215,7 @@ export function createDokoBoard(parent) {
     me = 0;
     kind = 'normal';
     setGlow('hover', []);
+    plates.set([]);
     rebuild({ hands: [0, 0, 0, 0], trick: [], tricks: [] });
   }
 
@@ -227,6 +231,8 @@ export function createDokoBoard(parent) {
       cards.update(dt);
     },
     busy: cards.busy,
+    // Namensschilder: labels[sitz] = Text ('' = leerer Platz), turn = wer dran ist (oder null)
+    names: (labels, turn = null) => plates.set(labels, { at: (s) => around(new THREE.Vector3(seatSide(s, me) * PLATE.x, 0, PLATE.z), s), view: SIDE[me], turn }),
     // v = Sicht eines Spielers (viewFor), seat = wer zuschaut
     sync(v, seat) {
       if (!v || v === shown) return;

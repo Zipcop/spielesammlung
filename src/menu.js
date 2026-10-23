@@ -27,6 +27,7 @@ const GRAPHICS = [
 const DESIGNS = [
   ['room', 'Zimmer', 'Einrichtung des Spielzimmers', { wohnzimmer: 'Wohnzimmer', kamin: 'Kaminzimmer', casino: 'Casino-Lounge' }],
   ['daytime', 'Tageszeit', 'Licht und Blick aus dem Fenster', { tag: 'Tag', abend: 'Abend', nacht: 'Nacht' }],
+  ['brightness', 'Helligkeit', 'heller, wenn der Bildschirm dunkel ist oder man wenig erkennt', { 1: 'Normal', 1.3: 'Hell', 1.7: 'Sehr hell' }],
   ['dice', 'Würfel', 'Kniffel und Mensch ärgere dich nicht', { weiss: 'Weiß', elfenbein: 'Elfenbein', rot: 'Rot', schwarz: 'Schwarz' }],
   ['felt', 'Filz', 'Würfelschale und Würfelteller', { gruen: 'Grün', rot: 'Rot', blau: 'Blau' }],
   ['chessSet', 'Schachfiguren', 'Material der Figuren', { holz: 'Holz', marmor: 'Marmor', metall: 'Gold und Silber' }],

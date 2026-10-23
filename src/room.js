@@ -180,6 +180,7 @@ export function createRoom(canvas) {
     // Einstellungen dieses PCs (settings.js) – beim Start einmal aufrufen
     applySettings(s) {
       designs.apply(s.room, s.daytime);
+      renderer.toneMappingExposure = s.brightness; // Helligkeit (auch über die Nachbearbeitung, OutputPass liest sie mit)
       graphics.apply(s);
       dust.group.visible = s.dust;
       confettiOn = s.confetti;

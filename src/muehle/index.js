@@ -11,6 +11,7 @@ import { chooseTurn, cheatTurn } from './ai.js';
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { rematchBlocked, cpuCheats, cpuAccuses } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const THINK_MS = 650; // so lange „überlegt“ der Computer mindestens
@@ -288,6 +289,7 @@ export function startMuehle({ room, board, canvas, me, send, onLeave, ask, level
     board.sync(state);
     if (!state) return;
     const s = state;
+    board.names(seatLabels(2, { mySeat: me, humans: solo ? [me] : [0, 1], me: names.me(), other: names.other(), cpu: nameOf }), s.result ? null : s.turn, me);
     marks(hover);
     const canAccuse = s.free && !!s.cheat && s.cheat.player !== me && (s.result || (s.turn === me && s.step === 'move')) && !waiting;
     cheat.update({ free: s.free, canAccuse });

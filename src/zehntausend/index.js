@@ -16,6 +16,7 @@ import { choosePick } from './ai.js';
 import { createPanel, fmt } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { cpuCheats, cpuAccuses } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const THINK_MS = { roll: 700, pick: 900, decide: 700, accuse: 900, turn: 1400 }; // so lange „überlegt“ der Computer
@@ -308,6 +309,8 @@ export function startZehntausend({ room, board, canvas, me, send, onLeave, ask, 
     if (!waiting) board.sync(mine, mySeat);
     if (!mine) return;
     const v = mine;
+    const at = v.seats.length ? v.seats : humans;
+    board.names(seatLabels(4, { mySeat, humans, me: names.me(), other: names.other(), cpu: nameOf, taken: (s) => at.includes(s) }), v.phase === 'play' ? v.turn : null);
     const turn = myTurn();
     const canAccuse = v.free && v.phase !== 'setup' && !!v.cheat && v.cheat.player !== mySeat && v.seats.includes(mySeat) && !waiting && !rolling;
     cheat.update({ free: v.free, canAccuse });

@@ -10,6 +10,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { feltOf, diceFaces, woodTexture, canvasTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates } from '../plates.js';
 import { randomQuat, randomTurn } from '../wuerfel.js';
 
 const DIE = 2.0; // Kantenlänge der Spielwürfel
@@ -22,6 +23,9 @@ const SPOT_R = 12; // so weit steht der Becher von der Mitte zum Spieler am Zug 
 const LIFE_AT = new THREE.Vector3(14.5, 0, 24); // Lebenswürfel: rechts vor dem Platz (aus Sicht des Sitzes auf +z)
 const CARD = { w: 5.5, h: 0.15, d: 7 }; // Kärtchen „Leben“ unter dem Lebenswürfel – sonst wirkt er wie ein verlorener Würfel
 const LIFE_Y = CARD.h + LIFE / 2;
+// Namensschild mittig vor dem Platz (Abstand): die anderen neben der Matte, meins auf dem Filz hinter dem Becher-Platz –
+// weiter vorn läge es unter dem Bildrand
+const PLATE = { mine: 20, other: 29.5 };
 const TOWARD = [[0, 1], [-1, 0], [0, -1], [1, 0]];
 const SIDE = [0, -Math.PI / 2, Math.PI, Math.PI / 2]; // Drehung +z-Platz → Platz des Sitzes
 const STEP = 1 / 120;
@@ -107,6 +111,8 @@ export function createMaexchenBoard(parent, { onStream = () => {} } = {}) {
     return { holder, mesh: m, seat, value: null, anim: null };
   });
 
+  const plates = createPlates(group, 4, { w: 12, h: 3 });
+  const plateAt = (s) => (s === me ? new THREE.Vector3(0, MAT.h, PLATE.mine) : new THREE.Vector3(0, 0, PLATE.other)).applyAxisAngle(UP, SIDE[s]);
   let view = null;
   let me = 0;
   let local = null; // echte Lage der Würfel nach eigenem Wurf: { values, poses: [{ pos, quat }] } (unit-lokal)
@@ -519,6 +525,7 @@ export function createMaexchenBoard(parent, { onStream = () => {} } = {}) {
       roll = null;
     }
     remote = null;
+    plates.set([]);
     unitMove = null;
     cupAnim = null;
     tell = null;
@@ -558,6 +565,8 @@ export function createMaexchenBoard(parent, { onStream = () => {} } = {}) {
     group,
     ready,
     sync,
+    // Namensschilder: labels[sitz] = Text ('' = leerer Platz), turn = wer dran ist (oder null), out(sitz) = raus (blass)
+    names: (labels, turn = null, out = () => false) => plates.set(labels, { at: plateAt, view: SIDE[me], turn, faded: out }),
     roll: (seat) => throwDice(seat, 'auto'),
     grab: (seat) => throwDice(seat, 'hand'),
     drag,

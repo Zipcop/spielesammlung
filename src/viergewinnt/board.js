@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { woodTexture } from '../textures.js';
 import { playHit } from '../sound.js';
 import { setGlow } from '../glow.js';
+import { createPlates, across } from '../plates.js';
 import { COLS, ROWS, STONES } from './game.js';
 
 const P = 3.4; // Abstand der Löcher
@@ -70,6 +71,7 @@ export function createVierBoard(parent) {
   const frame = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: woodTexture({ base: '#8a5a32', boards: 2 }), roughness: 0.5, clearcoat: 0.35 });
   const wood = frame.map;
   buildFrame(group, frame);
+  const plates = createPlates(group, 2, { w: 12, h: 3 });
 
   const geometry = stoneGeometry();
   const materials = COLOR_HEX.map((color) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.32, clearcoat: 0.6, clearcoatRoughness: 0.25 }));
@@ -216,6 +218,7 @@ export function createVierBoard(parent) {
     shown = null;
     line = [];
     setGlow('vier', []);
+    plates.set([]);
     ghost.visible = false;
     for (const col of cells) col.fill(null);
     for (const s of all) s.cell = null;
@@ -239,6 +242,9 @@ export function createVierBoard(parent) {
     update,
     busy,
     reset,
+    // Namensschilder links vor jedem Platz (rechts liegt der Stapel, mittig verdeckt der Rahmen das gegenüber):
+    // labels[spieler] = Text, turn = wer dran ist (oder null), viewer = wer zuschaut
+    names: (labels, turn, viewer) => plates.set(labels, { at: (p) => across(p, -21, 6), view: viewer ? Math.PI : 0, turn }),
     // s = Spielstand; genau eine neue Aktion (oder die Revanche) wird abgespielt, sonst alles direkt hingestellt
     sync(s) {
       if (!s || s === shown) return;

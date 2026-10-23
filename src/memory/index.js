@@ -14,6 +14,7 @@ import { LEVELS, remember, fade, chooseFlip, peekTarget } from './ai.js';
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { cpuCheats, cpuAccuses } from '../schummeln.js';
+import { seatLabels } from '../plates.js';
 
 const $ = (id) => document.getElementById(id);
 const THINK_MS = { first: 850, second: 650, look: 1600, pass: 1100 }; // look: so lange liegen die Kärtchen des Menschen offen
@@ -281,6 +282,7 @@ export function startMemory({ room, board, canvas, me, send, onLeave, ask, level
     board.sync(mine, me);
     if (!mine) return;
     const v = mine;
+    board.names(seatLabels(2, { mySeat: me, humans: solo ? [me] : [0, 1], me: names.me(), other: names.other(), cpu: () => `Computer (${LEVELS[lvl].name})` }), v.phase === 'play' ? v.turn : null);
     if (!myTurn()) board.setHover(null);
     const won = v.phase === 'over' && v.result.winner === me;
     if (won && !cheered) room.celebrate(me);
