@@ -6,6 +6,7 @@ import './raetsel.css';
 import { legalMoves } from './game.js';
 import { german } from './panel.js';
 import { START_RATING, THEMES, PICKABLE, puzzleFrom, positionOf, isRight, rate, pickPuzzle, choicesFor } from './puzzle.js';
+import { withFlatView } from './board2d.js';
 
 const KEY = 'spielesammlung-schach-raetsel';
 const MODES = { solve: 'Rätsel lösen', choose: 'Bester Zug?' };
@@ -44,6 +45,8 @@ function saveProgress(progress) {
 }
 
 export function startRaetsel({ room, board, canvas, onLeave }) {
+  // 2D ↔ 3D wie bei Schach (board2d.js): jeder board-Aufruf geht an beide Bretter, 2D-Eingaben denselben Weg wie im 3D
+  board = withFlatView(board, { me: 0, onClick: clickSquare, onDrop: placePiece, onHover: (sq) => pointAt(myTurn() ? sq : null) });
   const root = document.getElementById('puzzle-panel');
   const progress = loadProgress();
   const seen = new Set(progress.seen);
@@ -308,36 +311,42 @@ export function startRaetsel({ room, board, canvas, onLeave }) {
     targets = [];
   }
 
-  const onMove = (e) => {
-    const sq = myTurn() ? board.pickSquare(room.rayFrom(e)) : null;
+  // Feld unter der Maus (3D über den Strahl, 2D direkt): Figur leicht aufleuchten lassen – Antwort = Mauszeiger
+  function pointAt(sq) {
     const movable = sq && legalMoves(shown, sq).length > 0;
     board.setHover(movable ? sq : null);
-    canvas.style.cursor = movable || targets.some((t) => t.to === sq) ? 'pointer' : '';
-  };
+    return movable || targets.some((t) => t.to === sq) ? 'pointer' : '';
+  }
+  const onMove = (e) => (canvas.style.cursor = pointAt(myTurn() ? board.pickSquare(room.rayFrom(e)) : null));
 
-  const onClick = (e) => {
+  const onClick = (e) => myTurn() && clickSquare(board.pickSquare(room.rayFrom(e)));
+
+  // Feld angeklickt (3D oder 2D)
+  function clickSquare(sq) {
     if (!myTurn()) return;
-    const sq = board.pickSquare(room.rayFrom(e));
     const options = targets.filter((t) => t.to === sq);
     if (options.length > 1) return choosePromotion(options); // Bauer erreicht die letzte Reihe
     if (options.length === 1) return tryMove(options[0].uci);
     targets = sq ? legalMoves(shown, sq) : [];
     selected = targets.length ? sq : null;
     render();
-  };
+  }
 
   // Figur mit der Hand abgestellt (tisch.js): 'move' = Zug, 'back' = zurück auf ihr Feld, null = bleibt liegen
   board.onPlace = (piece, point) => {
     const to = board.squareAt(point);
-    if (!to) return null;
-    const from = piece.userData.square;
+    return to ? placePiece(piece.userData.square, to) : null;
+  };
+
+  // Figur von from nach to gestellt (3D mit der Hand, 2D mit der Maus gezogen)
+  function placePiece(from, to) {
     if (!from || to === from || !myTurn()) return 'back';
     const options = legalMoves(shown, from).filter((t) => t.to === to);
     if (options.length > 1) choosePromotion(options);
     if (options.length !== 1) return 'back';
     tryMove(options[0].uci);
     return 'move';
-  };
+  }
 
   function choosePromotion(options) {
     promotion = options;
@@ -378,6 +387,7 @@ export function startRaetsel({ room, board, canvas, onLeave }) {
       canvas.style.cursor = '';
       stopFrames();
       board.reset();
+      board.removeFlat(); // 2D-Brett und Knopf weg
       root.onclick = root.onpointerover = null;
     },
   };

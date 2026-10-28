@@ -165,6 +165,16 @@ export function createAnalyst({ onChange }) {
         progress: { done: counted.filter((f) => done.has(f)).length, total: counted.length },
       };
     },
+    // Für den Coach (coach.js), Zug i: Stellung davor und danach, Stockfishs beste Variante davor (better) samt Bewertung
+    // aus Sicht des Ziehenden (best), seine Bewertung nach dem Zug (played) und die beste Antwort danach (reply, Bewertung
+    // replyScore aus Sicht des Antwortenden) – Züge als UCI. null, solange eine der beiden Stellungen nicht gerechnet ist.
+    coachView(i) {
+      const [before, after] = [done.get(fens[i]), done.get(fens[i + 1])];
+      if (!before?.score || !after?.score) return null;
+      // die volle Variante, nicht nur die LINE Halbzüge der Anzeige: coach.js zählt Material erst an einer ruhigen Stelle
+      const pv = (a) => (a.lines[0]?.pv[0] === a.best ? a.lines[0].pv : [a.best]);
+      return { fenBefore: fens[i], fenAfter: fens[i + 1], better: pv(before), best: before.score, played: flip(after.score), reply: pv(after), replyScore: after.score };
+    },
     stop() {
       stopped = true;
       waiting = [];

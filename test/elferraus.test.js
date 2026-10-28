@@ -317,3 +317,22 @@ test('index.js Gast: „Zu spät“ nur als Antwort auf die eigene Anklage, nich
   assert.match(ui.shown.hint, /Zu spät/);
   g.stop();
 });
+
+// Ein Zug hat mehrere Schritte (mehrere Karten). Kommt nach „Geschummelt!“ erst der nächste Schritt desselben Zugs an,
+// ist das noch nicht die Antwort – kein „Zu spät“, das Urteil folgt.
+test('index.js Gast: Zwischenstand desselben Zugs zeigt nicht „Zu spät“, das Urteil kommt danach', async () => {
+  const { ui, base: io } = await import('../test-stubs/index-harness.js');
+  const { startElferRaus } = await import('../src/elferraus/index.js');
+  const sent = [];
+  const g = startElferRaus({ ...io, me: 1, free: true, send: (m) => sent.push(m) });
+  const s = setup(newGame({ humans: [0, 2], free: true }), 0, 2, seeded(5));
+  const view = (extra) => ({ ...viewFor(s, 2), ...extra });
+  g.handle({ t: 'state', state: view({ cheat: { player: 0 } }) });
+  ui.cheat.onAccuse();
+  g.handle({ t: 'state', state: view({ seq: s.seq + 1, cheat: { player: 0 }, events: [] }) }); // nächste Karte desselben Zugs
+  assert.equal(ui.shown.hint, '');
+  g.handle({ t: 'state', state: view({ seq: s.seq + 2, cheat: null, events: [{ type: 'caught', player: 0, by: 2, why: [] }] }) });
+  assert.equal(ui.shown.hint, '');
+  assert.notEqual(ui.shown.status, 'Wird gesendet …');
+  g.stop();
+});

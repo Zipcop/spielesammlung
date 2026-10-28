@@ -47,6 +47,15 @@ export function createEngine(options = {}) {
     return job;
   }
 
+  // Optionen später ändern (z. B. andere Stärke für die nächste Partie) – gilt ab dem nächsten Auftrag
+  function configure(next) {
+    queue = queue.then(async () => {
+      for (const [name, value] of Object.entries(next)) post(`setoption name ${name} value ${value}`);
+      post('isready');
+      await until('readyok');
+    });
+  }
+
   // cancel: laufende Suche sofort beenden (ihr Ergebnis wird dann verworfen)
-  return { analyse, cancel: () => post('stop'), stop: () => worker.terminate() };
+  return { analyse, configure, cancel: () => post('stop'), stop: () => worker.terminate() };
 }

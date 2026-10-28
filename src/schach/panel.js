@@ -2,6 +2,7 @@
 // Allein zusätzlich das Orakel (Gewinnchance, Verlauf, Tipp, Zug zurück); zu zweit ein Schalter für die
 // Live-Bewertung. Nach der Partie der Rückblick „Partie analysieren“: alle Züge mit Abzeichen, Stellungssymbol, Blättern,
 // Genauigkeit, Wendepunkt, anklickbare Kurve und beste Fortsetzung zum Vorspielen.
+// Dazu die Elo-Zeile (allein: meine Zahl und die des Gegners, zu zweit: beide Namen) und beim Coach seine Sprechblase.
 import './analyse.css';
 import { BADGES, NEGATIVE } from './badges.js';
 import { scoreText } from './oracle.js';
@@ -34,11 +35,22 @@ const curvePoints = (curve) => {
   return curve.map((v, k) => (v === null ? null : `${(k / n) * 100},${30 - v * 0.3}`)).filter(Boolean).join(' ');
 };
 
-export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLeave, onLive, onReview, onPly, onLine, onCloseReview }) {
+// Text des Coachs (coach.js): **Zug** wird fett, sonst nichts als HTML
+const coachHtml = (text) => plain(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+
+export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLeave, onLive, onReview, onPly, onLine, onCloseReview, onCoach }) {
   root.innerHTML = `
     <div class="chess-head"><span class="brand">Schach</span><span data-players></span></div>
     <p class="chess-status" data-status></p>
+    <p class="chess-elo" data-elo hidden></p>
     <p class="chess-opening" data-opening hidden></p>
+    <section class="coach-say" data-coach hidden>
+      <p data-coach-text></p>
+      <div class="row" data-coach-choice>
+        <button class="small" data-coach-back>Zug zurücknehmen</button>
+        <button class="secondary small" data-coach-go>Weiterspielen</button>
+      </div>
+    </section>
     ${solo ? `
     <section class="oracle" data-oracle>
       <div class="oracle-head"><span>Orakel</span><span data-percent></span></div>
@@ -111,6 +123,8 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
     else if ('plyTo' in b.dataset) onPly(b.dataset.plyTo);
     else if ('lineTo' in b.dataset) onLine(b.dataset.lineTo);
     else if ('leave' in b.dataset || 'shelf' in b.dataset) onLeave(!('leave' in b.dataset));
+    else if ('coachBack' in b.dataset) onCoach('back');
+    else if ('coachGo' in b.dataset) onCoach('go');
   };
   if (!solo) q('live').onchange = (e) => onLive(e.target.checked);
   let scrolledAt = null; // Zugzahl und Rückblick-Stellung beim letzten Scrollen
@@ -118,9 +132,17 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
 
   return {
     // analysis = analysis.view() oder null · live = { available, on } (zu zweit) · review = { ply } oder null
-    render({ state, players, other, status, end, analysis, live, review, canTip, canBack, canResign, canReview }) {
+    // elo = Text der Elo-Zeile ('' = keine) · coach = Sprechblase { text, kind, choice } oder null
+    render({ state, players, other, status, end, analysis, live, review, canTip, canBack, canResign, canReview, elo = '', coach = null }) {
       q('players').textContent = players;
       q('status').textContent = status;
+      q('elo').hidden = !elo;
+      q('elo').textContent = elo;
+      q('coach').hidden = !coach || !!review;
+      if (coach) {
+        q('coach-text').innerHTML = `<b>Coach</b>${coach.kind ? ` · ${verdictText(coach.kind)}` : ''}<br>${coachHtml(coach.text)}`;
+        q('coach-choice').hidden = !coach.choice;
+      }
       q('status').classList.toggle('check', state.check && !state.result);
       q('opening').hidden = !analysis?.opening;
       q('opening').textContent = analysis?.opening ? `Eröffnung: ${analysis.opening}` : '';

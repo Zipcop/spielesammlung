@@ -1,0 +1,181 @@
+/* 2D-Ansicht Schach (board2d.js): flaches Brett über der abgedunkelten 3D-Szene. Die Schicht liegt im DOM direkt
+   hinter der Leinwand – Seitenfeld, Knöpfe, Hinweise, Umwandlung und Rückfragen liegen darüber. Platz für das
+   Seitenfeld rechts (340px), oben für die Knöpfe, unten für Hinweise und „Geschummelt!“. */
+.c2d {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 60px 340px 104px 24px;
+  background: rgba(12, 8, 5, 0.86);
+  --s: max(240px, min(calc(100vh - 232px), calc(100vw - 396px)));
+}
+
+.c2d-wrap {
+  display: grid;
+  gap: 6px;
+}
+
+.c2d-board {
+  position: relative;
+  width: var(--s);
+  height: var(--s);
+  border-radius: 4px;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.6);
+  touch-action: none;
+  user-select: none;
+}
+
+.c2d-under,
+.c2d-over,
+.c2d-pieces {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.c2d-under {
+  border-radius: 4px;
+}
+
+.c2d-over,
+.c2d-pieces {
+  pointer-events: none;
+}
+
+.c2d .light {
+  fill: #ecd8b4;
+}
+
+.c2d .dark {
+  fill: #b0855c;
+}
+
+.c2d text {
+  font: 600 0.2px system-ui, 'Segoe UI', sans-serif;
+}
+
+.c2d .ink-light {
+  fill: #ecd8b4;
+}
+
+.c2d .ink-dark {
+  fill: #8a6440;
+}
+
+.c2d .last {
+  fill: rgba(255, 197, 49, 0.5);
+}
+
+.c2d .selected {
+  fill: rgba(126, 214, 104, 0.6);
+}
+
+.c2d .hover {
+  fill: rgba(255, 255, 255, 0.2);
+}
+
+.c2d .over {
+  fill: rgba(255, 255, 255, 0.28);
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 0.05;
+}
+
+.c2d .c2d-dot {
+  fill: rgba(30, 110, 45, 0.6);
+}
+
+.c2d .c2d-ring {
+  fill: none;
+  stroke: rgba(30, 110, 45, 0.6);
+  stroke-width: 0.09;
+}
+
+.c2d-piece {
+  position: absolute;
+  width: 12.5%;
+  height: 12.5%;
+}
+
+.c2d-piece svg,
+.c2d-name i svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.c2d-piece svg {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+
+.c2d-piece.dragging {
+  z-index: 2;
+  scale: 1.12;
+}
+
+/* Plakette der Zuganalyse oben rechts am Zielfeld */
+.c2d-badge {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: calc(var(--s) * 0.052);
+  height: calc(var(--s) * 0.052);
+  font: 700 calc(var(--s) * 0.024) Arial, 'Segoe UI Emoji', sans-serif;
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  transform: translate(-65%, -35%);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Namen über (Gegenüber) und unter dem Brett (du), daneben die geschlagenen Figuren */
+.c2d-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 28px;
+  font-size: 17px;
+  color: var(--muted);
+}
+
+.c2d-name.turn span {
+  color: #ffc531;
+}
+
+.c2d-name.turn span::before {
+  content: '';
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: #ffc531;
+  vertical-align: 1px;
+}
+
+.c2d-name i {
+  display: flex;
+  height: 24px;
+}
+
+.c2d-name i svg {
+  width: 24px;
+  margin-right: -7px;
+}
+
+.c2d-switch {
+  font: 700 15px system-ui, 'Segoe UI', sans-serif;
+}
+
+/* vierter runder Knopf oben links: die Verbindungsleiste rückt nach rechts (vgl. style.css: 176px bei drei Knöpfen) */
+body:has(.c2d-switch) .hud:not(.below) {
+  left: 228px;
+}
+
+/* im 2D-Brett gehört die rechte Maustaste dem Zeichnen – der Kamera-Hinweis passt dann nicht */
+body:has(.c2d:not([hidden])) [data-game] .dock p:not([data-hint]) {
+  display: none;
+}

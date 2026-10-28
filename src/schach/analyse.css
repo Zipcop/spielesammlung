@@ -176,3 +176,39 @@
   color: rgba(42, 33, 24, 0.75);
   white-space: nowrap;
 }
+
+/* Elo-Zeile unter dem Status (allein: du und der Gegner, zu zweit: beide Namen) */
+.chess-elo {
+  font: 13px Georgia, serif;
+  text-align: center;
+  color: rgba(42, 33, 24, 0.75);
+}
+
+/* Coach: Sprechblase mit Tipp und den Knöpfen „Zug zurücknehmen“ / „Weiterspielen“ */
+.coach-say {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  line-height: 1.35;
+  background: #fffaf0;
+  border: 2px solid #1d5a3c;
+  border-radius: 10px;
+}
+
+.coach-say::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 22px;
+  border: 8px solid transparent;
+  border-top: 0;
+  border-bottom-color: #1d5a3c;
+}
+
+/* Seitenfeld am Tisch: Coach-Stärke und Knopf */
+.coach-row {
+  display: grid;
+  gap: 8px;
+}

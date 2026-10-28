@@ -420,3 +420,27 @@ test('index.js allein ohne Hilfen: „31!“ gleich nach dem eigenen Tausch – 
     g.stop();
   }
 });
+
+// Ein Zug kann mehrere Schritte haben (Klopfer tauscht nach, „31!“ hinterher). Kommt nach „Geschummelt!“ erst der
+// nächste Schritt desselben Spielers an, ist das noch nicht die Antwort – kein „Zu spät“, das Urteil folgt.
+test('index.js Gast: Zwischenstand desselben Spielers zeigt nicht „Zu spät“, das Urteil kommt danach', async () => {
+  const { ui, base: io } = await import('../test-stubs/index-harness.js');
+  const { startSchwimmen } = await import('../src/schwimmen/index.js');
+  const sent = [];
+  const g = startSchwimmen({ ...io, me: 2, free: true, send: (m) => sent.push(m) });
+  const s = setup(newGame({ humans: [0, 2], free: true }), 0, 2, seeded(5));
+  const view = (extra) => ({ ...viewFor(s, 2), ...extra });
+  g.handle({ t: 'state', state: view({ cheat: { player: 0 } }) });
+  ui.cheat.onAccuse();
+  assert.equal(sent.at(-1).t, 'accuse');
+  g.handle({ t: 'state', state: view({ seq: s.seq + 1, cheat: { player: 0 }, events: [] }) });
+  assert.doesNotMatch(String(ui.shown.hint), /Zu spät/);
+  g.handle({ t: 'state', state: view({ seq: s.seq + 2, cheat: null, events: [{ type: 'fehlalarm', player: 2, target: 0 }] }) });
+  assert.doesNotMatch(String(ui.shown.hint), /Zu spät/);
+  // wirklich zu spät: inzwischen ist ein anderer dran
+  g.handle({ t: 'state', state: view({ seq: s.seq + 3, cheat: { player: 0 }, events: [] }) });
+  ui.cheat.onAccuse();
+  g.handle({ t: 'state', state: view({ seq: s.seq + 4, cheat: { player: 1 }, events: [] }) });
+  assert.match(ui.shown.hint, /Zu spät/);
+  g.stop();
+});

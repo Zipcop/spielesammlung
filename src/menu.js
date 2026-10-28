@@ -4,6 +4,7 @@
 import { OPTIONS, cleanName, levelOf, withLevel, NAME_MAX } from './settings.js';
 import { loadStats, tally, pairs } from './stats.js';
 import { PLAYABLE } from './games.js';
+import { pairElo } from './schach/elo.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -68,6 +69,11 @@ function fillStats(me, onReset) {
       const row = body.insertRow();
       const day = new Date(t[game].last).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
       [game, t[game].wins[a], t[game].wins[b], t[game].draws, day].forEach((x) => row.append(el('td', String(x))));
+      if (game === 'Schach') { // Elo zu zweit aus denselben Ergebnissen (schach/elo.js), beide starten bei 1200
+        const elo = pairElo(list, pair);
+        const eloRow = body.insertRow();
+        ['Schach-Elo', elo[a], elo[b], '', ''].forEach((x) => eloRow.append(el('td', String(x))));
+      }
     }
     const reset = el('button', 'Zurücksetzen', 'secondary small');
     reset.onclick = () => {

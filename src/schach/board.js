@@ -189,6 +189,8 @@ export function createChessBoard(parent) {
     target: mat(0x2f8f3f, 0.75),
     check: mat(0xff2a10, 0.95, glowTexture()),
     arrow: Object.assign(mat(0x2f8fff, 0.75), { depthTest: false }), // Pfeil liegt sichtbar über den Figuren
+    threat: Object.assign(mat(0xe0302a, 0.8), { depthTest: false }), // Coach: rot = seine Drohung
+    better: Object.assign(mat(0x2fb34a, 0.8), { depthTest: false }), // Coach: grün = der bessere Zug
   };
   const flat = (size) => new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2);
   const SHAPES = {
@@ -215,10 +217,11 @@ export function createChessBoard(parent) {
     if (ui.selected) put('square', 'selected', ui.selected, 0.09);
     for (const t of ui.targets) put(t.capture ? 'ring' : 'dot', 'target', t.to, 0.11);
     if (ui.arrow) marks.add(arrow(ui.arrow.slice(0, 2), ui.arrow.slice(2, 4)));
+    for (const a of ui.arrows ?? []) marks.add(arrow(a.uci.slice(0, 2), a.uci.slice(2, 4), LOOK[a.kind]));
   }
 
-  // Flacher Pfeil von Feld zu Feld (Tipp des Orakels)
-  function arrow(from, to) {
+  // Flacher Pfeil von Feld zu Feld (Tipp des Orakels; Coach: rot/grün)
+  function arrow(from, to, look = LOOK.arrow) {
     const a = spot(from);
     const b = spot(to);
     const len = a.distanceTo(b) - 1;
@@ -231,7 +234,7 @@ export function createChessBoard(parent) {
     s.lineTo(len - head, hw);
     s.lineTo(len - head, w);
     s.lineTo(0.8, w);
-    const m = new THREE.Mesh(new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2), LOOK.arrow);
+    const m = new THREE.Mesh(new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2), look);
     m.position.set(a.x, THICK + 0.15, a.z);
     m.rotation.y = Math.atan2(-(b.z - a.z), b.x - a.x);
     m.renderOrder = 1; // nach den übrigen Markierungen zeichnen
@@ -328,7 +331,7 @@ export function createChessBoard(parent) {
       turn,
     }),
     setBadge, // Plakette der Zuganalyse: setBadge('e4', 'best'), setBadge(null) = weg
-    // ui = { selected: Feld, targets: [{ to, capture }], arrow: 'e2e4' }
+    // ui = { selected: Feld, targets: [{ to, capture }], arrow: 'e2e4' (blau), arrows: [{ uci, kind: 'threat' | 'better' }] (rot/grün) }
     setMarks(next) {
       ui = next;
       setGlow('selected', ui.selected ? [at(ui.selected)] : []);

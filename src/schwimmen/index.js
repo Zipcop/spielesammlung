@@ -30,6 +30,7 @@ export function startSchwimmen({ room, board, canvas, me, send, onLeave, ask, le
   let mine = null; // meine Sicht davon
   let waiting = false; // Gast: Wunsch geschickt, Antwort steht aus
   let asked = null;
+  let lastArg = null; // Gast: Inhalt des letzten Wunsches
   let timer = null;
   let hint = '';
   let cheered = false;
@@ -112,6 +113,7 @@ export function startSchwimmen({ room, board, canvas, me, send, onLeave, ask, le
     } else {
       waiting = true;
       asked = type;
+      lastArg = arg;
       send({ t: type, arg });
       render();
     }
@@ -121,11 +123,14 @@ export function startSchwimmen({ room, board, canvas, me, send, onLeave, ask, le
     if (stopped) return;
     if (!isHost && msg.t === 'state') {
       const same = msg.state.seq === state?.seq;
-      waiting = false;
+      const verdict = msg.state.events.some((e) => e.type === 'caught' || e.type === 'fehlalarm');
+      // Neuer Stand, derselbe Spieler noch anfechtbar (er handelt gleich noch einmal): Das Urteil kommt noch.
+      const pending = asked === 'accuse' && !same && !verdict && msg.state.cheat?.player === lastArg;
+      waiting = pending;
       setState(msg.state);
       if (same && asked === 'again') hint = blocked();
-      if (asked === 'accuse' && !msg.state.events.some((e) => e.type === 'caught' || e.type === 'fehlalarm')) hint = 'Zu spät – inzwischen hat ein anderer gespielt.';
-      asked = null;
+      if (asked === 'accuse' && !verdict && !pending) hint = 'Zu spät – inzwischen hat ein anderer gespielt.';
+      if (!pending) asked = null;
       return render();
     }
     if (isHost && state) {

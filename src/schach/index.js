@@ -5,6 +5,8 @@
 // Zu zweit: Live-Bewertung der eigenen Züge (abschaltbar) und nach der Partie der Rückblick „Partie analysieren“ –
 // jeder PC rechnet für sich. free = „Ohne Hilfen“ (zu zweit und allein): keine erlaubten Felder, jede eigene Figur
 // darf überallhin, „Geschummelt!“-Knopf – und keine Analyse, kein Orakel, kein Zurücknehmen.
+// level = 'coach': „Mit Coach spielen“ – der Computer spielt in der Stärke des Coachs und kommentiert meine Züge
+// (tutor.js, coach.js); ohne Hilfen gibt es dabei nicht. Elo (elo.js): allein je PC, zu zweit aus der Statistik.
 import { newGame, whiteFor, move, resign, takeBack, again, accuse, waive, anyMove, turnOf, colorOf, legalMoves, positionAt, REASONS, MAX_STRIKES } from './game.js';
 import { createPanel } from './panel.js';
 import { createSolo, LEVELS, loadRecord } from './solo.js';
@@ -12,6 +14,11 @@ import { createAnalyst } from './analysis.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { rematchBlocked } from '../schummeln.js';
 import { seatLabels } from '../plates.js';
+import { createTutor } from './tutor.js';
+import { loadElo, coachElo, pairElo, diffText } from './elo.js';
+import { loadStats, pairOf } from '../stats.js';
+import { cleanName } from '../settings.js';
+import { withFlatView } from './board2d.js';
 
 const $ = (id) => document.getElementById(id);
 const SYMBOLS = { w: { q: '♕', r: '♖', b: '♗', n: '♘' }, b: { q: '♛', r: '♜', b: '♝', n: '♞' } };
@@ -58,8 +65,11 @@ const forGuest = (s) => (s.free ? { ...s, cheat: s.cheat && { player: s.cheat.pl
 
 export function startSchach({ room, board, canvas, me, send, onLeave, ask, level, names, free = false, resume, save }) {
   const solo = level !== undefined;
+  const coaching = level === 'coach';
+  if (coaching) free = false; // der Coach ist ja Hilfe
+  let gameElo = coaching ? coachElo() : LEVELS[level]?.elo; // Stärke des Gegners in dieser Partie
   const isHost = me === 0;
-  const other = () => (solo ? 'Der Computer' : names.other()); // Name kann sich während der Partie ändern
+  const other = () => (solo ? (coaching ? 'Der Coach' : 'Der Computer') : names.other()); // Name kann sich während der Partie ändern
   let state = null;
   let cheered = false; // Sieg-Konfetti schon gezeigt
   let waiting = false; // Gast: Wunsch geschickt, Antwort vom Host steht aus
@@ -72,6 +82,8 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
   let review = null; // Rückblick nach der Partie: { ply } = gezeigte Stellung nach so vielen Halbzügen;
   // line = Schritt beim Vorspielen der besten Fortsetzung statt Zug ply (0 = Stellung vor dem Zug), sonst fehlt es
   let analyst = null; // Stockfish-Analyse, startet erst bei Bedarf
+  // 2D ↔ 3D (Taste V): ab hier füttert jeder board-Aufruf beide Bretter; 2D-Eingaben gehen denselben Weg wie im 3D
+  board = withFlatView(board, { me, onClick: clickSquare, onDrop: placePiece, onHover: (sq) => pointAt(myTurn() ? sq : null) });
 
   const panel = createPanel($('chess-panel'), {
     solo,
@@ -115,9 +127,21 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
       review = null;
       render();
     },
+    // Coach: 'back' = meinen Zug zurücknehmen (er hat noch nicht geantwortet), 'go' = weiter, er spielt seine Drohung
+    onCoach: (choice) => {
+      if (!tutor || !state || state.result || turnOf(state) === me) return;
+      if (choice === 'go') {
+        tutor.go();
+        return render();
+      }
+      const next = takeBack(state, 1);
+      if (!next) return;
+      tutor.back(next.moves.length);
+      commit(next);
+    },
   });
   const coach = solo ? createSolo({
-    level,
+    opponent: () => ({ elo: gameElo, record: coaching ? 'coach' : level, coach: coaching }),
     me,
     onComputerMove: (uci) => {
       // ohne Hilfen kann Stockfish in einer regelwidrigen Stellung Unsinn liefern – dann irgendein erlaubter Zug
@@ -129,6 +153,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
       if (next) commit(next);
     },
   }) : null;
+  const tutor = coaching ? createTutor({ me, solo: coach, onChange: () => render() }) : null;
 
   // Analyse: allein immer live, zu zweit live nur wenn eingeschaltet; ohne Hilfen gar nicht
   const liveActive = () => !!state && !state.free && (solo || liveOn);
@@ -151,6 +176,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     if (state?.result && !next.result) {
       round++; // neue Partie
       review = null;
+      if (coaching) gameElo = coachElo(); // der Coach hat sich auf meine neue Zahl eingestellt
     }
     state = next;
     syncAnalyst();
@@ -164,7 +190,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     showHint = false;
     send({ t: 'state', state: forGuest(state) });
     save?.(state); // zu zweit: Host merkt sich die Partie (saves.js)
-    coach?.update(state);
+    coach?.update(state, tutor?.afterCommit(state)); // beim Coach wartet der Computer, bis mein Zug eingestuft ist
     render();
   }
 
@@ -222,16 +248,17 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     if (!state) return board.sync(state);
     const mine = colorOf(state, me);
     const view = analyst && !state.free ? analyst.view(mine, !!review) : null;
+    tutor?.check(view, analyst); // Coach: Einstufung meines Zugs da? Dann spricht er (oder zieht)
     // Vorspielen: Partie bis vor den Zug, dann so viele Züge der besten Fortsetzung
     const line = review?.line !== undefined ? view?.lines[review.ply - 1] : null;
     const shown = line ? [...state.moves.slice(0, review.ply - 1), ...line.slice(0, review.line).map((m) => m.uci)] : null;
     board.sync(!review ? state : line ? positionAt({ ...state, moves: shown }, shown.length) : positionAt(state, review.ply));
-    const opponent = solo ? `Computer (${LEVELS[level].name})` : names.other();
+    const opponent = solo ? (coaching ? `Coach (${gameElo})` : `Computer (${LEVELS[level].name})`) : names.other();
     const myColor = mine === 'w' ? 0 : 1; // Schilder je Farbe: 0 = Weiß, 1 = Schwarz
     board.names(seatLabels(2, { mySeat: myColor, humans: solo ? [myColor] : [0, 1], me: names.me(), other: names.other(), cpu: () => opponent }),
       state.result ? null : state.fen.split(' ')[1] === 'w' ? 0 : 1, myColor);
     // im Rückblick zeigt der Pfeil den besseren Zug (aus der Stellung vor dem gezeigten Zug)
-    board.setMarks(review ? { selected: null, targets: [], arrow: (line ? line[review.line]?.uci : view?.arrows[review.ply - 1]) ?? null } : { selected, targets, arrow: showHint && myTurn() ? view?.hint : null });
+    board.setMarks(review ? { selected: null, targets: [], arrow: (line ? line[review.line]?.uci : view?.arrows[review.ply - 1]) ?? null } : { selected, targets, arrow: showHint && myTurn() ? view?.hint : null, arrows: tutor?.view().arrows ?? [] });
     // Plakette: im Rückblick über dem gezeigten Zug, live über meinem letzten Zug
     const badgeAt = line ? -1 : review ? review.ply - 1 : liveActive() ? view?.last?.index ?? -1 : -1;
     board.setBadge(badgeAt >= 0 ? state.moves[badgeAt].slice(2, 4) : null, view?.verdicts[badgeAt]);
@@ -249,8 +276,10 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     panel.render({
       state,
       players: mine === 'w' ? `Du (Weiß) – ${opponent} (Schwarz)` : `${opponent} (Weiß) – Du (Schwarz)`,
-      other: solo ? 'Computer' : names.other(),
+      other: solo ? (coaching ? 'Coach' : 'Computer') : names.other(),
       status: statusText(),
+      elo: eloText(),
+      coach: tutor?.view().say ?? null,
       end: state.result && endInfo(),
       analysis: liveActive() || review ? view : null,
       live: { available: !solo && !state.free, on: liveOn },
@@ -269,7 +298,20 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     if (waiting) return 'Zug wird gesendet …';
     const check = state.check ? 'Schach! ' : '';
     if (turnOf(state) === me) return `${check}Du bist am Zug${strikes}`;
-    return solo ? `${check}Der Computer denkt …${strikes}` : `${check}${other()} ist am Zug${strikes}`;
+    if (tutor?.waiting()) return 'Der Coach schaut sich deinen Zug an …';
+    if (tutor?.view().say?.choice) return 'Zurücknehmen oder weiterspielen?';
+    return solo ? `${check}${other()} denkt …${strikes}` : `${check}${other()} ist am Zug${strikes}`;
+  }
+
+  // Elo-Zeile: allein meine Zahl und die des Gegners, zu zweit beide Namen (aus der Statistik, stats.js)
+  function eloText() {
+    if (solo) return `Elo: du ${loadElo().rating} · ${coaching ? 'Coach' : 'Computer'} ${gameElo}`;
+    const pair = pairOf(names.me(), names.other());
+    if (!pair) return '';
+    const elo = pairElo(loadStats(), pair);
+    const mine = cleanName(names.me());
+    const theirs = pair.find((n) => n !== mine);
+    return `Elo: ${mine} ${elo[mine]} · ${theirs} ${elo[theirs]}`;
   }
 
   // Allein: Meldungen, wenn der Computer ruft oder erwischt wird (v.player = wer die Verwarnung bekommt)
@@ -282,10 +324,13 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     const { winner, reason } = state.result;
     const title = winner === null ? 'Remis' : winner === me ? 'Du gewinnst!' : `${other()} gewinnt`;
     let text = reason === 'aufgabe' ? (winner === me ? `${other()} hat aufgegeben.` : 'Du hast aufgegeben.') : `${REASONS[reason]}.`;
-    if (solo && state.free) text += ' Ohne Hilfen – zählt nicht zur Bilanz.';
+    if (solo && state.free) text += ' Ohne Hilfen – zählt nicht zur Bilanz und nicht zur Elo.';
     else if (solo) {
-      const r = loadRecord()[level] ?? { w: 0, d: 0, l: 0 };
-      text += ` Bilanz gegen ${LEVELS[level].name} – Siege: ${r.w} · Remis: ${r.d} · Niederlagen: ${r.l}`;
+      const r = loadRecord()[coaching ? 'coach' : level] ?? { w: 0, d: 0, l: 0 };
+      const { rating, last } = loadElo();
+      text += ` Deine Elo: ${rating}${last ? ` (${diffText(last.after - last.before)})` : ''}.`;
+      if (coaching) text += ` Nächste Partie spielt der Coach mit ${coachElo()}.`;
+      text += ` Bilanz gegen ${coaching ? 'den Coach' : LEVELS[level].name} – Siege: ${r.w} · Remis: ${r.d} · Niederlagen: ${r.l}`;
     }
     return { title, text };
   }
@@ -297,12 +342,14 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     return !!piece && (piece === piece.toUpperCase()) === (colorOf(state, me) === 'w');
   };
 
-  const onMove = (e) => {
-    const sq = myTurn() ? board.pickSquare(room.rayFrom(e)) : null;
+  // Feld unter der Maus (3D über den Strahl, 2D direkt): Figur leicht aufleuchten lassen – Antwort = Mauszeiger
+  function pointAt(sq) {
+    if (!state) return ''; // Gast: erster Stand noch nicht da
     const movable = sq && (state.free ? isMine(sq) : legalMoves(state, sq).length > 0);
     board.setHover(movable ? sq : null);
-    canvas.style.cursor = movable || targets.some((t) => t.to === sq) || (state.free && selected && sq) ? 'pointer' : '';
-  };
+    return movable || targets.some((t) => t.to === sq) || (state.free && selected && sq) ? 'pointer' : '';
+  }
+  const onMove = (e) => (canvas.style.cursor = pointAt(myTurn() ? board.pickSquare(room.rayFrom(e)) : null));
 
   function freeClick(sq) {
     if (!sq) return;
@@ -317,9 +364,11 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     act('move', from + sq);
   }
 
-  const onClick = (e) => {
+  const onClick = (e) => myTurn() && clickSquare(board.pickSquare(room.rayFrom(e)));
+
+  // Feld angeklickt (3D oder 2D)
+  function clickSquare(sq) {
     if (!myTurn()) return;
-    const sq = board.pickSquare(room.rayFrom(e));
     if (state.free) return freeClick(sq);
     const options = targets.filter((t) => t.to === sq);
     if (options.length > 1) return choosePromotion(options); // Bauer erreicht die letzte Reihe
@@ -330,14 +379,17 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     targets = sq ? legalMoves(state, sq) : [];
     selected = targets.length ? sq : null;
     render();
-  };
+  }
 
   // Figur mit der Hand abgestellt (tisch.js): auf einem Feld = Zug, sonst zurück auf ihr Feld; neben dem Brett bleibt sie liegen.
   // Antwort: 'move' (Spiel zieht), 'back' (Figur fliegt zurück) oder null (bleibt, wo sie ist)
   board.onPlace = (piece, point) => {
     const to = board.squareAt(point);
-    if (!to) return null;
-    const from = piece.userData.square;
+    return to ? placePiece(piece.userData.square, to) : null;
+  };
+
+  // Figur von from nach to gestellt (3D mit der Hand, 2D mit der Maus gezogen)
+  function placePiece(from, to) {
     if (!from || to === from || !myTurn() || !isMine(from)) return 'back';
     if (state.free) {
       const pawn = pieceAt(state.fen, from).toLowerCase() === 'p';
@@ -356,7 +408,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     clearSelection();
     act('move', options[0].uci);
     return 'move';
-  };
+  }
 
   function choosePromotion(options) {
     promotion = options;
@@ -412,8 +464,10 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
       $('promo').hidden = true;
       stopFrames();
       coach?.stop();
+      tutor?.stop();
       analyst?.stop();
       board.reset();
+      board.removeFlat(); // 2D-Brett und Knopf weg
     },
   };
 }

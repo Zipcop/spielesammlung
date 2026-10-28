@@ -7,6 +7,7 @@ import { startKniffel } from './kniffel/index.js';
 import { createChessBoard } from './schach/board.js';
 import { startSchach, loadColor, saveColor } from './schach/index.js';
 import { LEVELS, loadRecord } from './schach/solo.js';
+import { loadElo, coachElo, setCoachElo, COACH_MIN, COACH_MAX, COACH_STEP } from './schach/elo.js';
 import { startRaetsel } from './schach/raetsel.js';
 import { createMauMauBoard } from './maumau/board.js';
 import { startMauMau } from './maumau/index.js';
@@ -305,7 +306,7 @@ function showTablePanel(name) {
   $('btn-resume').hidden = !saved || !!alone;
   if (saved) $('btn-resume').textContent = `Letzte Partie fortsetzen (${savedAt(saved.at)})`;
   $('btn-solo').textContent = alone || 'Gegen Computer';
-  $('level').hidden = $('solo-record').hidden = name !== 'Schach';
+  $('level').hidden = $('solo-record').hidden = $('coach-row').hidden = name !== 'Schach';
   $('chess-color').hidden = name !== 'Schach'; // gilt allein und für den Host zu zweit
   $('chess-color').value = loadColor();
   $('free-row').hidden = !PLAYABLE.get(name).free;
@@ -315,7 +316,8 @@ function showTablePanel(name) {
 
 function showRecord() {
   const r = loadRecord()[$('level').value] ?? { w: 0, d: 0, l: 0 };
-  $('solo-record').textContent = `Deine Bilanz – Siege: ${r.w} · Remis: ${r.d} · Niederlagen: ${r.l}`;
+  $('solo-record').textContent = `Deine Elo: ${loadElo().rating} · Bilanz – Siege: ${r.w} · Remis: ${r.d} · Niederlagen: ${r.l}`;
+  $('coach-elo').value = coachElo(); // Standard: eigene Elo gerundet, nach jeder Coach-Partie neu
 }
 
 // Verbindungsleiste: steht die Leitung oder wird gerade neu verbunden?
@@ -370,7 +372,10 @@ function startLobby(role) {
         game?.refresh();
         sendStats(); // Abgleich: jeder schickt seine Liste fürs Paar, beide nehmen dazu, was fehlt
       } else if (msg.t === 'result') {
-        if (!host && ours(msg.entry)) record(msg.entry); // nur der Host zählt
+        if (!host && ours(msg.entry)) {
+          record(msg.entry); // nur der Host zählt
+          if (table === 'Schach') game?.refresh(); // Elo-Zeile am Tisch rechnet aus der Statistik
+        }
       } else if (msg.t === 'stats') {
         if (!Array.isArray(msg.list)) return;
         const list = msg.list.filter(ours);
@@ -441,7 +446,11 @@ $('btn-host').onclick = $('btn-resume').onclick = (e) => {
   startLobby('host').host();
 };
 
-$('level').innerHTML = LEVELS.map((l, i) => `<option value="${i}">Stufe ${i + 1} · ${l.name}</option>`).join('');
+$('level').innerHTML = LEVELS.map((l, i) => `<option value="${i}">Stufe ${i + 1} · ${l.name} (Elo ${l.elo})</option>`).join('');
+$('coach-elo').innerHTML = Array.from({ length: (COACH_MAX - COACH_MIN) / COACH_STEP + 1 }, (_, k) => COACH_MIN + k * COACH_STEP)
+  .map((e) => `<option value="${e}">Coach-Stärke: Elo ${e}</option>`).join('');
+$('coach-elo').onchange = (e) => setCoachElo(Number(e.target.value));
+$('btn-coach').onclick = () => startGame(table, 0, 'coach'); // „Mit Coach spielen“ (schach/tutor.js)
 $('level').value = '1';
 $('level').onchange = showRecord;
 $('chess-color').onchange = (e) => saveColor(e.target.value);

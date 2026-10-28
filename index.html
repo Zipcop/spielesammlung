@@ -74,6 +74,10 @@
           <p class="or">oder allein</p>
           <select id="level" aria-label="Stärke des Computers"></select>
           <button id="btn-solo">Gegen Computer</button>
+          <div id="coach-row" class="coach-row" hidden>
+            <select id="coach-elo" aria-label="Stärke des Coachs (Elo)"></select>
+            <button id="btn-coach" class="secondary">Mit Coach spielen</button>
+          </div>
           <p id="solo-record" class="muted small"></p>
         </div>
         <button class="secondary" data-back>Zurück zum Schrank</button>
@@ -189,7 +193,7 @@
       <div data-game="Schach">
         <aside id="chess-panel" class="sheet chess"></aside>
         <div class="dock">
-          <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen" data-hint-free="Eigene Figur anklicken · beliebiges Feld anklicken = ziehen (es wird nichts geprüft) · Esc = abwählen"></p>
+          <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen · V oder Knopf „2D“ = flaches Brett, dort rechte Maustaste = eigene Pfeile und Markierungen" data-hint-free="Eigene Figur anklicken · beliebiges Feld anklicken = ziehen (es wird nichts geprüft) · Esc = abwählen · V oder Knopf „2D“ = flaches Brett, dort rechte Maustaste = eigene Pfeile und Markierungen"></p>
           <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
         <div id="promo" class="overlay" hidden>
@@ -210,7 +214,7 @@
       <div data-game="Schach-Rätsel">
         <aside id="puzzle-panel" class="sheet chess"></aside>
         <div class="dock">
-          <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen"></p>
+          <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen · V oder Knopf „2D“ = flaches Brett, dort rechte Maustaste = eigene Pfeile und Markierungen"></p>
           <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
       </div>

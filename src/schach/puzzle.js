@@ -89,12 +89,14 @@ export function isRight(p, k, uci) {
   return chess.fen() === mine;
 }
 
-// Neue Wertung nach einem Rätsel. me = { rating, games }, choices = Anzahl Antworten bei „Bester Zug?“ (sonst 0)
+// Neue Wertung nach einem Rätsel. me = { rating, games }, choices = Anzahl Antworten bei „Bester Zug?“ (sonst 0).
+// solved: true/false – oder als Zahl die Punkte einer Partie (1, 0,5, 0), so rechnet auch die Schach-Elo (elo.js)
 export function rate(me, puzzleRating, solved, choices = 0) {
   const e = 1 / (1 + 10 ** ((puzzleRating - me.rating) / 400));
   const expected = choices ? 1 / choices + (1 - 1 / choices) * e : e;
   const k = me.games < 30 ? 40 : 20;
-  return { rating: Math.round(me.rating + k * ((solved ? 1 : 0) - expected)), games: me.games + 1 };
+  const points = typeof solved === 'number' ? solved : solved ? 1 : 0;
+  return { rating: Math.round(me.rating + k * (points - expected)), games: me.games + 1 };
 }
 
 // Nächstes Rätsel: passendes Thema ('mix' = alle), noch nicht gesehen, Wertung nah an meiner
