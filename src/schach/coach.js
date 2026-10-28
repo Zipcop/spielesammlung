@@ -180,3 +180,26 @@ export function praise(kind, since, n = 0) {
 
 // Spricht der Coach bei dieser Einstufung mit Tipp und Rückfrage? (Ungenauigkeit, Fehler, Patzer, Verpasster Gewinn)
 export const warns = (kind) => NEGATIVE.has(kind);
+
+// „Drohung zeigen“ (index.js): Was der Gegner spielen würde, wenn er gleich nochmal dran wäre – kurz und aus deiner
+// Sicht, mit denselben Fakten wie explainThreat. fen = Stellung mit getauschtem Zugrecht (Nullzug, lernen.js),
+// pv = seine beste Variante dort, score = Bewertung aus seiner Sicht. Liefert { text, threat, uci } oder null.
+export function threatText(fen, pv, score) {
+  const f = lineFacts(fen, pv);
+  if (!f) return null;
+  const move = `**${f.san}**`;
+  if (f.mate) return { text: `Droht ${move} – Schachmatt!`, threat: true, uci: f.uci };
+  if (score?.mate > 0) return { text: `Droht ${move} – danach setzt er dich in ${score.mate} Zügen matt.`, threat: true, uci: f.uci };
+  const extra = [];
+  if (f.fork.length) extra.push(`Das wäre ein${f.piece === 'n' || f.piece === 'p' ? 'e' : ''} ${forkWord(f.piece)}: ${ownNom('Sein', f.piece)} greift ${pieces(countOf(f.fork), 'dein')} gleichzeitig an.`);
+  if (f.promo) extra.push(`${f.uci[4] ? 'Dabei' : 'Danach'} wird sein Bauer zu${f.promo === 'q' ? 'r Dame' : `m ${NAME[f.promo]}`}.`);
+  const check = f.check ? ' – Schach! –' : ''; // mitten im Satz
+  if (f.gain >= 1 && Object.values(f.won).some((n) => n)) {
+    const gave = Object.values(f.gave).some((n) => n);
+    const onlyIt = f.unguarded && !gave && pieces(f.won, 'dein') === own('dein', f.unguarded.type);
+    const what = onlyIt ? `${own('dein', f.unguarded.type)} auf ${f.unguarded.square} (ungedeckt)` : gave ? `Material: ${pieces(f.won, 'dein')} gegen ${pieces(f.gave, 'sein')}` : pieces(f.won, 'dein');
+    return { text: [`Droht ${move}${check} und gewinnt ${what}.`, ...extra].join(' '), threat: true, uci: f.uci };
+  }
+  if (f.fork.length || (f.promo && f.gain >= 1)) return { text: [`Droht ${move}${f.check ? ' – Schach!' : '.'}`, ...extra].join(' '), threat: true, uci: f.uci };
+  return { text: `Keine akute Drohung – sein bester Zug wäre ${move}${f.check ? ' mit Schach' : ''}.`, threat: false, uci: f.uci };
+}

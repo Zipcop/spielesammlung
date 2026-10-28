@@ -43,24 +43,27 @@ test('Stärken: ab 1320 UCI_Elo mit der Suchtiefe, in der Stockfish wählt; daru
   assert.equal(low.go, 'depth 1');
   // je schwächer, desto mehr Zufallszüge; die Messpunkte selbst treffen genau
   let last = 0;
-  for (let e = 1300; e >= 800; e -= 50) {
+  for (let e = 1300; e >= 150; e -= 50) {
     const p = strengthFor(e).random;
     assert.ok(p > 0 && p < 1 && p >= last, `${e}: ${p}`);
     last = p;
   }
   for (const [e, p] of HANDICAP) if (e < 1320) assert.equal(strengthFor(e).random, p);
-  assert.equal(strengthFor(500).random, HANDICAP.at(-1)[1]); // unter dem schwächsten Messpunkt bleibt es dabei
+  assert.equal(strengthFor(50).random, HANDICAP.at(-1)[1]); // unter dem schwächsten Messpunkt bleibt es dabei
 });
 
-test('Stufen haben feste Elo-Zahlen, aufsteigend, alle als UCI_Elo spielbar', () => {
-  assert.deepEqual(LEVELS.map((l) => l.elo), [1320, 1600, 2000, 2400, 3190]);
-  for (const l of LEVELS) assert.equal(strengthFor(l.elo).options.UCI_Elo, l.elo);
+test('Stufen haben feste Elo-Zahlen ab 400, aufsteigend; ab 1320 als UCI_Elo, darunter mit Zufallszügen', () => {
+  assert.deepEqual(LEVELS.map((l) => l.elo), [400, 700, 1000, 1320, 1600, 2000, 2400, 3190]);
+  for (const l of LEVELS) {
+    if (l.elo >= 1320) assert.equal(strengthFor(l.elo).options.UCI_Elo, l.elo);
+    else assert.ok(strengthFor(l.elo).random > 0);
+  }
 });
 
-test('Coach-Stärke: eigene Elo auf 50 gerundet, 800 … 3150', () => {
+test('Coach-Stärke: eigene Elo auf 50 gerundet, 400 … 3150', () => {
   assert.equal(coachFor(1212), 1200);
   assert.equal(coachFor(1238), 1250);
-  assert.equal(coachFor(500), 800);
+  assert.equal(coachFor(300), 400);
   assert.equal(coachFor(4000), 3150);
 });
 

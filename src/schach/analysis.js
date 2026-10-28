@@ -173,7 +173,9 @@ export function createAnalyst({ onChange }) {
       if (!before?.score || !after?.score) return null;
       // die volle Variante, nicht nur die LINE Halbzüge der Anzeige: coach.js zählt Material erst an einer ruhigen Stelle
       const pv = (a) => (a.lines[0]?.pv[0] === a.best ? a.lines[0].pv : [a.best]);
-      return { fenBefore: fens[i], fenAfter: fens[i + 1], better: pv(before), best: before.score, played: flip(after.score), reply: pv(after), replyScore: after.score };
+      // second = zweitbester Zug davor samt Bewertung (für „Meine Fehler“, lernen.js: fast gleich gut zählt auch)
+      const second = before.lines[1]?.pv[0] ? { uci: before.lines[1].pv[0], score: before.lines[1].score } : null;
+      return { fenBefore: fens[i], fenAfter: fens[i + 1], better: pv(before), best: before.score, played: flip(after.score), reply: pv(after), replyScore: after.score, second };
     },
     stop() {
       stopped = true;

@@ -1,7 +1,9 @@
 // Kabo-Tisch: vor jedem Platz vier verdeckte Karten im 2 × 2-Raster (Platz 0/1 nah, 2/3 hinten), in der Mitte links
 // der verdeckte Stapel, rechts die offene Ablage. Die gezogene Karte hält der Ziehende schräg vor sich – nur er sieht
 // ihr Bild. Ansehen: Die Karte kippt zum Betrachter hoch – nur er sieht ihr Bild, alle anderen sehen nur, dass sie
-// angesehen wird. Wer „Kabo!“ ruft, bekommt ein rotes Kabo-Plättchen vor seine Karten. Kennt keine Regeln: zeigt die
+// angesehen wird. Wer „Kabo!“ ruft, bekommt ein rotes Kabo-Plättchen neben seine Karten. Abwerfen: Die Karte fliegt auf
+// die Ablage, ihr Platz bleibt leer; falsch geworfen zeigt sie sich allen kurz über der Ablage und fliegt zurück, eine
+// Strafkarte kommt dazu – links neben dem Raster wachsen dafür bis zu zwei Spalten. Kennt keine Regeln: zeigt die
 // Sicht eines Spielers (viewFor) und spielt die Ereignisse der letzten Aktion als Kartenflüge ab. Maße in Zentimetern.
 //
 // Plätze sind auf beiden PCs gleich (Sitz 0 auf +z, 1 auf −x, 2 auf −z, 3 auf +x) – die Tisch-Physik (tisch.js) erkennt
@@ -16,19 +18,28 @@ import { createPlates, seatSide } from '../plates.js';
 
 const DECK = 54;
 const SIDE = [0, -Math.PI / 2, Math.PI, Math.PI / 2]; // Drehung um die Hochachse: +z-Platz → Platz des Sitzes
-const GRID = [[-3.7, 29], [3.7, 29], [-3.7, 19.4], [3.7, 19.4]]; // Raster aus Sicht des Sitzes auf +z: x, z je Platz
+// Raster aus Sicht des Sitzes auf +z: x, z je Platz – 0/1 nah, 2/3 hinten, Strafkarten in Spalten links daneben
+const GRID = [[-3.7, 29], [3.7, 29], [-3.7, 19.4], [3.7, 19.4], [-11.1, 29], [-11.1, 19.4], [-18.5, 29], [-18.5, 19.4]];
 const TALON = { x: -5, z: 0 };
 const DISCARD = { x: 5, z: 0 };
 const HELD = new THREE.Vector3(13, 7, 27); // gezogene Karte: rechts neben dem Raster, zum Spieler hochgestellt
 const LOOK = { lift: 4.5, tilt: 1.0, toward: 1.5 }; // angesehene Karte: so hoch, so steil, so weit zum Betrachter
-const TOKEN = new THREE.Vector3(-12, 0, 24); // Kabo-Plättchen links neben dem Raster
+const TOKEN = new THREE.Vector3(0, 0, 12.5); // Kabo-Plättchen vor dem Raster, zur Tischmitte hin (links wachsen Strafkarten)
+const SHOW = { y: 4, z: 4 }; // falsch abgeworfene Karte: so hoch über der Ablage, zur Mitte hin, für alle offen
 const PLATE = new THREE.Vector3(17, 0, 31); // Namensschild rechts neben dem Raster (aus Sicht des Sitzes auf +z)
 const UP = new THREE.Vector3(0, 1, 0);
 const ACROSS = new THREE.Vector3(1, 0, 0);
 
 const around = (v, seat) => v.clone().applyAxisAngle(UP, SIDE[seat]);
-const gridAt = (p, i) => around(new THREE.Vector3(GRID[i][0], 0, GRID[i][1]), p);
+// ab Platz 8 (sehr viele Strafkarten) liegen sie leicht versetzt auf den äußeren Spalten
+const gridAt = (p, i) => {
+  const [x, z] = GRID[i < 8 ? i : 4 + (i % 4)];
+  const k = i < 8 ? 0 : Math.floor(i / 4) - 1;
+  return around(new THREE.Vector3(x - k * 0.8, k * 0.4, z - k * 0.8), p);
+};
 const count = (x) => (Array.isArray(x) ? x.length : x ?? 0);
+// Plätze eines Sitzes: true = Karte, false = leer (abgeworfen); in der Sicht ist leer '' (EMPTY)
+const slots = (x) => (Array.isArray(x) ? x.map((c) => c !== '') : Array.from({ length: x ?? 0 }, () => true));
 
 // Kabo-Plättchen: rote Holzscheibe mit heller Schrift
 function tokenTexture() {
@@ -87,7 +98,7 @@ export function createKaboBoard(parent) {
   // Lage einer Handkarte: verdeckt flach, zum Betrachter hochgekippt oder am Rundenende offen
   function handSpot(p, i) {
     const at = gridAt(p, i);
-    if (shown?.phase === 'over') return flat(at.x, 0, at.z, turn());
+    if (shown?.phase === 'over') return flat(at.x, at.y, at.z, turn());
     const looker = lookerOf(shown, p, i);
     if (looker !== null) {
       const to = around(new THREE.Vector3(0, 0, 1), looker).multiplyScalar(LOOK.toward);
@@ -95,7 +106,7 @@ export function createKaboBoard(parent) {
       return { pos: new THREE.Vector3(at.x + to.x, LOOK.lift, at.z + to.z), quat };
     }
     const up = p === me && isPicked(p, i) ? 0.8 : p === me && hover === model.hands[p][i] ? 0.4 : 0;
-    return flat(at.x, up, at.z, SIDE[p], false);
+    return flat(at.x, at.y + up, at.z, SIDE[p], false);
   }
 
   // Alle Karten an ihren Platz; moves = Karten, die gerade den Ort wechseln (mit Startverzögerung)
@@ -107,13 +118,15 @@ export function createKaboBoard(parent) {
       spots.set(c, lifted ? flat(DISCARD.x, k * CARD.t + 1.2, DISCARD.z, turn(), true) : discardSpot(k));
     });
     if (model.drawn) spots.set(model.drawn, heldSpot(shown?.turn ?? me));
-    for (const p of [0, 1, 2, 3]) model.hands[p].forEach((c, i) => spots.set(c, handSpot(p, i)));
+    for (const p of [0, 1, 2, 3]) model.hands[p].forEach((c, i) => c && spots.set(c, handSpot(p, i)));
     for (const [c, spot] of spots) {
       const m = moves.get(c);
       if (instant) cards.place(c, spot);
       else if (m) {
+        // immer als neuer Flug (queue): Hängte er sich an einen laufenden (z. B. Anheben unter der Maus), fiele onStart
+        // weg – und die Karte zeigte auf der Ablage die Rückseite
         cards.fly(c, spot, {
-          delay: m.delay, lift: m.lift ?? 3, queue: m.queue, onStart: m.onStart,
+          delay: m.delay, lift: m.lift ?? 3, queue: true, onStart: m.onStart,
           onLand: (quiet) => !quiet && m.sound && playHit('card', m.sound),
         });
       } else cards.fly(c, spot, { dur: 0.25 });
@@ -143,7 +156,7 @@ export function createKaboBoard(parent) {
     model.talon.forEach((c) => set(c, null));
     model.discard.forEach((c, k) => set(c, v.discard?.[k]));
     if (model.drawn) set(model.drawn, v.drawn);
-    for (const p of [0, 1, 2, 3]) model.hands[p].forEach((c, i) => set(c, v.hands?.[p]?.[i]));
+    for (const p of [0, 1, 2, 3]) model.hands[p].forEach((c, i) => c && set(c, v.hands?.[p]?.[i]));
   }
 
   // Ohne Animation genau den Stand herstellen
@@ -153,7 +166,7 @@ export function createKaboBoard(parent) {
     let k = 0;
     const next = () => pool[k++];
     model = empty();
-    model.hands = [0, 1, 2, 3].map((p) => Array.from({ length: count(v.hands?.[p]) }, next));
+    model.hands = [0, 1, 2, 3].map((p) => slots(v.hands?.[p]).map((full) => (full ? next() : null)));
     model.discard = Array.from({ length: count(v.discard) }, next);
     model.drawn = v.drawn ? next() : null;
     model.talon = Array.from({ length: count(v.talon) }, next);
@@ -235,6 +248,31 @@ export function createKaboBoard(parent) {
         move(x, { lift: 4, sound: 0.5 });
         move(y, { lift: 4, delay: t + 0.08, sound: 0.5 });
         t += 0.5;
+      } else if (e.type === 'snap') {
+        const hand = model.hands[e.player];
+        const c = hand[e.i];
+        if (!c) return rebuild(v);
+        if (e.ok) {
+          hand[e.i] = null;
+          model.discard.push(c);
+          move(c, { lift: 3, sound: 0.9, onStart: () => cards.setFace(c, e.card) });
+          t += 0.4;
+        } else {
+          // allen zeigen (über der Ablage, aufrecht für den Zuschauer), dann verdeckt zurück; Strafkarte vom Stapel
+          const show = around(new THREE.Vector3(DISCARD.x, 0, 0), 0);
+          const quat = new THREE.Quaternion().setFromAxisAngle(UP, turn()).multiply(new THREE.Quaternion().setFromAxisAngle(ACROSS, 0.9));
+          const toMe = new THREE.Vector3(0, 0, SHOW.z).applyAxisAngle(UP, turn());
+          cards.fly(c, { pos: new THREE.Vector3(show.x + toMe.x, SHOW.y, show.z + toMe.z), quat }, { delay: t, lift: 2, queue: true, onStart: () => cards.setFace(c, e.card) });
+          move(c, { delay: t + 1.6, queue: true, sound: 0.5, onStart: () => cards.setFace(c, null) });
+          playHit('wood', 0.5, t + 0.5);
+          if (e.penalty !== null) {
+            const pen = model.talon.pop();
+            if (!pen) return rebuild(v);
+            hand[e.penalty] = pen;
+            move(pen, { delay: t + 2.0, lift: 3, sound: 0.5 });
+          }
+          t += 2.3;
+        }
       } else if (e.type === 'kabo') {
         playHit('wood', 0.9, 0.05);
         playHit('wood', 0.8, 0.3);
@@ -265,8 +303,12 @@ export function createKaboBoard(parent) {
   const idAt = (v, x) => (x.zone === 'drawn' ? v.drawn : x.zone === 'discard' ? v.discard[x.k] : x.zone === 'hand' ? v.hands[x.p][x.i] : null) ?? null;
 
   function matches(v) {
+    const same = (p) => {
+      const want = slots(v.hands[p]);
+      return model.hands[p].length === want.length && want.every((full, i) => full === !!model.hands[p][i]);
+    };
     return model.talon.length === count(v.talon) && model.discard.length === count(v.discard) && !!model.drawn === !!v.drawn
-      && [0, 1, 2, 3].every((p) => model.hands[p].length === count(v.hands[p]));
+      && [0, 1, 2, 3].every(same);
   }
 
   function reset() {
@@ -346,7 +388,7 @@ export function createKaboBoard(parent) {
       };
       check({ zone: 'talon' }, TALON.x, TALON.z);
       check({ zone: 'discard' }, DISCARD.x, DISCARD.z);
-      for (const q of [0, 1, 2, 3]) for (let i = 0; i < 4; i++) if (model.hands[q][i]) check({ zone: 'hand', p: q, i }, gridAt(q, i).x, gridAt(q, i).z);
+      for (const q of [0, 1, 2, 3]) model.hands[q].forEach((c, i) => c && check({ zone: 'hand', p: q, i }, gridAt(q, i).x, gridAt(q, i).z));
       return best;
     },
   };

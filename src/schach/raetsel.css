@@ -110,3 +110,53 @@
   font-size: 13px;
   color: rgba(42, 33, 24, 0.6);
 }
+
+/* Lernen: Tagesrätsel, Sturm, Meine Fehler (lernen.js) – Schwächen-Profil, Erfolge, Meldung über neue Erfolge */
+.pz-modes.pz-learn {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.pz-rating .pz-small {
+  font: bold 15px Georgia, serif;
+}
+
+.pz-award {
+  padding: 6px 10px;
+  font-size: 14px;
+  color: #fff;
+  background: #a8812a;
+  border-radius: 6px;
+}
+
+.pz-profile {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.pz-profile .pz-muted {
+  color: rgba(42, 33, 24, 0.6);
+}
+
+.pz-trophies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pz-trophies span {
+  min-width: 26px;
+  padding: 2px 5px;
+  font: bold 12px Georgia, 'Segoe UI Symbol', serif;
+  text-align: center;
+  color: rgba(42, 33, 24, 0.35);
+  border: 1px dashed rgba(42, 33, 24, 0.3);
+  border-radius: 12px;
+}
+
+.pz-trophies span.got {
+  color: #fff;
+  background: #a8812a;
+  border: 1px solid #a8812a;
+}

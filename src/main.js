@@ -9,6 +9,8 @@ import { startSchach, loadColor, saveColor } from './schach/index.js';
 import { LEVELS, loadRecord } from './schach/solo.js';
 import { loadElo, coachElo, setCoachElo, COACH_MIN, COACH_MAX, COACH_STEP } from './schach/elo.js';
 import { startRaetsel } from './schach/raetsel.js';
+import { startSchule } from './schach/schule/index.js';
+import { loadLernen, dayHint } from './schach/lernen.js';
 import { createMauMauBoard } from './maumau/board.js';
 import { startMauMau } from './maumau/index.js';
 import { createMaednBoard } from './maedn/board.js';
@@ -74,6 +76,7 @@ const GAMES = {
   Kniffel: { board, start: startKniffel, seat: 'seat' },
   Schach: { board: createChessBoard(room.tableTop), start: startSchach, seat: 'chess' },
   'Schach-Rätsel': { board: createChessBoard(room.tableTop), start: startRaetsel, seat: 'chess' }, // eigenes Brett: setTable blendet je Eintrag ein
+  'Schach-Schule': { board: createChessBoard(room.tableTop), start: startSchule, seat: 'chess' }, // eigenes Brett wie Schach-Rätsel
   'Mau-Mau': { board: createMauMauBoard(room.tableTop), start: startMauMau, seat: 'cards' },
   // 4 Farben: Host + Gast (bzw. allein) – die freien Plätze spielt der Computer
   // Billard steht auf einem eigenen Tisch – der kleine Spieltisch wird solange ausgeblendet (setTable)
@@ -309,6 +312,8 @@ function showTablePanel(name) {
   $('level').hidden = $('solo-record').hidden = $('coach-row').hidden = name !== 'Schach';
   $('chess-color').hidden = name !== 'Schach'; // gilt allein und für den Host zu zweit
   $('chess-color').value = loadColor();
+  $('raetsel-day').hidden = name !== 'Schach-Rätsel'; // Tagesrätsel offen/gelöst und Serie (schach/lernen.js)
+  if (name === 'Schach-Rätsel') $('raetsel-day').textContent = dayHint(loadLernen());
   $('free-row').hidden = !PLAYABLE.get(name).free;
   $('free-toggle').checked = settings.free;
   showRecord();

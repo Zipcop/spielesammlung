@@ -207,6 +207,16 @@
   border-bottom-color: #1d5a3c;
 }
 
+/* „Drohung zeigen“: was der Gegner jetzt spielen würde (roter Pfeil) */
+.chess-threat {
+  padding: 6px 10px;
+  font-size: 14px;
+  line-height: 1.35;
+  background: #fff5f3;
+  border-left: 4px solid #e0302a;
+  border-radius: 6px;
+}
+
 /* Seitenfeld am Tisch: Coach-Stärke und Knopf */
 .coach-row {
   display: grid;

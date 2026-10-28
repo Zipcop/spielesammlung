@@ -10,7 +10,7 @@ export { LEVELS } from './elo.js'; // Stufen mit fester Elo
 const MIN_THINK_MS = 700; // der Computer zieht nicht schlagartig
 
 // Bilanz je Stufe: { [Stufe]: { w: Siege, d: Remis, l: Niederlagen } } – nur in diesem Browser ('coach' = Coach-Partien)
-const KEY = 'spielesammlung-schach-bilanz';
+const KEY = 'spielesammlung-schach-bilanz-2'; // neu seit den Stufen ab 400 (28.10.2026) – alte Nummern passen nicht mehr
 export function loadRecord() {
   try {
     return JSON.parse(localStorage.getItem(KEY)) ?? {};

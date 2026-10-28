@@ -16,14 +16,21 @@
 // tauschbar), dann wird aufgedeckt. Jeder schreibt seine Kartensumme; hat der Rufer allein die niedrigste, schreibt er 0,
 // sonst seine Summe + 10. Ist der Stapel leer, wird die Ablage ohne die oberste Karte gemischt. Die Partie endet, wenn
 // einer 100 oder mehr hat – es gewinnt der niedrigste Stand (Gleichstand = mehrere Sieger).
-// Bewusst weggelassen: Abwerfen gleicher Karten außer der Reihe (Echtzeit-Wettlauf).
+// Abwerfen (Nico 28.10.2026): Kommt eine Karte offen auf die Ablage, darf jeder – auch außer der Reihe, auch wer dran
+// ist – eine eigene verdeckte Karte gleichen Rangs darauf werfen (Farbe egal, Joker auf Joker, König auf König), bis
+// der Nächste seinen Zug beginnt (ziehen, Ablage nehmen, „Kabo!“). Richtig: die Karte ist weg, ihr Platz bleibt leer
+// (EMPTY), auf sie darf wieder geworfen werden. Falsch: sie wird allen gezeigt, geht verdeckt zurück, und eine
+// Strafkarte kommt verdeckt vom Stapel auf den ersten leeren Platz, der nicht gerade angesehen wird (sonst einen
+// neuen – das Raster wächst über 4).
+// Der Kabo-Rufer wirft nicht mehr ab (seine Karten sind gesperrt). Was zuerst beim Host ankommt, gilt zuerst.
 //
 // „Ohne Hilfen“ (free): Nach jedem Ablegen, Tauschen oder Nehmen kommt der Schritt „Fähigkeit“ – jede der vier geht,
 // auch ohne passende Karte. Schummeln (merkt sich nur der Host, mit kurzem Grund): Fähigkeit ohne frisch gezogene
 // passende Karte, „heimlich ansehen“ (eine beliebige Karte im eigenen Zug), gesperrte Karten des Rufers tauschen und
 // „Kabo!“, bevor jeder dran war. Jeder Zug ist anfechtbar, bis ein anderer etwas tut (am Rundenende bis zur nächsten
 // Runde). Erwischt: der ganze Zug wird zurückgenommen, der Schummler setzt ihn aus und bekommt 10 Strafpunkte.
-// Fehlalarm: 5 Strafpunkte für den Ankläger.
+// Fehlalarm: 5 Strafpunkte für den Ankläger. Ein Abwurf ist kein Schummeln (falsch kostet schon die Strafkarte), zählt
+// aber als Handlung: Danach ist der Zug eines anderen nicht mehr anfechtbar.
 import { makeDeck, shuffle, rankOf, isRed, isJoker, cardName, JOKERS } from '../karten/cards.js';
 
 export const SEAT_SETS = { 2: [0, 2], 3: [0, 1, 2], 4: [0, 1, 2, 3] };
@@ -33,6 +40,7 @@ export const CAUGHT = 10; // beim Schummeln erwischt
 export const FALSE_ALARM = 5; // „Geschummelt!“ zu Unrecht
 export const NEAR = [0, 1]; // die beiden nahen Karten – die sieht jeder zu Beginn an
 export const KINDS = ['own', 'other', 'swap', 'king'];
+export const EMPTY = ''; // leerer Platz im Raster (abgeworfen) – bleibt in jeder Sicht leer, verdeckte Karten sind null
 export { cardName };
 
 // Kartenwert: Joker 0, roter König −1, Ass 1, Bube/Dame/schwarzer König 10, sonst die Augen
@@ -55,7 +63,9 @@ export function powerOf(c) {
   return r === 'K' && !isRed(c) ? 'king' : null;
 }
 
-export const sumOf = (hand) => hand.reduce((sum, c) => sum + valueOf(c), 0);
+export const sumOf = (hand) => hand.reduce((sum, c) => (c === EMPTY ? sum : sum + valueOf(c)), 0);
+// Abwerfen passt: gleicher Rang (Farbe egal), Joker auf Joker
+export const sameRank = (a, b) => (isJoker(a) || isJoker(b) ? isJoker(a) && isJoker(b) : rankOf(a) === rankOf(b));
 export const fullDeck = () => [...makeDeck('2'), ...JOKERS];
 export const DECK = 54;
 
@@ -71,8 +81,10 @@ export function nextSeat(s, seat) {
 const withHand = (hands, seat, hand) => hands.map((h, p) => (p === seat ? hand : h));
 const emptySeen = () => [0, 1, 2, 3].map(() => [0, 1, 2, 3].map(() => [null, null, null, null]));
 const copySeen = (seen) => seen.map((x) => x.map((h) => [...h]));
-const validSpot = (s, o) => !!o && typeof o === 'object' && s.seats.includes(o.p) && Number.isInteger(o.i) && o.i >= 0 && o.i < 4;
-const validOwn = (i) => Number.isInteger(i) && i >= 0 && i < 4;
+// Platz mit Karte (nicht leer): eigener (validOwn) oder an einem beliebigen Sitz (validSpot)
+const filled = (s, p, i) => Number.isInteger(i) && i >= 0 && i < s.hands[p].length && s.hands[p][i] !== EMPTY;
+const validSpot = (s, o) => !!o && typeof o === 'object' && s.seats.includes(o.p) && filled(s, o.p, o.i);
+const validOwn = (s, seat, i) => filled(s, seat, i);
 
 // --- Neue Partie ---
 // Erst wählt der Host, wie viele am Tisch sitzen (setup), dann wird ausgeteilt. humans = Sitze der Menschen.
@@ -94,7 +106,7 @@ export function newGame({ humans = [0], free = false, seq = 0 } = {}) {
     starter: null,
     turn: null,
     step: null, // im Zug: start → drawn (gezogen) → power (Fähigkeit) → look (ansehen) → nächster
-    hands: [[], [], [], []], // je 4 Karten, Platz 0/1 nah, 2/3 hinten
+    hands: [[], [], [], []], // je 4 Karten, Platz 0/1 nah, 2/3 hinten; abgeworfen = EMPTY, Strafkarten ab Platz 4
     talon: [],
     discard: [], // offen, die letzte liegt oben
     drawn: null, // frisch gezogene Karte
@@ -104,6 +116,7 @@ export function newGame({ humans = [0], free = false, seq = 0 } = {}) {
     moved: [], // waren in dieser Runde schon dran
     turns: 0, // Züge in dieser Runde
     caller: null, // wer „Kabo!“ gerufen hat
+    snapOpen: false, // Abwerfen auf die oberste Ablagekarte erlaubt (bis der Nächste seinen Zug beginnt)
     fines: [0, 0, 0, 0], // Strafpunkte dieser Runde (ohne Hilfen)
     seen: emptySeen(), // seen[wer][sitz][platz] = zuletzt gesehene Karte – das Gedächtnis (nur für den Computer)
     secret: null, // ohne Hilfen: heimlich angesehen { seat, p, i }
@@ -149,6 +162,7 @@ function deal(s, rng, starter) {
     moved: [],
     turns: 0,
     caller: null,
+    snapOpen: false, // auf die erste offene Karte wird nicht abgeworfen
     fines: [0, 0, 0, 0],
     seen,
     secret: null,
@@ -188,17 +202,17 @@ export function draw(s, seat, rng = Math.random) {
     events.push({ type: 'mixed', count: next.talon.length });
   }
   const drawn = next.talon.at(-1);
-  return { ...next, talon: next.talon.slice(0, -1), drawn, step: 'drawn', events: [...events, { type: 'draw', player: seat }] };
+  return { ...next, talon: next.talon.slice(0, -1), drawn, snapOpen: false, step: 'drawn', events: [...events, { type: 'draw', player: seat }] };
 }
 
 // Gezogene Karte gegen eigene Karte i tauschen – die alte kommt offen auf die Ablage
 export function place(s, seat, i) {
-  if (!onTurn(s, seat, 'drawn') || !validOwn(i)) return null;
+  if (!onTurn(s, seat, 'drawn') || !validOwn(s, seat, i)) return null;
   const old = s.hands[seat][i];
   const hand = s.hands[seat].map((c, k) => (k === i ? s.drawn : c));
   const seen = copySeen(s.seen);
   for (const x of [0, 1, 2, 3]) seen[x][seat][i] = x === seat ? s.drawn : null;
-  const next = { ...touch(s, seat), hands: withHand(s.hands, seat, hand), discard: [...s.discard, old], drawn: null, seen };
+  const next = { ...touch(s, seat), hands: withHand(s.hands, seat, hand), discard: [...s.discard, old], drawn: null, seen, snapOpen: true };
   return after(next, seat, [{ type: 'place', player: seat, i, card: old }], null);
 }
 
@@ -206,19 +220,19 @@ export function place(s, seat, i) {
 export function drop(s, seat) {
   if (!onTurn(s, seat, 'drawn')) return null;
   const card = s.drawn;
-  const next = { ...touch(s, seat), discard: [...s.discard, card], drawn: null };
+  const next = { ...touch(s, seat), discard: [...s.discard, card], drawn: null, snapOpen: true };
   return after(next, seat, [{ type: 'drop', player: seat, card }], powerOf(card));
 }
 
 // --- (b) Oberste Ablagekarte nehmen und gegen eigene Karte i tauschen (ohne Fähigkeit) ---
 export function take(s, seat, i) {
-  if (!onTurn(s, seat, 'start') || !validOwn(i) || !s.discard.length) return null;
+  if (!onTurn(s, seat, 'start') || !validOwn(s, seat, i) || !s.discard.length) return null;
   const card = s.discard.at(-1);
   const old = s.hands[seat][i];
   const hand = s.hands[seat].map((c, k) => (k === i ? card : c));
   const seen = copySeen(s.seen);
   for (const x of [0, 1, 2, 3]) seen[x][seat][i] = card; // alle haben gesehen, was er genommen hat
-  const next = { ...touch(s, seat), hands: withHand(s.hands, seat, hand), discard: [...s.discard.slice(0, -1), old], seen };
+  const next = { ...touch(s, seat), hands: withHand(s.hands, seat, hand), discard: [...s.discard.slice(0, -1), old], seen, snapOpen: true };
   return after(next, seat, [{ type: 'take', player: seat, i, card, old }], null);
 }
 
@@ -234,7 +248,7 @@ export const LOCKED = 'gesperrte Karten des Kabo-Rufers getauscht';
 
 export function ability(s, seat, { kind, own, other } = {}) {
   if (!onTurn(s, seat, 'power') || !KINDS.includes(kind)) return null;
-  if (kind !== 'other' && !validOwn(own)) return null;
+  if (kind !== 'other' && !validOwn(s, seat, own)) return null;
   if (kind !== 'own' && (!validSpot(s, other) || other.p === seat)) return null;
   const fits = kind === s.power || (s.power === 'king' && (kind === 'own' || kind === 'other')); // weniger als der König darf
   const locked = kind === 'swap' && other.p === s.caller;
@@ -270,6 +284,7 @@ export function done(s, seat, swap = false) {
     return endTurn(next, seat, s.power ? [{ type: 'skip', player: seat }] : []);
   }
   const [mine, theirs] = s.look.kind === 'king' ? s.look.spots : [];
+  if (swap && (!filled(s, seat, mine.i) || !validSpot(s, theirs))) return null; // inzwischen abgeworfen
   const locked = swap && theirs.p === s.caller;
   if (locked && !s.free) return null;
   let next = { ...touch(s, seat), look: null };
@@ -285,7 +300,46 @@ export function kabo(s, seat) {
   if (early && !s.free) return null;
   let next = touch(s, seat);
   if (early) next = mark(next, '„Kabo!“ gerufen, bevor jeder einmal dran war');
-  return endTurn({ ...next, caller: seat }, seat, [{ type: 'kabo', player: seat }]);
+  return endTurn({ ...next, caller: seat, snapOpen: false }, seat, [{ type: 'kabo', player: seat }]);
+}
+
+// --- Abwerfen: eigene verdeckte Karte i auf die Ablage werfen (jeder, auch außer der Reihe) ---
+// Passt der Rang, ist sie weg (Platz bleibt leer). Passt er nicht, sehen alle die Karte, sie geht zurück, und der Werfer
+// bekommt eine Strafkarte verdeckt vom Stapel (erster leerer Platz, der nicht gerade angesehen wird, sonst ein neuer) –
+// er kennt sie nicht. top = die Karte, die der Werfer oben sah (Gast: Wunsch unterwegs): Liegt inzwischen ein anderer
+// Rang oben, gilt der Abwurf nicht (null, keine Strafe).
+export function snap(s, seat, i, rng = Math.random, top) {
+  if (s.phase !== 'play' || !s.snapOpen || !s.seats.includes(seat) || seat === s.caller || !validOwn(s, seat, i) || !s.discard.length) return null;
+  if (top !== undefined && (typeof top !== 'string' || !sameRank(top, s.discard.at(-1)))) return null;
+  const card = s.hands[seat][i];
+  let next = { ...begin(s, seat, true), seq: s.seq + 1 };
+  if (next.secret?.seat === seat && next.secret.early) next = { ...mark(next, SNEAK), secret: null }; // wie touch
+  const seen = copySeen(next.seen);
+  if (sameRank(card, s.discard.at(-1))) {
+    for (const x of [0, 1, 2, 3]) seen[x][seat][i] = null;
+    const hand = s.hands[seat].map((c, k) => (k === i ? EMPTY : c));
+    return { ...next, hands: withHand(s.hands, seat, hand), discard: [...s.discard, card], seen, events: [{ type: 'snap', player: seat, i, card, ok: true }] };
+  }
+  for (const x of [0, 1, 2, 3]) seen[x][seat][i] = card; // alle haben sie gesehen
+  const events = [];
+  let { talon, discard } = next;
+  if (!talon.length && discard.length > 1) {
+    talon = shuffle(discard.slice(0, -1), rng);
+    discard = [discard.at(-1)];
+    events.push({ type: 'mixed', count: talon.length });
+  }
+  let hand = s.hands[seat];
+  let penalty = null;
+  if (talon.length) {
+    const watched = (k) => next.look?.spots.some((x) => x.p === seat && x.i === k) || (next.secret?.p === seat && next.secret.i === k);
+    penalty = hand.findIndex((c, k) => c === EMPTY && !watched(k));
+    if (penalty < 0) penalty = hand.length;
+    hand = [...hand];
+    hand[penalty] = talon.at(-1);
+    talon = talon.slice(0, -1);
+    for (const x of [0, 1, 2, 3]) seen[x][seat][penalty] = null;
+  }
+  return { ...next, hands: withHand(s.hands, seat, hand), talon, discard, seen, events: [...events, { type: 'snap', player: seat, i, card, ok: false, penalty }] };
 }
 
 // --- Ohne Hilfen: im eigenen Zug heimlich eine beliebige Karte ansehen (sehen nur der Schummler und der Host) ---
@@ -345,9 +399,12 @@ export function regroup(s, seat) {
 
 // --- Ohne Hilfen ---
 // Jeder Zug ist anfechtbar (prev = Stand davor), bis ein anderer etwas tut. Alle Schritte eines Zuges gehören zusammen.
-function begin(s, seat) {
-  if (!s.free || s.cheat?.player === seat) return s;
-  return { ...s, cheat: { player: seat, legal: true, prev: { ...s, cheat: null }, why: [] } };
+// Ein Abwurf (snapping) beginnt einen eigenen, immer erlaubten Abschnitt – mitten im eigenen Zug (auch zu Zugbeginn)
+// gehört er zum Zug.
+function begin(s, seat, snapping = false) {
+  if (!s.free) return s;
+  if (s.cheat?.player === seat && (snapping || !s.cheat.snap || s.cheat.prev.turn === seat)) return s;
+  return { ...s, cheat: { player: seat, legal: true, prev: { ...s, cheat: null }, why: [], snap: snapping } };
 }
 
 const mark = (s, why) => ({ ...s, cheat: { ...s.cheat, legal: false, why: [...new Set([...s.cheat.why, why])] } });
@@ -391,7 +448,7 @@ export function viewFor(s, seat) {
     || (s.secret?.seat === seat && s.secret.p === p && s.secret.i === i);
   return {
     ...s,
-    hands: s.hands.map((h, p) => h.map((c, i) => (open(p, i) ? c : null))),
+    hands: s.hands.map((h, p) => h.map((c, i) => (c === EMPTY || open(p, i) ? c : null))),
     talon: s.talon.length,
     drawn: s.drawn && (s.turn === seat ? s.drawn : '??'),
     seen: s.humans.includes(seat) ? null : s.seen[seat],

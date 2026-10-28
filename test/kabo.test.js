@@ -4,9 +4,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   newGame, setup, ready, draw, place, drop, take, ability, done, kabo, sneak, accuse, waive, again, regroup, viewFor,
-  valueOf, powerOf, sumOf, nextSeat, fullDeck, DECK, GOAL, LOCKED,
+  valueOf, powerOf, sumOf, nextSeat, fullDeck, DECK, GOAL, LOCKED, snap, sameRank, EMPTY,
 } from '../src/kabo/game.js';
-import { chooseMove, cheatMove, estimate } from '../src/kabo/ai.js';
+import { chooseMove, cheatMove, estimate, snapMove } from '../src/kabo/ai.js';
 import { OUTCOME, reverted } from '../src/results.js';
 
 function seeded(seed) {
@@ -385,7 +385,8 @@ test('Computer: tauscht hohe gegen niedrige, nimmt gute Ablage, nutzt Fähigkeit
 });
 
 // Ganze Partie Computer gegen Computer; ohne Hilfen schummeln sie ab und zu und rufen manchmal „Geschummelt!“
-function playOut(n, free, seed) {
+// Abwerfen: Wer eine passende Karte sicher kennt, wirft sie oft ab; selten wirft einer blind eine falsche (Strafkarte)
+function playOut(n, free, seed, snaps = { ok: 0, bad: 0, maxCards: 4 }) {
   const rng = seeded(seed);
   let s = setup(newGame({ humans: [0, 2], free }), 0, n, rng);
   let steps = 0;
@@ -409,6 +410,22 @@ function playOut(n, free, seed) {
       s = next;
       continue;
     }
+    if (s.phase === 'play' && s.snapOpen && rng() < 0.5) {
+      const who = s.seats.filter((p) => p !== s.caller);
+      const p = who[Math.floor(rng() * who.length)];
+      let m = snapMove({ ...viewFor(s, p), seen: s.seen[p] }, p);
+      const own = s.hands[p].flatMap((c, i) => (c === EMPTY ? [] : [i]));
+      if (!m && own.length && rng() < 0.04) m = { t: 'snap', arg: own[Math.floor(rng() * own.length)] };
+      if (m) {
+        const next = snap(s, p, m.arg, rng);
+        assert.ok(next, 'Abwurf ungültig');
+        const e = next.events.at(-1);
+        snaps[e.ok ? 'ok' : 'bad']++;
+        snaps.maxCards = Math.max(snaps.maxCards, next.hands[p].length);
+        s = next;
+        continue;
+      }
+    }
     const seat = s.turn;
     const v = { ...viewFor(s, seat), seen: s.seen[seat] }; // hier spielt der Computer auch die Sitze der Menschen
     const m = (free && rng() < 0.15 && cheatMove(v, seat, rng)) || chooseMove(v, seat);
@@ -416,7 +433,7 @@ function playOut(n, free, seed) {
     assert.ok(next, `ungültig: ${JSON.stringify(m)} in ${s.step}`);
     s = next;
     if (s.phase === 'play' || s.phase === 'over') {
-      const cards = [...s.seats.flatMap((p) => s.hands[p]), ...s.discard, ...s.talon, ...(s.drawn ? [s.drawn] : [])];
+      const cards = [...s.seats.flatMap((p) => s.hands[p]).filter((c) => c !== EMPTY), ...s.discard, ...s.talon, ...(s.drawn ? [s.drawn] : [])];
       assert.equal(cards.length, DECK);
       assert.equal(new Set(cards).size, DECK);
     }
@@ -437,12 +454,13 @@ function act(s, seat, m, rng) {
   return null;
 }
 
-test('Computer-Partien zu 2, 3 und 4 laufen bis 100 – mit und ohne Hilfen, jede Aktion gültig', () => {
+test('Computer-Partien zu 2, 3 und 4 laufen bis 100 – mit und ohne Hilfen, mit Abwürfen, jede Aktion gültig', () => {
   const stats = { rounds: 0, games: 0, alone: 0, calls: 0 };
+  const snaps = { ok: 0, bad: 0, maxCards: 4 };
   for (const n of [2, 3, 4]) {
     for (const free of [false, true]) {
       for (let seed = 1; seed <= 10; seed++) {
-        const { s, rounds } = playOut(n, free, seed * 17 + n);
+        const { s, rounds } = playOut(n, free, seed * 17 + n, snaps);
         assert.ok(rounds >= 1, `${n}: nur eine Runde`); // die letzte Runde zählt hier nicht mit
         assert.ok(s.seats.some((p) => s.scores[p] >= GOAL));
         assert.ok(s.winners.length >= 1);
@@ -453,6 +471,8 @@ test('Computer-Partien zu 2, 3 und 4 laufen bis 100 – mit und ohne Hilfen, jed
     }
   }
   assert.ok(stats.rounds / stats.games < 30, `zu lange Partien: ${stats.rounds / stats.games}`);
+  assert.ok(snaps.ok > 50 && snaps.bad > 5, `Abwürfe: ${JSON.stringify(snaps)}`);
+  assert.ok(snaps.maxCards > 4, 'das Raster wächst durch Strafkarten');
 });
 
 test('Statistik: weniger Punkte gewinnt (Host Sitz 0, Gast humans[1]); gleich = Remis; läuft = undefined', () => {
@@ -540,4 +560,202 @@ test('index.js: Rundenende mit negativer Summe zeigt „-2 → -2“, nicht „+
   g.handle({ t: 'state', state: viewFor(s, 2) });
   assert.deepEqual(ui.shown.players.map((x) => x.note), ['-2 → -2', '24 → +24', 'Kabo 14 → +24']);
   g.stop();
+});
+
+// --- Abwerfen außer der Reihe (Nico 28.10.2026) ---
+// Ablage oben h6 (Sitz 0 hat sie gerade abgelegt), Sitz 1 ist dran; Sechser: Sitz 0 Platz 1, Sitz 1 Platz 3, Sitz 2 Platz 0
+const SNAP_HANDS = [['h2', 'c6', 'sK', 'd9'], ['hK', 'xr', 'c5', 's6'], ['d6', 'h8', 'cT', 'sA'], []];
+const opened = (o = {}) => drop(draw(fixed({ hands: SNAP_HANDS, talon: ['c2', 'h7', 'sJ', 'd8', 'h6'], discard: ['c4'], ...o }), 0), 0);
+
+test('Abwerfen: gleicher Rang außer der Reihe – Karte weg, Platz leer; auf die neue oberste wird weiter geworfen', () => {
+  assert.ok(sameRank('h6', 'd6') && sameRank('hK', 'sK') && sameRank('xr', 'xb'));
+  assert.ok(!sameRank('xr', 'h6') && !sameRank('h6', 'h7'));
+  assert.equal(snap(fixed({ hands: SNAP_HANDS }), 2, 0), null); // erste offene Karte: noch kein Abwerfen
+  let s = opened();
+  assert.equal(s.turn, 1);
+  assert.equal(s.snapOpen, true);
+  s = snap(s, 2, 0); // Sitz 2 außer der Reihe
+  assert.deepEqual(s.hands[2], [EMPTY, 'h8', 'cT', 'sA']);
+  assert.deepEqual(s.discard.slice(-2), ['h6', 'd6']);
+  assert.equal(s.turn, 1); // am Zug ändert sich nichts
+  assert.deepEqual(s.events, [{ type: 'snap', player: 2, i: 0, card: 'd6', ok: true }]);
+  s = snap(s, 0, 1); // auch wer gerade abgelegt hat
+  s = snap(s, 1, 3); // und wer dran ist
+  assert.deepEqual(s.discard.slice(-3), ['d6', 'c6', 's6']);
+  assert.deepEqual(viewFor(s, 0).hands[2], [EMPTY, null, null, null]); // leer bleibt leer, sonst verdeckt
+  assert.equal(s.seen[2][2][0], null);
+  // ein leerer Platz lässt sich weder abwerfen noch tauschen
+  assert.equal(snap(s, 2, 0), null);
+  assert.equal(take(s, 1, 3), null);
+  assert.equal(place(draw(s, 1), 1, 3), null);
+  // Frist: bis der Nächste seinen Zug beginnt (ziehen, Ablage nehmen, Kabo)
+  assert.equal(draw(s, 1).snapOpen, false);
+  assert.equal(snap(draw(s, 1), 2, 1), null);
+  assert.equal(take(s, 1, 0).snapOpen, true); // die Karte, die er dafür hinlegt, ist wieder offen
+  // Wertung: weniger Karten = weniger Punkte, 0 Karten = 0
+  assert.equal(sumOf([EMPTY, 'h8', EMPTY, 'sA']), 9);
+  assert.equal(sumOf([EMPTY, EMPTY, EMPTY, EMPTY]), 0);
+});
+
+test('Abwerfen falsch: alle sehen die Karte, sie geht zurück, dazu eine verdeckte Strafkarte – erst in Lücken, dann neue Plätze', () => {
+  let s = snap(opened(), 2, 1); // h8 auf h6
+  assert.deepEqual(s.hands[2], ['d6', 'h8', 'cT', 'sA', 'd8']); // Strafkarte = oberste vom Stapel, neuer Platz 4
+  assert.deepEqual(s.events, [{ type: 'snap', player: 2, i: 1, card: 'h8', ok: false, penalty: 4 }]);
+  assert.equal(s.discard.at(-1), 'h6');
+  assert.equal(s.seen[0][2][1], 'h8'); // alle haben sie gesehen
+  assert.equal(s.seen[2][2][4], null); // die Strafkarte kennt keiner, auch der Werfer nicht
+  for (const p of [0, 1, 2]) assert.equal(viewFor(s, p).hands[2][4], null);
+  assert.ok(!JSON.stringify(viewFor(s, 2)).includes('d8')); // auch nicht in den Ereignissen
+  // erst in die Lücke
+  let t = snap(snap(opened(), 2, 0), 2, 1);
+  assert.deepEqual(t.hands[2], ['d8', 'h8', 'cT', 'sA']);
+  assert.equal(t.events[0].penalty, 0);
+  // Stapel leer: Ablage ohne oberste gemischt
+  t = snap({ ...opened(), talon: [], discard: ['c2', 'h7', 'h6'] }, 2, 1, seeded(2));
+  assert.equal(t.events[0].type, 'mixed');
+  assert.equal(t.hands[2].length, 5);
+  assert.deepEqual(t.discard, ['h6']);
+  assert.equal(t.talon.length, 1);
+  // Wettlauf: der Host nimmt die Wünsche nach Eingang – der zweite passt nur, wenn sein Rang noch passt
+  const a = snap(opened(), 2, 0); // d6 zuerst
+  assert.equal(snap(a, 1, 3).events[0].ok, true); // s6 passt weiter
+  assert.equal(snap(a, 1, 2).events[0].ok, false); // c5 nicht
+});
+
+test('Abwerfen: der Kabo-Rufer ist gesperrt; ohne Hilfen ist ein Abwurf kein Schummeln, beendet aber die Frist davor', () => {
+  let s = kabo(fixed({ hands: SNAP_HANDS, talon: ['c2', 'h6'] }), 0);
+  s = drop(draw(s, 1), 1); // Sitz 1 legt h6 ab
+  assert.equal(snap(s, 0, 1), null); // Rufer: gesperrt
+  assert.ok(snap(s, 2, 0));
+  // ohne Hilfen: Sitz 0 spielt, Sitz 2 wirft ab – danach ist der Zug von Sitz 0 nicht mehr anfechtbar
+  let f = opened({ free: true });
+  f = done(f, 0); // „Fertig“ (ohne Hilfen kommt der Schritt Fähigkeit)
+  assert.equal(f.cheat.player, 0);
+  const thrown = snap(f, 2, 0);
+  assert.equal(thrown.cheat.player, 2);
+  assert.equal(accuse(thrown, 1, 0), null);
+  assert.equal(accuse(thrown, 1).events[0].type, 'fehlalarm'); // der Abwurf selbst ist erlaubt
+  // wirft der, der dran ist, gehört der Abwurf zu seinem Zug – und beginnt sein nächster Zug, gilt ein neuer Abschnitt
+  let own = drop(draw(fixed({ free: true, hands: SNAP_HANDS, talon: ['h6'] }), 0), 0);
+  own = snap(own, 0, 1);
+  assert.equal(own.cheat.snap, false);
+  const self = snap(done(opened({ free: true }), 0), 2, 0);
+  const next = draw({ ...self, turn: 2 }, 2);
+  assert.equal(next.cheat.snap, false);
+  assert.notEqual(next.cheat.prev, self.cheat.prev);
+});
+
+test('Abwerfen: der Computer wirft nur Karten, die er sicher kennt', () => {
+  const s = opened({ humans: [0] });
+  // Sitz 1 kennt seine Karten nicht: nichts
+  assert.equal(snapMove(viewFor(s, 1), 1), null);
+  const known = { ...s, seen: s.seen.map((x, p) => (p === 1 ? x.map((h, q) => (q === 1 ? [...SNAP_HANDS[1]] : [...h])) : x)) };
+  assert.deepEqual(snapMove(viewFor(known, 1), 1), { t: 'snap', arg: 3 });
+  assert.equal(snapMove(viewFor({ ...known, caller: 1 }, 1), 1), null);
+  assert.equal(snapMove(viewFor({ ...known, snapOpen: false }, 1), 1), null);
+  assert.ok(snap(known, 1, 3).events[0].ok);
+});
+
+test('index.js: Fortsetzen mit leeren Plätzen und Strafkarte – der Stand bleibt, Abwerfen per Klick außer der Reihe', async (t) => {
+  const { ui, base: io } = await import('../test-stubs/index-harness.js');
+  const { startKabo } = await import('../src/kabo/index.js');
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.method(Math, 'random', () => 0.99);
+  const resume = { ...snap(snap(opened({ humans: [0] }), 0, 1), 2, 1), count: 3 }; // Sitz 0 richtig, Sitz 2 falsch
+  assert.equal(resume.turn, 1);
+  const sent = [];
+  const g = startKabo({ ...io, me: 0, level: 1, resume, send: (m) => sent.push(m) });
+  assert.deepEqual(g.view().hands[0], [null, EMPTY, null, null]);
+  assert.equal(g.view().hands[2].length, 5);
+  assert.match(ui.shown.snap, /Abwerfen/);
+  g.stop();
+});
+
+test('index.js: der Computer wirft eine sicher bekannte Karte nach seiner Reaktionszeit ab – und wartet mit seinem Zug die Abwurf-Frist ab', async (t) => {
+  const { base: io } = await import('../test-stubs/index-harness.js');
+  const { startKabo } = await import('../src/kabo/index.js');
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.method(Math, 'random', () => 0.99); // Reaktionszeit 800 + 0,99 · 1200 ≈ 1990 ms
+  const s = opened({ humans: [0] });
+  const seen = s.seen.map((x, p) => (p === 2 ? x.map((h, q) => (q === 2 ? ['d6', null, null, null] : [...h])) : x));
+  const g = startKabo({ ...io, me: 0, level: 1, resume: { ...s, count: 3, seen } });
+  t.mock.timers.tick(1000);
+  assert.equal(g.view().hands[2][0], null, 'noch nicht abgeworfen');
+  assert.deepEqual([g.view().turn, g.view().step], [1, 'start'], 'Sitz 1 wartet die Frist ab');
+  t.mock.timers.tick(1100);
+  assert.equal(g.view().hands[2][0], EMPTY, 'Sitz 2 hat seine 6 abgeworfen');
+  assert.equal(g.view().discard.at(-1), 'd6');
+  assert.deepEqual([g.view().turn, g.view().step], [1, 'start']);
+  for (let i = 0; i < 20; i++) t.mock.timers.tick(250);
+  assert.notEqual(g.view().step, 'start', 'danach spielt Sitz 1 weiter');
+  g.stop();
+});
+
+// --- Prüfung 28.10.2026 (zweiter Durchgang) ---
+test('Abwerfen mit veralteter Sicht: liegt inzwischen ein anderer Rang oben, gilt der Abwurf nicht – keine Strafkarte', () => {
+  const s = take(opened(), 1, 0); // Sitz 1 nimmt die h6, dafür liegt hK oben
+  assert.equal(s.discard.at(-1), 'hK');
+  assert.equal(snap(s, 2, 0, undefined, 'h6'), null); // Sitz 2 hat auf die h6 geworfen (Wunsch unterwegs)
+  assert.equal(snap(s, 2, 0).events[0].ok, false); // ohne Angabe: gegen die oberste wie bisher
+  const same = snap(opened(), 1, 3); // s6 auf h6 – oben liegt wieder eine 6
+  assert.equal(snap(same, 2, 0, undefined, 'h6').events[0].ok, true);
+});
+
+test('Abwerfen falsch: die Strafkarte kommt nicht auf einen Platz, der gerade angesehen wird', () => {
+  const hands = [['h2', 'c7', 'sK', 'd9'], SNAP_HANDS[1], SNAP_HANDS[2], []];
+  let s = drop(draw(fixed({ hands, talon: ['c2', 'h7'] }), 0), 0); // h7 abgelegt: eigene Karte ansehen
+  s = ability(s, 0, { kind: 'own', own: 1 }); // sieht c7 an …
+  s = snap(s, 0, 1); // … und wirft sie richtig ab
+  s = snap(s, 0, 0); // h2 auf c7: falsch → Strafkarte c2
+  assert.equal(s.step, 'look');
+  assert.notEqual(s.events[0].penalty, 1);
+  assert.ok(!viewFor(s, 0).hands[0].includes('c2'), 'der Werfer sieht seine Strafkarte nicht');
+});
+
+test('Ohne Hilfen: heimlich ansehen, abwerfen, ziehen – der Abwurf zu Zugbeginn gehört zum Zug, „Geschummelt!“ greift', () => {
+  let s = { ...fixed({ free: true, hands: SNAP_HANDS, turn: 1 }), snapOpen: true }; // oben h6, Sitz 1 ist dran
+  s = sneak(s, 1, { p: 1, i: 0 });
+  s = snap(s, 1, 3); // s6 auf h6
+  s = draw(s, 1);
+  const caught = accuse(s, 2, 1);
+  assert.equal(caught?.events[0].type, 'caught');
+  assert.equal(caught.hands[1][3], 's6'); // der ganze Zug samt Abwurf ist zurückgenommen
+  assert.equal(caught.turn, 2);
+});
+
+test('index.js allein ohne Hilfen: ein Computer wirft erst ab, nachdem der Zug des Menschen geprüft ist', async (t) => {
+  const { base: io } = await import('../test-stubs/index-harness.js');
+  const { startKabo } = await import('../src/kabo/index.js');
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.method(Math, 'random', () => 0); // prüft immer, Reaktionszeit 800 ms
+  let s = drop(draw(fixed({ free: true, humans: [0], hands: SNAP_HANDS, talon: ['c2', 'h7', 'sJ', 'd8', 'h6'], discard: ['c4'] }), 0), 0);
+  s = done(ability(s, 0, { kind: 'own', own: 0 }), 0); // ohne passende Karte angesehen – Sitz 1 ist dran
+  assert.equal(s.cheat.legal, false);
+  const seen = s.seen.map((x, p) => (p === 2 ? x.map((h, q) => (q === 2 ? ['d6', null, null, null] : [...h])) : x));
+  const g = startKabo({ ...io, me: 0, level: 1, resume: { ...s, count: 3, seen } });
+  t.mock.timers.tick(1500);
+  assert.equal(g.view().fines[0], 10, 'der Computer hat den Zug geprüft und erwischt');
+  g.stop();
+});
+
+test('index.js zu zweit: der Gast schickt beim Abwerfen die Karte mit, die er oben sah – der Host straft keine veraltete Sicht', async (t) => {
+  const { base: io, board } = await import('../test-stubs/index-harness.js');
+  const { startKabo } = await import('../src/kabo/index.js');
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const on = {};
+  const canvas = { addEventListener: (k, f) => (on[k] = f), removeEventListener() {}, style: {} };
+  const sent = [];
+  board.pick = () => ({ zone: 'hand', p: 2, i: 0 });
+  t.after(() => delete board.pick);
+  const guest = startKabo({ ...io, me: 2, canvas, send: (m) => sent.push(m) });
+  guest.handle({ t: 'state', state: viewFor(opened(), 2) });
+  on.click({});
+  assert.deepEqual(sent.at(-1), { t: 'snap', arg: { i: 0, top: 'h6' } });
+  guest.stop();
+  delete board.pick;
+  const host = startKabo({ ...io, me: 0, send: () => {}, resume: { ...take(opened(), 1, 0), count: 3 } }); // oben jetzt hK
+  host.handle({ t: 'snap', arg: { i: 0, top: 'h6' } });
+  assert.equal(host.view().hands[2].length, 4, 'keine Strafkarte');
+  assert.equal(host.view().discard.at(-1), 'hK');
+  host.stop();
 });

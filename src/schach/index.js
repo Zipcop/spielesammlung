@@ -7,6 +7,8 @@
 // darf überallhin, „Geschummelt!“-Knopf – und keine Analyse, kein Orakel, kein Zurücknehmen.
 // level = 'coach': „Mit Coach spielen“ – der Computer spielt in der Stärke des Coachs und kommentiert meine Züge
 // (tutor.js, coach.js); ohne Hilfen gibt es dabei nicht. Elo (elo.js): allein je PC, zu zweit aus der Statistik.
+// Lernen (lernen.js, mit Hilfen): „Drohung zeigen“ (Taste D, drohung.js) und nach der Partie werden meine Fehler und
+// Patzer zu Rätseln für „Meine Fehler“ in Schach-Rätsel – beides nur auf diesem PC.
 import { newGame, whiteFor, move, resign, takeBack, again, accuse, waive, anyMove, turnOf, colorOf, legalMoves, positionAt, REASONS, MAX_STRIKES } from './game.js';
 import { createPanel } from './panel.js';
 import { createSolo, LEVELS, loadRecord } from './solo.js';
@@ -19,8 +21,11 @@ import { loadElo, coachElo, pairElo, diffText } from './elo.js';
 import { loadStats, pairOf } from '../stats.js';
 import { cleanName } from '../settings.js';
 import { withFlatView } from './board2d.js';
+import { createThreats } from './drohung.js';
+import { loadLernen, saveLernen, collectMistakes, addMistakes, dayOf } from './lernen.js';
 
 const $ = (id) => document.getElementById(id);
+const THREAT_ARROW = { kind: 'threat', color: '#e0302a' }; // rot wie beim Coach (tutor.js)
 const SYMBOLS = { w: { q: '♕', r: '♖', b: '♗', n: '♘' }, b: { q: '♛', r: '♜', b: '♝', n: '♞' } };
 
 // Figur auf einem Feld laut FEN, z. B. 'P' (weißer Bauer), 'k' (schwarzer König) oder null
@@ -82,6 +87,9 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
   let review = null; // Rückblick nach der Partie: { ply } = gezeigte Stellung nach so vielen Halbzügen;
   // line = Schritt beim Vorspielen der besten Fortsetzung statt Zug ply (0 = Stellung vor dem Zug), sonst fehlt es
   let analyst = null; // Stockfish-Analyse, startet erst bei Bedarf
+  let threats = null; // „Drohung zeigen“ (drohung.js), startet erst beim ersten Knopfdruck
+  let threat = null; // angezeigte Drohung: { fen, uci, text } – nur auf diesem PC, geht nicht übers Netz
+  let harvested = false; // Fehler dieser Partie schon in „Meine Fehler“ (lernen.js) übernommen
   // 2D ↔ 3D (Taste V): ab hier füttert jeder board-Aufruf beide Bretter; 2D-Eingaben gehen denselben Weg wie im 3D
   board = withFlatView(board, { me, onClick: clickSquare, onDrop: placePiece, onHover: (sq) => pointAt(myTurn() ? sq : null) });
 
@@ -139,6 +147,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
       tutor.back(next.moves.length);
       commit(next);
     },
+    onThreat: toggleThreat,
   });
   const coach = solo ? createSolo({
     opponent: () => ({ elo: gameElo, record: coaching ? 'coach' : level, coach: coaching }),
@@ -174,12 +183,22 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
 
   function setState(next) {
     if (state?.result && !next.result) {
+      harvest(true); // was bis jetzt eingestuft ist, kommt noch in „Meine Fehler“
       round++; // neue Partie
       review = null;
+      harvested = false;
       if (coaching) gameElo = coachElo(); // der Coach hat sich auf meine neue Zahl eingestellt
     }
+    const ended = next.result && !state?.result;
+    if (ended && !state) harvested = true; // schon beendete Partie fortgesetzt: ihre Fehler kamen damals schon in „Meine Fehler“
     state = next;
+    if (threat && (threat.fen !== state.fen || state.result)) threat = null; // neuer Zug oder Partie aus – die Drohung gilt nicht mehr
     syncAnalyst();
+    // Partie zu Ende (mit Hilfen): Stockfish stuft im Hintergrund alle Züge ein – meine Fehler und Patzer werden Rätsel
+    if (ended && !harvested && !state.free) {
+      startAnalyst().update(state, false);
+      analyst.analyseAll();
+    }
     clearSelection();
     promotion = null; // z. B. Mitspieler gibt auf, während ich die Umwandlung auswähle
     $('promo').hidden = true;
@@ -229,6 +248,43 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     render();
   }
 
+  // Nach der Partie: meine Fehler, Patzer und verpassten Gewinne als Rätsel für „Meine Fehler“ (Schach-Rätsel) merken –
+  // nur meine eigenen Züge, nur auf diesem PC. Sobald alle meine Züge eingestuft sind – oder beim Verlassen bzw. bei der
+  // Revanche (final) mit dem, was bis dahin gerechnet ist.
+  function harvest(final = false) {
+    if (harvested || !state?.result || state.free || !analyst) return;
+    const mine = colorOf(state, me);
+    const view = analyst.view(mine, false);
+    const complete = view.verdicts.every((v, i) => v || (i % 2 === 0) !== (mine === 'w'));
+    if (!complete && !final) return;
+    harvested = true;
+    const found = collectMistakes(view, analyst.coachView, state.moves, dayOf());
+    if (!found.length) return;
+    const data = loadLernen();
+    saveLernen({ ...data, mistakes: addMistakes(data.mistakes, found) });
+  }
+
+  // „Drohung zeigen“ (Taste D): Was würde der Gegner ziehen, wenn er jetzt nochmal dran wäre? Nur mit Hilfen,
+  // nur wenn ich am Zug bin – und nur auf diesem PC.
+  const canThreat = () => !!state && !state.free && !review && myTurn();
+  function toggleThreat() {
+    if (threat) {
+      threat = null;
+      return render();
+    }
+    if (!canThreat()) return;
+    const fen = state.fen;
+    threat = { fen, text: 'Stockfish rechnet …' };
+    render();
+    (threats ??= createThreats()).find(fen).then((r) => {
+      if (threat?.fen !== fen) return; // inzwischen gezogen oder ausgeblendet
+      threat = r.check ? { fen, text: 'Du stehst im Schach – die Drohung ist das Schach selbst. Wehr es zuerst ab.' }
+        : r.none ? { fen, text: 'Keine Drohung – der Gegner hätte gar keinen Zug.' }
+          : { fen, uci: r.uci, text: r.text };
+      render();
+    });
+  }
+
   // Allein: meinen letzten Zug zurücknehmen (und die Antwort des Computers, falls er schon gezogen hat)
   const myMoves = () => (state ? Math.floor((state.moves.length + (colorOf(state, me) === 'w' ? 1 : 0)) / 2) : 0);
   function takeMyMoveBack() {
@@ -249,6 +305,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     const mine = colorOf(state, me);
     const view = analyst && !state.free ? analyst.view(mine, !!review) : null;
     tutor?.check(view, analyst); // Coach: Einstufung meines Zugs da? Dann spricht er (oder zieht)
+    harvest();
     // Vorspielen: Partie bis vor den Zug, dann so viele Züge der besten Fortsetzung
     const line = review?.line !== undefined ? view?.lines[review.ply - 1] : null;
     const shown = line ? [...state.moves.slice(0, review.ply - 1), ...line.slice(0, review.line).map((m) => m.uci)] : null;
@@ -258,7 +315,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
     board.names(seatLabels(2, { mySeat: myColor, humans: solo ? [myColor] : [0, 1], me: names.me(), other: names.other(), cpu: () => opponent }),
       state.result ? null : state.fen.split(' ')[1] === 'w' ? 0 : 1, myColor);
     // im Rückblick zeigt der Pfeil den besseren Zug (aus der Stellung vor dem gezeigten Zug)
-    board.setMarks(review ? { selected: null, targets: [], arrow: (line ? line[review.line]?.uci : view?.arrows[review.ply - 1]) ?? null } : { selected, targets, arrow: showHint && myTurn() ? view?.hint : null, arrows: tutor?.view().arrows ?? [] });
+    board.setMarks(review ? { selected: null, targets: [], arrow: (line ? line[review.line]?.uci : view?.arrows[review.ply - 1]) ?? null } : { selected, targets, arrow: showHint && myTurn() ? view?.hint : null, arrows: [...(tutor?.view().arrows ?? []), ...(threat?.uci ? [{ uci: threat.uci, ...THREAT_ARROW }] : [])] });
     // Plakette: im Rückblick über dem gezeigten Zug, live über meinem letzten Zug
     const badgeAt = line ? -1 : review ? review.ply - 1 : liveActive() ? view?.last?.index ?? -1 : -1;
     board.setBadge(badgeAt >= 0 ? state.moves[badgeAt].slice(2, 4) : null, view?.verdicts[badgeAt]);
@@ -288,6 +345,7 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
       canBack: !state.result && myMoves() > 0,
       canResign: !state.result && !waiting,
       canReview: !!state.result && !state.free,
+      threat: state.free ? null : { can: canThreat(), on: !!threat, text: threat?.text ?? null },
     });
   }
 
@@ -433,6 +491,8 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
       review = { ply: Math.max(0, Math.min(state.moves.length, review.ply + (e.key === 'ArrowLeft' ? -1 : 1))) };
       return render();
     }
+    // D = Drohung zeigen/ausblenden (nicht beim Tippen in einem Feld, nicht mit Strg/Alt)
+    if (e.code === 'KeyD' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat && !e.target.closest?.('input, textarea, select, [contenteditable]')) return toggleThreat();
     if (e.key !== 'Escape') return;
     if (review?.line !== undefined) return stepLine('stop');
     if (promotion) return closePromotion(null);
@@ -465,7 +525,9 @@ export function startSchach({ room, board, canvas, me, send, onLeave, ask, level
       stopFrames();
       coach?.stop();
       tutor?.stop();
+      harvest(true); // Tisch verlassen: was eingestuft ist, kommt noch in „Meine Fehler“
       analyst?.stop();
+      threats?.stop();
       board.reset();
       board.removeFlat(); // 2D-Brett und Knopf weg
     },

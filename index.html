@@ -79,6 +79,7 @@
             <button id="btn-coach" class="secondary">Mit Coach spielen</button>
           </div>
           <p id="solo-record" class="muted small"></p>
+          <p id="raetsel-day" class="muted small" hidden></p>
         </div>
         <button class="secondary" data-back>Zurück zum Schrank</button>
       </section>
@@ -193,7 +194,7 @@
       <div data-game="Schach">
         <aside id="chess-panel" class="sheet chess"></aside>
         <div class="dock">
-          <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen · V oder Knopf „2D“ = flaches Brett, dort rechte Maustaste = eigene Pfeile und Markierungen" data-hint-free="Eigene Figur anklicken · beliebiges Feld anklicken = ziehen (es wird nichts geprüft) · Esc = abwählen · V oder Knopf „2D“ = flaches Brett, dort rechte Maustaste = eigene Pfeile und Markierungen"></p>
+          <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen · D = Drohung · V oder Knopf „2D“ = flaches Brett, dort rechte Maustaste = eigene Pfeile und Markierungen" data-hint-free="Eigene Figur anklicken · beliebiges Feld anklicken = ziehen (es wird nichts geprüft) · Esc = abwählen · V oder Knopf „2D“ = flaches Brett, dort rechte Maustaste = eigene Pfeile und Markierungen"></p>
           <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
         <div id="promo" class="overlay" hidden>
@@ -213,6 +214,15 @@
       <!-- Schach-Rätsel (allein) – Panel und Umwandlung baut src/schach/raetsel.js -->
       <div data-game="Schach-Rätsel">
         <aside id="puzzle-panel" class="sheet chess"></aside>
+        <div class="dock">
+          <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen · V oder Knopf „2D“ = flaches Brett, dort rechte Maustaste = eigene Pfeile und Markierungen"></p>
+          <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
+        </div>
+      </div>
+
+      <!-- Schach-Schule (allein) – Panel baut src/schach/schule/index.js -->
+      <div data-game="Schach-Schule">
+        <aside id="schule-panel" class="sheet chess"></aside>
         <div class="dock">
           <p class="muted small" data-hint="Figur anklicken = erlaubte Felder leuchten · Ziel anklicken oder Figur mit der Maus hinstellen = ziehen · Esc = abwählen · V oder Knopf „2D“ = flaches Brett, dort rechte Maustaste = eigene Pfeile und Markierungen"></p>
           <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
@@ -384,7 +394,7 @@
       <div data-game="Kabo">
         <aside id="kb-panel" class="sheet kabo"></aside>
         <div class="dock">
-          <p class="muted small" data-hint="Stapel anklicken = ziehen · gezogene Karte: eigene Karte anklicken = tauschen, Ablage = ablegen · Ablage anklicken, dann eigene Karte = nehmen · Fähigkeit: Karten anklicken · oder Karten mit der Maus hinlegen · Esc = abwählen" data-hint-free="Nach jedem Zug kommt „Fähigkeit“: alle vier gehen, auch ohne passende Karte · „Heimlich ansehen“ im eigenen Zug · „Kabo!“ geht jederzeit, gesperrte Karten lassen sich tauschen · Hat jemand geschummelt? „Geschummelt!“ drücken, bevor ein anderer etwas tut"></p>
+          <p class="muted small" data-hint="Stapel anklicken = ziehen · gezogene Karte: eigene Karte anklicken = tauschen, Ablage = ablegen · Ablage anklicken, dann eigene Karte = nehmen · Fähigkeit: Karten anklicken · oder Karten mit der Maus hinlegen · Abwerfen: eigene Karte auf die Ablage ziehen, außer der Reihe auch anklicken · Esc = abwählen" data-hint-free="Abwerfen: eigene Karte auf die Ablage ziehen, außer der Reihe auch anklicken · Nach jedem Zug kommt „Fähigkeit“: alle vier gehen, auch ohne passende Karte · „Heimlich ansehen“ im eigenen Zug · „Kabo!“ geht jederzeit, gesperrte Karten lassen sich tauschen · Hat jemand geschummelt? „Geschummelt!“ drücken, bevor ein anderer etwas tut"></p>
           <p class="muted small">Rechte Maustaste ziehen = Kamera drehen · Mausrad drücken + ziehen = verschieben · Mausrad = zoomen</p>
         </div>
       </div>

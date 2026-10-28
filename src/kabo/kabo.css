@@ -141,3 +141,11 @@
   border-color: #b3261e;
   color: #fff;
 }
+
+.kb-snap {
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-left: 3px solid #e0b040;
+  background: rgba(224, 176, 64, 0.14);
+}

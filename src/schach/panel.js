@@ -38,7 +38,7 @@ const curvePoints = (curve) => {
 // Text des Coachs (coach.js): **Zug** wird fett, sonst nichts als HTML
 const coachHtml = (text) => plain(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 
-export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLeave, onLive, onReview, onPly, onLine, onCloseReview, onCoach }) {
+export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLeave, onLive, onReview, onPly, onLine, onCloseReview, onCoach, onThreat }) {
   root.innerHTML = `
     <div class="chess-head"><span class="brand">Schach</span><span data-players></span></div>
     <p class="chess-status" data-status></p>
@@ -51,6 +51,7 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
         <button class="secondary small" data-coach-go>Weiterspielen</button>
       </div>
     </section>
+    <p class="chess-threat" data-threat-text hidden></p>
     ${solo ? `
     <section class="oracle" data-oracle>
       <div class="oracle-head"><span>Orakel</span><span data-percent></span></div>
@@ -99,6 +100,7 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
       <button class="secondary" data-leave>Zurück zum Schrank</button>
     </div>
     <div class="row" data-running>
+      <button class="secondary small" data-threat title="Taste D">Drohung zeigen</button>
       <button class="secondary small" data-resign>Aufgeben</button>
       ${solo ? '<button class="secondary small" data-shelf>Zum Schrank</button>' : ''}
     </div>`;
@@ -125,6 +127,7 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
     else if ('leave' in b.dataset || 'shelf' in b.dataset) onLeave(!('leave' in b.dataset));
     else if ('coachBack' in b.dataset) onCoach('back');
     else if ('coachGo' in b.dataset) onCoach('go');
+    else if ('threat' in b.dataset) onThreat();
   };
   if (!solo) q('live').onchange = (e) => onLive(e.target.checked);
   let scrolledAt = null; // Zugzahl und Rückblick-Stellung beim letzten Scrollen
@@ -133,7 +136,8 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
   return {
     // analysis = analysis.view() oder null · live = { available, on } (zu zweit) · review = { ply } oder null
     // elo = Text der Elo-Zeile ('' = keine) · coach = Sprechblase { text, kind, choice } oder null
-    render({ state, players, other, status, end, analysis, live, review, canTip, canBack, canResign, canReview, elo = '', coach = null }) {
+    // threat = „Drohung zeigen“ { can, on, text } oder null (ohne Hilfen gibt es den Knopf nicht)
+    render({ state, players, other, status, end, analysis, live, review, canTip, canBack, canResign, canReview, elo = '', coach = null, threat = null }) {
       q('players').textContent = players;
       q('status').textContent = status;
       q('elo').hidden = !elo;
@@ -143,6 +147,13 @@ export function createPanel(root, { solo, onTip, onBack, onResign, onAgain, onLe
         q('coach-text').innerHTML = `<b>Coach</b>${coach.kind ? ` · ${verdictText(coach.kind)}` : ''}<br>${coachHtml(coach.text)}`;
         q('coach-choice').hidden = !coach.choice;
       }
+      q('threat').hidden = !threat;
+      if (threat) {
+        q('threat').disabled = !threat.can && !threat.on;
+        q('threat').textContent = threat.on ? 'Drohung ausblenden' : 'Drohung zeigen';
+      }
+      q('threat-text').hidden = !threat?.text || !!review;
+      if (threat?.text) q('threat-text').innerHTML = `<b>Drohung</b> · roter Pfeil<br>${coachHtml(threat.text)}`;
       q('status').classList.toggle('check', state.check && !state.result);
       q('opening').hidden = !analysis?.opening;
       q('opening').textContent = analysis?.opening ? `Eröffnung: ${analysis.opening}` : '';

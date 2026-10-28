@@ -5,14 +5,17 @@
 // accuse, again, regroup), der Host prüft sie. Bedienung: Stapel anklicken = ziehen, Ablage anklicken und dann eine
 // eigene Karte = nehmen; gezogene Karte: eigene Karte anklicken = tauschen, Ablage anklicken = ablegen; Fähigkeit:
 // Karten anklicken. Oder Karten mit der Hand hinlegen (tisch.js → onPlace).
+// Abwerfen (snap): eigene Karte auf die Ablage ziehen – außerhalb des eigenen Zugs reicht ein Klick auf die eigene
+// Karte. Der Computer wirft nur sicher bekannte Karten ab, nach 0,8–2 s Reaktionszeit; seinen Zug beginnt er frühestens
+// 2 s, nachdem eine Karte offen auf die Ablage kam, damit Menschen eine Chance haben.
 // free = „Ohne Hilfen“: nach jedem Ablegen der Schritt „Fähigkeit“ mit allen vier Fähigkeiten, „Heimlich ansehen“, Kabo
 // jederzeit, gesperrte Karten tauschbar; „Geschummelt!“ gegen den letzten Zug. Allein schummeln die Computer ab und zu
 // und prüfen jeden Zug des Menschen einmal (schummeln.js).
 import {
-  newGame, setup, ready, draw, take, place, drop, ability, done, kabo, sneak, again, regroup, accuse, waive, viewFor,
-  powerOf, cardName, valueOf, MISS, CAUGHT, FALSE_ALARM, GOAL,
+  newGame, setup, ready, draw, take, place, drop, ability, done, kabo, sneak, snap, again, regroup, accuse, waive, viewFor,
+  powerOf, cardName, valueOf, MISS, CAUGHT, FALSE_ALARM, GOAL, EMPTY,
 } from './game.js';
-import { chooseMove, cheatMove } from './ai.js';
+import { chooseMove, cheatMove, snapMove } from './ai.js';
 import { createPanel } from './panel.js';
 import { createCheatUI } from '../cheat-ui.js';
 import { cpuCheats, cpuAccuses } from '../schummeln.js';
@@ -21,6 +24,8 @@ import { seatLabels } from '../plates.js';
 const $ = (id) => document.getElementById(id);
 const THINK_MS = { play: 900, look: 1300, accuse: 900 }; // so lange „überlegt“ der Computer, nachdem die Karten liegen
 const WATCH_MS = 1500; // ohne Hilfen: so lange länger, damit ein Mensch den letzten Zug noch anfechten kann
+const SNAP_MS = 2000; // Abwurf-Frist: so lange wartet der Computer, bevor er nach einer offenen Karte seinen Zug beginnt
+const REACT_MS = [800, 2000]; // Reaktionszeit des Computers beim Abwerfen (zufällig dazwischen)
 const REL = ['', 'links', 'gegenüber', 'rechts'];
 const KIND_LABEL = { own: 'Eigene ansehen', other: 'Fremde ansehen', swap: 'Blind tauschen', king: 'König: beide ansehen' }; // wie im Seitenfeld
 const POWER_TEXT = { own: 'eine eigene Karte ansehen', other: 'eine fremde Karte ansehen', swap: 'eine eigene gegen eine fremde blind tauschen', king: 'eine eigene und eine fremde ansehen, dann wahlweise tauschen' };
@@ -36,6 +41,7 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
   let asked = null;
   let lastArg = null; // Gast: Inhalt des letzten Wunsches
   let timer = null;
+  let snapPlan = null; // Host: geplanter Abwurf eines Computers { key, timer }
   let hint = '';
   let cheered = false;
   let stopped = false;
@@ -80,6 +86,7 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
     if (type === 'done') return done(state, seat, arg === true);
     if (type === 'kabo') return kabo(state, seat);
     if (type === 'sneak') return arg && typeof arg === 'object' ? sneak(state, seat, arg) : null;
+    if (type === 'snap') return arg && typeof arg === 'object' ? snap(state, seat, arg.i, undefined, arg.top) : null;
     if (type === 'accuse') return accuse(state, seat, arg);
     if (type === 'again') return again(state, seat);
     if (type === 'regroup') return regroup(state, seat);
@@ -116,6 +123,7 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
     save?.(state); // zu zweit: Host merkt sich die Partie (saves.js)
     render();
     schedule();
+    planSnap();
   }
 
   // Eigene Aktion: Host wendet sie direkt an, Gast fragt beim Host an
@@ -127,6 +135,7 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
       else if (type === 'again' || type === 'regroup') say(blocked());
       else if (type === 'accuse') say('Zu spät – inzwischen hat ein anderer gespielt.');
       else if (lockedTry(type, arg)) say('Die Karten des Kabo-Rufers sind gesperrt – mit ihnen tauscht keiner.');
+      else if (type === 'snap') say(snapNot());
       else render();
     } else {
       waiting = true;
@@ -157,6 +166,7 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
       if (same && asked === 'again') hint = blocked();
       if (asked === 'accuse' && !verdict && !pending) hint = 'Zu spät – inzwischen hat ein anderer gespielt.';
       if (same && lockedTry(asked, lastArg)) hint = 'Die Karten des Kabo-Rufers sind gesperrt – mit ihnen tauscht keiner.';
+      if (same && asked === 'snap') hint = snapNot();
       if (!pending) asked = null;
       return render();
     }
@@ -176,10 +186,11 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
     const s = state;
     const c = s.cheat;
     // Allein ohne Hilfen: Ist der Zug des Menschen vorbei, prüft ihn ein Computer einmal – am Rundenende in jedem Fall
-    if (solo && s.free && c?.player === mySeat && (s.phase === 'over' || s.turn !== mySeat) && (c !== judged || s.phase === 'over')) {
-      judged = c;
+    // judged erst, wenn wirklich geprüft ist – bis dahin wartet auch ein Abwurf des Computers (planSnap)
+    if (solo && s.free && c?.player === mySeat && !c.snap && (s.phase === 'over' || s.turn !== mySeat) && (c !== judged || s.phase === 'over')) {
       const by = s.phase === 'play' && isCpu(s.turn) ? s.turn : s.seats.find(isCpu);
       return later(THINK_MS.accuse, () => {
+        judged = c;
         if (cpuAccuses(!state.cheat.legal)) return commit(accuse(state, by));
         if (state.phase === 'over') return commit(waive(state, by));
         schedule();
@@ -188,12 +199,44 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
     if (s.phase !== 'play' || !isCpu(s.turn)) return;
     const seat = s.turn;
     const watch = s.free && c && c.player !== seat && humans.some((h) => h !== c.player) && s.step === 'start';
-    later((s.step === 'look' ? THINK_MS.look : THINK_MS.play) + (watch ? WATCH_MS : 0), () => {
+    const wait = (s.step === 'look' ? THINK_MS.look : THINK_MS.play) + (watch ? WATCH_MS : 0);
+    later(s.step === 'start' && s.snapOpen ? Math.max(wait, SNAP_MS) : wait, () => {
       const v = viewFor(state, seat);
       const sly = solo && state.free && cpuCheats() ? cheatMove(v, seat) : null;
       const m = sly ?? chooseMove(v, seat);
       commit(apply(m.t, seat, m.arg) ?? apply('done', seat, false) ?? apply('draw', seat) ?? state);
     });
+  }
+
+  // Abwerfen der Computer: Kennt einer eine passende Karte, wirft er sie nach seiner Reaktionszeit ab. Der Plan gilt für
+  // die oberste Ablagekarte (key) – Züge dazwischen (Fähigkeit, „Fertig“) halten ihn nicht auf. Ohne Hilfen wartet er,
+  // solange ein Mensch den Zug eines anderen noch anfechten könnte (ein Abwurf beendet diese Frist).
+  function planSnap() {
+    if (stopped || !isHost || !state) return;
+    const s = state;
+    const key = s.phase === 'play' && s.snapOpen ? `${s.round}-${s.discard.length}-${s.discard.at(-1)}` : null;
+    if (snapPlan && snapPlan.key === key) return;
+    clearTimeout(snapPlan?.timer);
+    snapPlan = null;
+    if (!key) return;
+    const who = s.seats.filter((p) => isCpu(p) && snapMove(viewFor(s, p), p));
+    if (!who.length) return;
+    const seat = who[Math.floor(Math.random() * who.length)];
+    const ms = REACT_MS[0] + Math.random() * (REACT_MS[1] - REACT_MS[0]);
+    const fire = () => {
+      if (stopped || !state) return;
+      const c = state.cheat;
+      const open = state.free && c && !c.snap && c.player !== seat && humans.some((h) => h !== c.player);
+      const judging = solo && state.free && c && !c.snap && c.player === mySeat && c !== judged; // erst prüft er den Menschen
+      if (judging || (open && Date.now() - planned < WATCH_MS + 500)) return (snapPlan.timer = setTimeout(fire, 300));
+      snapPlan = null;
+      const m = snapMove(viewFor(state, seat), seat);
+      const next = m && snap(state, seat, m.arg);
+      if (next) commit(next);
+      else planSnap();
+    };
+    const planned = Date.now();
+    snapPlan = { key, timer: setTimeout(fire, ms) };
   }
 
   // Erst wenn die Karten liegen, kurz überlegen, dann handeln (solange ändert niemand etwas am Stand)
@@ -215,6 +258,15 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
   const blocked = () => (solo ? 'Der Computer prüft noch …' : `${names.other()} startet die nächste Runde`);
   const same = (a, b) => a.zone === b.zone && a.p === b.p && a.i === b.i;
   const kindNow = () => (mine.free ? kind : mine.power);
+  // Darf ich gerade abwerfen? (Frist offen, ich spiele mit und habe nicht „Kabo!“ gerufen)
+  const canSnap = () => running() && mine.phase === 'play' && mine.snapOpen && mine.seats.includes(mySeat) && mine.caller !== mySeat;
+  const top = () => mine.discard.at(-1);
+
+  function snapNot() {
+    if (mine?.caller === mySeat) return 'Du hast „Kabo!“ gerufen – deine Karten sind gesperrt.';
+    if (mine?.phase === 'play' && mine.snapOpen) return 'Zu spät – inzwischen liegt eine andere Karte oben.';
+    return 'Abwerfen geht gerade nicht – der Nächste hat schon angefangen.';
+  }
 
   function say(text) {
     hint = text;
@@ -262,6 +314,8 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
   // Klick (oder hingelegte Karte) auf eine Stelle
   function choose(slot) {
     if (!running() || !slot) return;
+    // außerhalb des eigenen Zugs: Klick auf eine eigene Karte = abwerfen
+    if (!myTurn() && slot.zone === 'hand' && slot.p === mySeat && canSnap()) return act('snap', { i: slot.i, top: top() });
     if (!myTurn()) return notNow();
     if (sneaking) {
       if (slot.zone !== 'hand') return say('Heimlich ansehen: eine Karte im Raster anklicken.');
@@ -301,7 +355,13 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
   board.onPlace = (mesh, point) => {
     const from = board.slotOfMesh(mesh);
     const to = board.slotAt(point);
-    if (!from || !myTurn()) return null;
+    if (!from) return null;
+    // eigene Karte auf die Ablage = abwerfen (auch außer der Reihe)
+    if (from.zone === 'hand' && from.p === mySeat && to?.zone === 'discard') {
+      if (!canSnap()) return (say(snapNot()), 'back');
+      return (act('snap', { i: from.i, top: top() }), 'move');
+    }
+    if (!myTurn()) return from.zone === 'hand' ? 'back' : null;
     const own = to?.zone === 'hand' && to.p === mySeat;
     if (from.zone === 'drawn' && mine.step === 'drawn' && (own || to?.zone === 'discard')) return (act(own ? 'place' : 'drop', own ? to.i : undefined), 'move');
     if (from.zone === 'discard' && mine.step === 'start' && own) return (act('take', to.i), 'move');
@@ -311,6 +371,7 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
 
   // Was lässt sich gerade anklicken?
   function clickable(slot) {
+    if (slot && !myTurn() && slot.zone === 'hand' && slot.p === mySeat) return canSnap();
     if (!slot || !myTurn()) return false;
     if (sneaking) return slot.zone === 'hand';
     const step = mine.step;
@@ -380,6 +441,8 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
       power: step === 'power' ? { kinds: v.free ? ['own', 'other', 'swap', 'king'] : null, kind: k, skip: v.free ? 'Fertig' : 'Überspringen' } : null,
       look: step === 'look' ? (v.look?.kind === 'king' && (v.free || v.look.spots[1].p !== v.caller) ? 'king' : 'seen') : null,
       sneak: v.free && v.phase === 'play' && v.seats.includes(mySeat) ? { on: sneaking, enabled: myTurn() } : null,
+      snap: canSnap() && Array.isArray(v.hands[mySeat]) && v.hands[mySeat].some((c) => c !== EMPTY)
+        ? `Abwerfen: Hast du auch ${rankName(top())}? Eigene Karte auf die Ablage ziehen${myTurn() ? '' : ' oder anklicken'} – falsch = Strafkarte.` : '',
       last: log.join(' '),
       hint,
       end: v.phase === 'over' ? endInfo() : null,
@@ -449,6 +512,12 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
     return '';
   }
 
+  // Rang der Karte mit Artikel für den Abwurf-Hinweis (Farbe egal): „eine 7“, „eine Dame“, „einen König“, „ein Ass“
+  function rankName(c) {
+    const r = c?.[0] === 'x' ? 'Joker' : cardName(c).split(' ').slice(1).join(' ');
+    return `${r === 'Ass' ? 'ein' : ['König', 'Bube', 'Joker'].includes(r) ? 'einen' : 'eine'} ${r}`;
+  }
+
   const spotText = (x) => `${x.i < 2 ? 'nahe' : 'hintere'} Karte ${x.p === mySeat ? 'von dir' : `von ${nameOf(x.p)}`}`;
 
   function describe(events) {
@@ -468,6 +537,10 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
       else if (e.type === 'skip') parts.push(`${who} ${verb(e.player, 'nutzt', 'nutzt')} die Fähigkeit nicht.`);
       else if (e.type === 'kabo') parts.push(`${who} ${verb(e.player, 'rufst', 'ruft')} „Kabo!“ – jeder andere hat noch einen Zug.`);
       else if (e.type === 'sneak') parts.push('Du siehst heimlich eine Karte an.');
+      else if (e.type === 'snap') {
+        parts.push(e.ok ? `${who} ${verb(e.player, 'wirfst', 'wirft')} ${cardName(e.card)} ab – passt!`
+          : `${who} ${verb(e.player, 'wirfst', 'wirft')} ${cardName(e.card)} ab – passt nicht! Sie geht zurück${e.penalty === null ? '.' : ', dazu eine Strafkarte.'}`);
+      }
       else if (e.type === 'caught' || e.type === 'fehlalarm') parts.push(verdictText(e));
     }
     return parts.join(' ');
@@ -515,6 +588,7 @@ export function startKabo({ room, board, canvas, me, send, onLeave, ask, level, 
       stopped = true;
       board.onPlace = null;
       clearTimeout(timer);
+      clearTimeout(snapPlan?.timer);
       cheat.remove();
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('click', onClick);

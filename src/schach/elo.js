@@ -6,7 +6,7 @@
 //   level = 37,2473·e³ − 40,8525·e² + 22,2943·e − 0,311438 mit e = (Elo − 1320) / 1870, begrenzt auf 0…19,
 //   und wählt seinen Zug in Suchtiefe 1 + ganzzahliger Teil von level (time_to_pick). Wir suchen genau so tief –
 //   dann spielt er wie bei der Kalibrierung, nur schneller.
-// - Unter 1320 (nur beim Coach): Skill Level 0 und mit Wahrscheinlichkeit p ein zufälliger erlaubter Zug.
+// - Unter 1320: Skill Level 0 und mit Wahrscheinlichkeit p ein zufälliger erlaubter Zug.
 //   p je Elo haben wir selbst gemessen (Stockfish gegen Stockfish, siehe HANDICAP) – eine Schätzung auf derselben Skala.
 // Alle Zahlen sind Computer-Elo (CCRL-Skala), keine FIDE- oder Lichess-Zahl.
 import { rate } from './puzzle.js';
@@ -14,24 +14,29 @@ import { rate } from './puzzle.js';
 export const START_ELO = 1200;
 export const LOWEST = 1320; // kleinste UCI_Elo
 export const HIGHEST = 3190; // größte UCI_Elo
-export const COACH_MIN = 800; // Auswahl beim Coach: 800 … 3150 in 50er-Schritten
+export const COACH_MIN = 400; // Auswahl beim Coach: 400 … 3150 in 50er-Schritten
 export const COACH_MAX = 3150;
 export const COACH_STEP = 50;
 
-// Computer-Stufen mit fester Elo (CCRL-Skala), gespielt über UCI_LimitStrength + UCI_Elo (strengthFor).
-// 1320 ist das Minimum und entspricht Skill Level 0 – so spielte „Anfänger“ schon vorher.
+// Computer-Stufen mit fester Elo (CCRL-Skala, strengthFor): ab 1320 über UCI_LimitStrength + UCI_Elo, darunter mit
+// Zufallszügen (HANDICAP). Nico 28.10.2026: 1320 ist für einen Anfänger viel zu stark – deshalb Stufen ab 400.
 export const LEVELS = [
-  { name: 'Anfänger', elo: 1320 },
-  { name: 'Leicht', elo: 1600 },
-  { name: 'Mittel', elo: 2000 },
-  { name: 'Stark', elo: 2400 },
+  { name: 'Anfänger', elo: 400 },
+  { name: 'Einsteiger', elo: 700 },
+  { name: 'Leicht', elo: 1000 },
+  { name: 'Mittel', elo: 1320 },
+  { name: 'Fortgeschritten', elo: 1600 },
+  { name: 'Stark', elo: 2000 },
+  { name: 'Experte', elo: 2400 },
   { name: 'Meister', elo: 3190 },
 ];
 
 // Unter 1320: [Elo, p Zufallszug] – gemessen am 28.10.2026: Stockfish 19 lite-single, Skill Level 0 in Tiefe 1 (= 1320)
 // gegen dasselbe mit Zufallszügen, je 400 Partien: p 0,1 → −238 (95 %: −198…−285), p 0,2 → −370 (−320…−435),
-// p 0,3 → −507 (−441…−609). Dazwischen geradlinig; unter 813 bleibt es bei p 0,3.
-export const HANDICAP = [[1320, 0], [1082, 0.1], [950, 0.2], [813, 0.3]];
+// p 0,3 → −507 (−441…−609). Darunter in Ketten (p gegen p + 0,2, je 400 Partien): 0,3 → 0,5 −263 (−221…−313),
+// 0,5 → 0,7 −231 (−191…−278), 0,7 → 0,9 −198 (−159…−241) – die Unsicherheit wächst mit jedem Glied.
+// Dazwischen geradlinig; unter 121 bleibt es bei p 0,9.
+export const HANDICAP = [[1320, 0], [1082, 0.1], [950, 0.2], [813, 0.3], [550, 0.5], [319, 0.7], [121, 0.9]];
 
 // Neue Zahl nach einer Partie: me = { rating, games }, score = 1 Sieg, 0,5 Remis, 0 Niederlage
 export const rateGame = (me, opponent, score) => rate(me, opponent, score);
@@ -98,7 +103,30 @@ export function recordGame(opponent, score, coach = false) {
   const next = rateGame(s, opponent, score);
   const out = { ...s, ...next, last: { before: s.rating, after: next.rating }, coach: coach ? coachFor(next.rating) : s.coach };
   store(out);
+  addHistory(next.rating);
   return out;
+}
+
+// Verlauf für die Elo-Kurve der Schach-Schule (seit 28.10.2026): eigener Eintrag, damit der Speicher oben gleich bleibt.
+// [{ at: Zeitpunkt, rating }], höchstens HISTORY_MAX Einträge
+export const HISTORY_KEY = 'spielesammlung-schach-elo-verlauf';
+const HISTORY_MAX = 300;
+
+export function loadEloHistory() {
+  try {
+    const list = JSON.parse(localStorage.getItem(HISTORY_KEY));
+    return Array.isArray(list) ? list.filter((e) => Number.isFinite(e?.at) && Number.isFinite(e?.rating)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function addHistory(rating) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify([...loadEloHistory(), { at: Date.now(), rating }].slice(-HISTORY_MAX)));
+  } catch {
+    // ohne Speicher keine Kurve
+  }
 }
 
 // Eingestellte Coach-Stärke (Standard: eigene Zahl gerundet)

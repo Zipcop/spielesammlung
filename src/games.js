@@ -9,6 +9,7 @@ export const PLAYABLE = new Map([
   ['Kniffel', { info: 'Würfelspiel für zwei · 13 Runden', free: true }],
   ['Schach', { info: 'Zu zweit – oder allein gegen den Computer, mit Orakel', solo: true, free: true }],
   ['Schach-Rätsel', { info: 'Taktik-Rätsel und „Welcher Zug ist der beste?“ – allein, mit eigener Wertung', solo: true, alone: 'Rätsel üben' }],
+  ['Schach-Schule', { info: 'Lernpfad, Endspiele, Eröffnungen, Koordinaten, Meisterpartien und Analysebrett – allein', solo: true, alone: 'Zur Schule' }],
   ['Mau-Mau', { info: 'Kartenspiel mit 32 Karten – zu zweit oder gegen den Computer', solo: true, free: true }],
   ['Billard', { info: '8-Ball an einem echten Billardtisch – zu zweit oder gegen den Computer', solo: true }],
   ['Mensch ärgere dich nicht', { info: 'Vier Farben – zu zweit mit 2 Computer-Spielern oder allein gegen 3', solo: true, free: true }],
@@ -38,7 +39,7 @@ export const SHELF = [
     box: [0.3, 0.07, 0.3],
     perPile: 4,
     games: [
-      'Schach', 'Schach-Rätsel', 'Dame', 'Mühle', 'Mensch ärgere dich nicht', 'Backgammon', 'Vier gewinnt',
+      'Schach', 'Schach-Rätsel', 'Schach-Schule', 'Dame', 'Mühle', 'Mensch ärgere dich nicht', 'Backgammon', 'Vier gewinnt',
       'Reversi', 'Go', 'Halma', 'Malefiz', 'Fang den Hut', 'Kalaha', 'Abalone-artig', 'Quarto',
     ],
   },

@@ -37,6 +37,7 @@ export function createPanel(root, { solo, onSetup, onReady, onDraw, onTake, onKa
       <button class="secondary small" data-king="0">Nicht tauschen</button>
     </div>
     <div class="row kb-actions" data-sneak-row hidden><button class="secondary small" data-sneak>Heimlich ansehen</button></div>
+    <p class="kb-snap" data-snap></p>
     <p class="kb-last" data-last></p>
     <p class="kb-hint" data-hint></p>
     <div class="kb-end" data-end-box hidden>
@@ -54,6 +55,7 @@ export function createPanel(root, { solo, onSetup, onReady, onDraw, onTake, onKa
         <li>Im Zug: vom Stapel ziehen und gegen eine eigene tauschen <b>oder</b> ablegen – oder die Ablage nehmen und tauschen</li>
         <li>Frisch gezogen abgelegt: <b>7/8</b> eigene ansehen, <b>9/10</b> fremde ansehen, <b>Bube/Dame</b> blind tauschen, <b>schwarzer König</b> beide ansehen, dann wahlweise tauschen</li>
         <li><b>Kabo!</b> statt eines Zuges, wenn jeder dran war: Jeder andere hat noch einen Zug, deine Karten sind gesperrt</li>
+        <li><b>Abwerfen:</b> Kommt eine Karte offen auf die Ablage, darf jeder eine eigene <b>gleichen Rangs</b> darauf werfen – bis der Nächste anfängt. Falsch = Karte zurück + <b>Strafkarte</b></li>
         <li>Jeder schreibt seine Summe. Rufer allein am niedrigsten: <b>0</b>, sonst Summe <b>+ 10</b>. Bis einer 100 hat – am wenigsten gewinnt</li>
       </ul>
     </details>
@@ -89,8 +91,9 @@ export function createPanel(root, { solo, onSetup, onReady, onDraw, onTake, onKa
   return {
     // players: [{ name, score, note, turn }] ab mir · setup: null | [{ n, text }] · peek: bool ·
     // start: null | { draw, take, kabo, taking } · drawn: bool · power: null | { kinds: [..] | null, kind, skip } ·
-    // look: null | 'seen' | 'king' · sneak: null | { on, enabled } · end: null | { title, text, again, regroup }
-    render({ round, players, status, card, setup, peek, start, drawn, power, look, sneak, last, hint, end }) {
+    // look: null | 'seen' | 'king' · sneak: null | { on, enabled } · snap: Hinweis, solange abgeworfen werden darf ('' = keiner) ·
+    // end: null | { title, text, again, regroup }
+    render({ round, players, status, card, setup, peek, start, drawn, power, look, sneak, snap = '', last, hint, end }) {
       q('round').textContent = round;
       q('players').replaceChildren(...players.map((p) => {
         const tr = document.createElement('tr');
@@ -137,6 +140,8 @@ export function createPanel(root, { solo, onSetup, onReady, onDraw, onTake, onKa
         q('sneak').classList.toggle('on', sneak.on);
         q('sneak').textContent = sneak.on ? 'Heimlich ansehen: Karte anklicken' : 'Heimlich ansehen';
       }
+      q('snap').textContent = snap;
+      q('snap').hidden = !snap;
       q('last').textContent = last;
       q('hint').textContent = hint;
       q('hint').hidden = !hint;
