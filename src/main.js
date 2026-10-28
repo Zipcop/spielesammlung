@@ -38,6 +38,8 @@ import { createElferBoard } from './elferraus/board.js';
 import { startElferRaus } from './elferraus/index.js';
 import { createSchwimmenBoard } from './schwimmen/board.js';
 import { startSchwimmen } from './schwimmen/index.js';
+import { createKaboBoard } from './kabo/board.js';
+import { startKabo } from './kabo/index.js';
 import { createPokerBoard } from './poker/board.js';
 import { startPoker } from './poker/index.js';
 import { createBlackjackBoard } from './blackjack/board.js';
@@ -96,6 +98,8 @@ const GAMES = {
   'Elfer raus': { board: createElferBoard(room.tableTop), start: startElferRaus, seat: 'elfer' },
   // Sitze wie Doppelkopf (2–4 am Tisch, freie spielt der Computer); drei offene Karten in der Mitte
   Schwimmen: { board: createSchwimmenBoard(room.tableTop), start: startSchwimmen, seat: 'sw' },
+  // Sitze wie Schwimmen (2–4 am Tisch, freie spielt der Computer); Stapel und Ablage in der Mitte, je Platz 2 × 2 Karten
+  Kabo: { board: createKaboBoard(room.tableTop), start: startKabo, seat: 'kabo' },
   // Sechs Plätze: Host, Gast gegenüber, die freien spielt der Computer; Spielgeld-Konto je PC (spielgeld.js)
   "Texas Hold'em": { board: createPokerBoard(room.tableTop), start: startPoker, seat: 'poker' },
   // Fünf Boxen gegen die Bank: Host Box 1, Gast Box 3 (beide auf der Spielerseite); Spielgeld-Konto je PC wie Poker

@@ -71,6 +71,9 @@ const VIEWS = {
   // Schwimmen: drei Karten in der Mitte, vier kleine Hände rundum wie Doppelkopf, Streichhölzer vor den Plätzen
   sw0: [[0.08, TABLE_TOP + 0.74, 0.64], [0.12, TABLE_TOP, 0.07]],
   sw1: [[-0.08, TABLE_TOP + 0.74, -0.64], [-0.12, TABLE_TOP, -0.07]],
+  // Kabo: Stapel und Ablage in der Mitte, vor jedem Platz ein 2 × 2-Raster verdeckter Karten – Blick wie Schwimmen
+  kabo0: [[0.08, TABLE_TOP + 0.74, 0.64], [0.12, TABLE_TOP, 0.07]],
+  kabo1: [[-0.08, TABLE_TOP + 0.74, -0.64], [-0.12, TABLE_TOP, -0.07]],
   // Texas Hold'em: runder Tisch mit sechs Plätzen – hoch genug, dass alle Stapel und die Mitte ins Bild passen
   poker0: [[0.06, TABLE_TOP + 0.86, 0.8], [0.1, TABLE_TOP, 0.1]],
   poker1: [[-0.06, TABLE_TOP + 0.86, -0.8], [-0.1, TABLE_TOP, -0.1]],

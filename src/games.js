@@ -24,6 +24,7 @@ export const PLAYABLE = new Map([
   ['Schocken', { info: 'Drei Würfel unter dem Becher, 13 Deckel, zwei Hälften – 2 bis 4 am Tisch, freie Plätze spielt der Computer', solo: true, free: true }],
   ['Elfer raus', { info: 'Zahlenreihen ab der 11 auf- und abwärts – 2 bis 4 am Tisch, freie Plätze spielt der Computer', solo: true, free: true }],
   ['Schwimmen', { info: 'Auf 31 tauschen, schieben, klopfen – 3 Leben, dann schwimmst du; 2 bis 4 am Tisch, freie Plätze spielt der Computer', solo: true, free: true }],
+  ['Kabo', { info: 'Vier verdeckte Karten, gutes Gedächtnis, möglichst wenig Punkte – „Kabo!“ beendet die Runde; 2 bis 4 am Tisch, freie Plätze spielt der Computer', solo: true, free: true }],
   ["Texas Hold'em", { info: 'No-Limit-Poker an 6 Plätzen mit deinem Spielgeld-Konto – freie Plätze spielt der Computer', solo: true, free: true }],
   ['Blackjack', { info: 'Gegen die Bank wie in der Spielbank, mit deinem Spielgeld-Konto – auf Wunsch spielen Computer an den freien Boxen mit', solo: true, free: true }],
   ['Kartenduell', { info: 'Sammelkarten-Duell mit Monstern, Zaubern und Fallen – 3 feste Decks oder dein eigenes, zu zweit oder gegen den Computer', solo: true, free: true }],
@@ -57,7 +58,7 @@ export const SHELF = [
     games: [
       'Mau-Mau', 'Uno-artig', 'Rommé', 'Schwimmen', 'Skat', 'Doppelkopf', 'Solitär', 'Sechsundsechzig', '6 nimmt!-artig',
       'Wizard-artig', 'Skip-Bo-artig', 'Kakerlakenpoker-artig', 'Hearts', 'Canasta', 'Schafkopf', 'Elfer raus',
-      'Schwarzer Peter', 'Durak', 'Phase-10-artig', 'Kartenduell',
+      'Schwarzer Peter', 'Durak', 'Phase-10-artig', 'Kartenduell', 'Kabo',
     ],
   },
   {

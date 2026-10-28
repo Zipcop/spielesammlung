@@ -1,0 +1,143 @@
+/* --- Kabo: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.kabo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+
+.sheet.kabo > * {
+  flex-shrink: 0;
+}
+
+.kb-head {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 14px;
+}
+
+.kb-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.sheet .kb-players {
+  width: 100%;
+  font-size: 14px;
+}
+
+.sheet .kb-players td {
+  width: auto;
+  font: inherit;
+  color: inherit;
+  border: none;
+}
+
+.sheet .kb-players td {
+  padding: 3px 4px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.kb-players tr.turn {
+  background: rgba(79, 159, 74, 0.16);
+}
+
+.sheet .kb-players td.kb-arrow {
+  width: 1em;
+  color: #2f6b2a;
+}
+
+.sheet .kb-players td.kb-score {
+  text-align: right;
+  font-weight: bold;
+}
+
+.kb-status {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.kb-last {
+  margin: 0;
+  font-size: 14px;
+}
+
+.kb-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.kb-end {
+  display: grid;
+  gap: 6px;
+}
+
+.kb-end h3,
+.kb-end p {
+  margin: 0;
+}
+
+.kb-rules summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.kb-rules ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.kb-setup {
+  display: grid;
+  gap: 6px;
+}
+
+.kb-setup p {
+  margin: 0;
+}
+
+.kb-actions {
+  flex-wrap: wrap;
+}
+
+.kb-actions button {
+  flex: 1;
+}
+
+.sheet .kb-players td.kb-note {
+  font-size: 13px;
+  white-space: normal;
+  color: #a3261c;
+}
+
+.kb-card {
+  margin: 0;
+  font-size: 14px;
+  text-align: center;
+}
+
+.kb-actions button.on {
+  outline: 3px solid #e0b040;
+  outline-offset: 1px;
+}
+
+.kb-actions button.kb-kabo:not(:disabled) {
+  background: #b3261e;
+  border-color: #b3261e;
+  color: #fff;
+}

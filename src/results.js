@@ -74,6 +74,8 @@ export const OUTCOME = {
   'Schiffe versenken': byResult,
   // Je Partie: wer länger dabei war (Host Sitz 0, Gast humans[1]); gone = Runde des Ausscheidens, in derselben Runde = Remis
   Schwimmen: (s) => (s.done ? better(-(s.gone[0] ?? Infinity), -(s.gone[s.humans[1]] ?? Infinity)) : undefined),
+  // Je Partie (bis einer 100 hat): weniger Punkte gewinnt (Host Sitz 0, Gast humans[1]); gleich viele = Remis
+  Kabo: (s) => (s.done ? better(s.scores[0], s.scores[s.humans[1]]) : undefined),
 };
 
 // Kam der Stand von einem erwischten Schummelzug? Dann ist ein Spielende zurückgenommen, die Runde läuft weiter.
