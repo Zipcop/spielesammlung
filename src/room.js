@@ -9,10 +9,13 @@ import { createCamera } from './camera.js';
 import { createGraphics } from './graphics.js';
 import { createDust, createConfetti } from './effects.js';
 import { createDesigns } from './designs.js';
+import { GOLF_VIEWS } from './minigolf/course.js';
 
 export const TABLE_TOP = 0.76;
 const ROOM = { w: 6, d: 6, h: 2.6 };
 const LAMP_Y = 1.72; // Glühbirne der Hängelampe über dem Tisch
+const FAR = 8; // m – weiter weg liegt ein eigener Ort außerhalb des Zimmers: abblenden statt hinfliegen
+const FADE_MS = 350; // so lange blendet es ab (style.css .fader)
 
 // Kamera: [Position, Blickziel]. Start vor dem Schrank; „table“ zeigt den Tisch mit dem Schrank im Hintergrund.
 // Am Platz etwas nach rechts schauen, damit rechts Raum für den Block bleibt. An den Plätzen frei drehbar (camera.js).
@@ -42,6 +45,11 @@ const VIEWS = {
   // 0,32 m zur Seite = Tisch links neben dem Seitenfeld. Host: Kopfseite (−x) links, Gast umgekehrt (Ablage oben).
   billard0: [[0.32, TABLE_TOP + 2.63, 0.04], [0.32, TABLE_TOP + 0.03, 0.03]],
   billard1: [[-0.32, TABLE_TOP + 2.63, 0.02], [-0.32, TABLE_TOP + 0.03, 0.03]],
+  // Air-Hockey: Tisch 2,5 m lang entlang z – fest (camera.js FIXED) schräg von oben hinter dem eigenen Tor (Host +z, Gast −z),
+  // die eigene Hälfte unten, Blick 58° steil. Die Kamera hängt dafür wie bei Billard über der Zimmerdecke.
+  // 0,42 m zur Seite = Tisch links neben dem Seitenfeld, oben Platz für die Verbindungsleiste.
+  air0: [[0.42, TABLE_TOP + 2.771, 1.851], [0.42, TABLE_TOP + 0.04, 0.145]],
+  air1: [[-0.42, TABLE_TOP + 2.771, -1.851], [-0.42, TABLE_TOP + 0.04, -0.145]],
   // Mühle: Brett 32 cm, die eigenen Steine liegen davor – Blick etwas nach rechts, links neben das Seitenfeld
   muehle0: [[0, TABLE_TOP + 0.55, 0.5], [0.08, TABLE_TOP, 0.03]],
   muehle1: [[0, TABLE_TOP + 0.55, -0.5], [-0.08, TABLE_TOP, -0.03]],
@@ -90,6 +98,21 @@ const VIEWS = {
   // Schiffe versenken: eigenes Meer vorn flach, Zielraster im aufrechten Deckel dahinter – Blick schräg darauf
   sv0: [[0.07, TABLE_TOP + 0.6, 0.76], [0.1, TABLE_TOP + 0.1, 0.07]],
   sv1: [[-0.07, TABLE_TOP + 0.6, -0.76], [-0.1, TABLE_TOP + 0.1, -0.07]],
+  // Bowling: eigenes Bowlingcenter bei x = 60 (bowling/lane.js, Foul-Linie bei z = 9,2). Hinter dem Werfer, 6 m hinter
+  // und 1,25 m über der Kugel in der Hand; die Kamera folgt der Kugel bis zu den Pins (room.focus). Kamera 0,6 m links,
+  // Blick leicht nach rechts gedreht, Blickziel 0,3 m rechts der Kugel – so liegt die Bahn links neben dem Seitenfeld.
+  // Drehen/Zoomen in Grenzen der Halle (lang entlang z, flacher Blick erlaubt): Blickziel z −9,5 … 16,5 (Pins bis Anlauf),
+  // Kamera z −10 … 17 (Rückwand −12,2, Wand hinter der Sitzecke 19,5), höchstens 2,35 m hoch (Decke über den Pinsettern 2,45)
+  bowl0: [[59.9, 1.55, 15.45], [60.5, 0.3, 9.45], { at: [60.6, 3.5], pan: [1.5, 13], cam: [3.5, 13.5], yMax: 2.35, dist: 8, pitch: [0.08, 1.2] }],
+  bowl1: [[59.9, 1.55, 15.45], [60.5, 0.3, 9.45], { at: [60.6, 3.5], pan: [1.5, 13], cam: [3.5, 13.5], yMax: 2.35, dist: 8, pitch: [0.08, 1.2] }],
+  // Darts: Scheibe an der vorderen Wand (+z, Vorderseite bei z = 2,94, Bull 1,73 m hoch) – feste Sicht des Werfers an der
+  // Abwurflinie (Augen 1,68 m, 7 cm vor der Linie), beide sehen dasselbe. 11,7 cm nach rechts versetzt (Blick parallel),
+  // damit die Scheibe links neben dem Seitenfeld steht; zoom 2,5 = engerer Bildwinkel, die Scheibe groß und lesbar
+  darts0: [[-0.117, 1.68, 0.64], [-0.117, 1.725, 2.94], { zoom: 2.5 }],
+  darts1: [[-0.117, 1.68, 0.64], [-0.117, 1.725, 2.94], { zoom: 2.5 }],
+  // Minigolf: eigene Anlage draußen bei x = −60 (minigolf/course.js): je Bahn golfT1 … hinter dem Abschlag und golfO1 …
+  // als Übersicht von der Seite; golf0/golf1 = Abschlag Bahn 1. Der Blick folgt dem Ball (room.focus)
+  ...GOLF_VIEWS,
 };
 
 export function createRoom(canvas) {
@@ -105,6 +128,21 @@ export function createRoom(canvas) {
 
   const view = createCamera(canvas, VIEWS);
   const { camera } = view;
+  // Wechsel zu einem eigenen Ort (Bowlingcenter, Minigolf …) oder zurück: kurz abblenden statt durch die Wände zu fliegen
+  const fader = document.createElement('div');
+  fader.className = 'fader';
+  document.body.append(fader);
+  let fading = null;
+  function setView(name) {
+    if (fading === null && camera.position.distanceTo(new THREE.Vector3(...VIEWS[name][0])) < FAR) return view.setView(name);
+    clearTimeout(fading);
+    fader.classList.add('on');
+    fading = setTimeout(() => {
+      fading = null;
+      view.setView(name, true);
+      fader.classList.remove('on');
+    }, FADE_MS);
+  }
 
   const roomLook = buildRoom(scene);
   const { table, top } = buildTable(scene);
@@ -170,8 +208,9 @@ export function createRoom(canvas) {
     scene,
     shelf,
     tableTop,
-    setView: view.setView,
+    setView,
     resetView: view.resetView,
+    focus: view.focus,
     rayFrom,
     // Punkt in der Welt → Bildschirmpunkt { x, y } in CSS-Pixeln (z. B. Billard: Richtung des Queues), null wenn hinter der Kamera
     toScreen(point) {

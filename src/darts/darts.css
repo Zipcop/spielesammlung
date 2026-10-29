@@ -1,0 +1,183 @@
+/* Darts: Seitenfeld */
+.dt-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dt-players {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.dt-players li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 8px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.dt-players li.turn {
+  border-color: var(--accent);
+  background: rgba(217, 151, 63, 0.12);
+}
+
+.dt-name {
+  font-weight: 600;
+}
+
+.dt-rest {
+  grid-row: span 3;
+  align-self: center;
+  font-size: 34px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-legs,
+.dt-avg {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dt-visit {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0 8px;
+}
+
+.dt-visit span {
+  padding: 4px 0;
+  text-align: center;
+  border: 1px solid rgba(42, 33, 24, 0.3);
+  border-radius: 6px;
+  min-height: 1.3em;
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-visit span.off {
+  opacity: 0.3;
+}
+
+.dt-visit b {
+  min-width: 2.4em;
+  text-align: right;
+  font-size: 18px;
+}
+
+.dt-checkout {
+  margin: 4px 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(29, 138, 62, 0.14);
+  font-weight: 600;
+}
+
+.dt-status {
+  font-weight: 600;
+}
+
+.dt-feedback {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.dt-tempo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.dt-tempo.idle {
+  opacity: 0.35;
+}
+
+.dt-bar {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(42, 33, 24, 0.12);
+  overflow: hidden;
+}
+
+/* grüner Streifen = ideales Tempo (90–110 %) */
+.dt-bar i {
+  position: absolute;
+  left: 45%;
+  width: 10%;
+  top: 0;
+  bottom: 0;
+  background: rgba(60, 170, 80, 0.55);
+}
+
+.dt-bar div {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #8fd18a, #e6c04a 60%, #d9573f);
+  opacity: 0.8;
+}
+
+.dt-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.dt-choice button.on {
+  outline: 2px solid var(--accent);
+}
+
+.dt-actions {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.dt-claim {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.dt-claim input {
+  width: 6em;
+  font-size: 16px;
+}
+
+.dt-level {
+  display: block;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.dt-log {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dt-rules {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dt-end h3 {
+  margin: 8px 0 4px;
+}

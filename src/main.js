@@ -17,6 +17,14 @@ import { createMaednBoard } from './maedn/board.js';
 import { startMaedn } from './maedn/index.js';
 import { createBillardBoard } from './billard/table.js';
 import { startBillard } from './billard/index.js';
+import { createBowlingBoard } from './bowling/lane.js';
+import { startBowling } from './bowling/index.js';
+import { createAirhockeyBoard } from './airhockey/table.js';
+import { startAirhockey } from './airhockey/index.js';
+import { createDartsBoard } from './darts/board.js';
+import { startDarts } from './darts/index.js';
+import { createMinigolfBoard } from './minigolf/scene.js';
+import { startMinigolf } from './minigolf/index.js';
 import { createRommeBoard } from './romme/board.js';
 import { startRomme } from './romme/index.js';
 import { createDokoBoard } from './doko/board.js';
@@ -81,6 +89,16 @@ const GAMES = {
   // 4 Farben: Host + Gast (bzw. allein) – die freien Plätze spielt der Computer
   // Billard steht auf einem eigenen Tisch – der kleine Spieltisch wird solange ausgeblendet (setTable)
   Billard: { board: createBillardBoard(room.tableTop, { onStream: (msg) => lobby?.send(msg) }), start: startBillard, seat: 'billard' },
+  // Bowling: eigenes Bowlingcenter weit weg vom Zimmer (x = 60, direkt in room.scene) – Kamera blendet hin (bowl0/bowl1);
+  // Kugel und Pins gehen als 'bowl', die Kugel in der Hand als 'baim' zum anderen PC
+  Bowling: { board: createBowlingBoard(room.scene, { onStream: (msg) => lobby?.send(msg) }), start: startBowling, seat: 'bowl' },
+  // Minigolf: eigene Anlage draußen (x = −60, direkt in room.scene) – Kamera blendet hin und folgt dem Ball (golf0/golf1,
+  // je Bahn golfT…/golfO…); der rollende Ball geht als 'golf', das Zielen als 'aim' zum anderen PC
+  Minigolf: { board: createMinigolfBoard(room.scene, { onStream: (msg) => lobby?.send(msg) }), start: startMinigolf, seat: 'golf' },
+  // Air-Hockey: eigener Turniertisch wie Billard (Spieltisch ausgeblendet); Host-Tor auf +z, Lagen gehen als 'ah'/'ahm' hin und her
+  'Air-Hockey': { board: createAirhockeyBoard(room.tableTop), start: startAirhockey, seat: 'air' },
+  // Darts: Scheibe an der vorderen Zimmerwand, beide sehen sie aus derselben festen Sicht (darts0/darts1); Pfeilflug geht als 'dart'
+  Darts: { board: createDartsBoard(room.tableTop, { onStream: (msg) => lobby?.send(msg) }), start: startDarts, seat: 'darts' },
   'Mensch ärgere dich nicht': { board: createMaednBoard(room.tableTop, { onStream: (msg) => lobby?.send(msg) }), start: startMaedn, seat: 'maedn' },
   Rommé: { board: createRommeBoard(room.tableTop), start: startRomme, seat: 'romme' },
   // Vier Sitze: Host, Gast gegenüber, die freien spielt der Computer
@@ -208,7 +226,7 @@ function countResult(name, track, state) {
 function setTable(name) {
   table = name;
   for (const [n, g] of Object.entries(GAMES)) g.board.group.visible = n === name;
-  room.setFurniture(name !== 'Billard');
+  room.setFurniture(name !== 'Billard' && name !== 'Air-Hockey'); // eigene Tische statt des Spieltischs
 }
 
 // Zurück zum Schrank – die Verbindung bleibt bestehen
@@ -354,10 +372,12 @@ function startLobby(role) {
       $('ping').textContent = '–';
       showLink(false);
       show(view, `Verbindung zu ${otherName()} unterbrochen – verbinde neu …`, 'info');
+      game?.pause?.(true); // Echtzeit-Spiele (Air-Hockey) halten an
     })
     .on('reconnected', () => {
       showLink(true);
       show(view);
+      game?.pause?.(false);
       lobby.send({ t: 'name', name: settings.name });
       // Host schickt das Spiel neu, mit dem letzten Stand – was während der Pause passiert ist, kommt so beim Gast an
       if (host && view === 'playing' && latest?.name === table) {

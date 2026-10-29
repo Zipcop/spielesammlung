@@ -17,6 +17,10 @@ export const OUTCOME = {
   Schach: byResult,
   'Mau-Mau': byWinner,
   Billard: byWinner,
+  // Je Partie (10 Frames): mehr Punkte gewinnt, gleich viele = Remis (result = { winner: 0 | 1 | null })
+  Bowling: byResult,
+  // Je Partie bis 7 Tore (ein erwischtes Siegtor öffnet sie wieder: winner zurück auf null)
+  'Air-Hockey': byWinner,
   // Wer früher alle Figuren im Ziel hatte (Host sitzt auf Sitz 0, der Gast auf humans[1])
   'Mensch ärgere dich nicht': (s) => (s.phase === 'over' ? better(rank(s.places, 0), rank(s.places, s.humans[1])) : undefined),
   // Je Runde; NOBODY = Stapel leer bei gleich vielen Restpunkten
@@ -76,6 +80,10 @@ export const OUTCOME = {
   Schwimmen: (s) => (s.done ? better(-(s.gone[0] ?? Infinity), -(s.gone[s.humans[1]] ?? Infinity)) : undefined),
   // Je Partie (bis einer 100 hat): weniger Punkte gewinnt (Host Sitz 0, Gast humans[1]); gleich viele = Remis
   Kabo: (s) => (s.done ? better(s.scores[0], s.scores[s.humans[1]]) : undefined),
+  // Je Partie (Best of 1/3/5 Legs): wer die nötigen Legs zuerst hat (Host 0, Gast 1)
+  Darts: byWinner,
+  // Je Partie (9 Bahnen): weniger Schläge gewinnt (Host 0, Gast 1), gleich viele = Remis; erwischt nach dem Ende rechnet neu
+  Minigolf: byResult,
 };
 
 // Kam der Stand von einem erwischten Schummelzug? Dann ist ein Spielende zurückgenommen, die Runde läuft weiter.

@@ -3,10 +3,11 @@
 // Die linke Maustaste bleibt fürs Spiel.
 // Grenzen: mindestens 15 cm über der Tischplatte (nicht in Figuren/Karten), nicht in die Hängelampe,
 // nicht durch Wände (höchstens 1,6 m weg, Blickpunkt höchstens 1,3 m und Kamera höchstens 2,4 m von der Zimmermitte).
+// Eigene Orte außerhalb des Zimmers (Bowlingcenter, Minigolf …) geben ihre Grenzen als dritten Wert der Ansicht mit (place).
 import * as THREE from 'three';
 
 const FLY_S = 1.4;
-const FIXED = ['shelf', 'table', 'billard0', 'billard1']; // hier bleibt die Kamera stehen (Billard: von oben)
+const FIXED = ['shelf', 'table', 'billard0', 'billard1', 'air0', 'air1', 'darts0', 'darts1']; // hier bleibt die Kamera stehen (Billard, Air-Hockey: von oben; Darts: von der Abwurflinie)
 const PITCH = [0.3, 1.35]; // Blick von oben, Bogenmaß: ab 17° (sonst Stuhllehnen im Bild) bis 77°
 const DIST = [0.25, 1.6]; // Meter vom Blickziel
 const Y_MAX = 1.6; // höchste Kamerahöhe – die Hängelampe hängt ab 1,70 m
@@ -16,7 +17,9 @@ const ZOOM = 0.0012; // je Rad-Einheit (eine Raste ≈ 100 → etwa 13 % näher/
 const PAN_AREA = 1.3; // Blickpunkt bleibt in x und z so nah an der Zimmermitte (m) – Zimmer 6 × 6 m, Kamera bis 1,6 m dahinter
 const CAM_AREA = 2.4; // Kamera selbst bleibt in x und z so nah an der Mitte – vor Schrank (ab 2,6 m), Kamin und Wänden
 
-// views: Name → [Position, Blickziel]
+// views: Name → [Position, Blickziel, place?] – place = { at: [x, z] Mitte des Orts, pan, cam, yMax, dist } ersetzt die
+// Zimmer-Grenzen (PAN_AREA, CAM_AREA, Y_MAX, DIST[1]); fehlende Werte gelten wie im Zimmer.
+// pan und cam dürfen auch [x, z] sein (lange Orte wie die Bowlingbahn), pitch = [min, max] ersetzt PITCH
 export function createCamera(canvas, views) {
   const camera = new THREE.PerspectiveCamera(42, 1, 0.02, 30);
   const look = new THREE.Vector3();
@@ -27,37 +30,52 @@ export function createCamera(canvas, views) {
   let dragEnd = 0; // Zeit des letzten Loslassens – danach kein Kontextmenü
 
   // Kugelkoordinaten der Ansicht um ihr Blickziel
-  function orbitOf(pos, target) {
+  function orbitOf(pos, target, place = {}) {
     const offset = pos.clone().sub(target);
     const dist = offset.length();
     const at = { yaw: Math.atan2(offset.x, offset.z), pitch: Math.asin(offset.y / dist), dist };
-    // pan = Verschiebung des Blickpunkts (Mausrad gedrückt), zusätzlich zum Blickziel
-    return { target: target.clone(), now: { ...at }, goal: at, pan: new THREE.Vector3(), panGoal: new THREE.Vector3() };
+    const lim = {
+      at: place.at ?? [0, 0], pan: place.pan ?? PAN_AREA, cam: place.cam ?? CAM_AREA, yMax: place.yMax ?? Y_MAX, dist: [DIST[0], place.dist ?? DIST[1]],
+      pitch: place.pitch ?? PITCH,
+    };
+    // pan = Verschiebung des Blickpunkts (Mausrad gedrückt), zusätzlich zum Blickziel – das wandert ggf. mit (focus)
+    return { target: target.clone(), now: { ...at }, goal: at, pan: new THREE.Vector3(), panGoal: new THREE.Vector3(), lim };
   }
+
+  // Wert in x oder z (i = 0/1) höchstens r von der Mitte des Orts (r = Zahl oder [rx, rz])
+  const near = (v, i, r) => THREE.MathUtils.clamp(v, orbit.lim.at[i] - (r[i] ?? r), orbit.lim.at[i] + (r[i] ?? r));
 
   // keepDist: beim Drehen bleibt der Abstand und der Winkel gibt nach, beim Zoomen umgekehrt
   function limit(o, keepDist) {
-    o.pitch = THREE.MathUtils.clamp(o.pitch, ...PITCH);
-    o.dist = THREE.MathUtils.clamp(o.dist, ...DIST);
-    const height = THREE.MathUtils.clamp(o.dist * Math.sin(o.pitch), ABOVE, Y_MAX - orbit.target.y);
+    o.pitch = THREE.MathUtils.clamp(o.pitch, ...orbit.lim.pitch);
+    o.dist = THREE.MathUtils.clamp(o.dist, ...orbit.lim.dist);
+    const height = THREE.MathUtils.clamp(o.dist * Math.sin(o.pitch), ABOVE, orbit.lim.yMax - orbit.target.y);
     if (keepDist) o.pitch = Math.asin(height / o.dist);
     else o.dist = height / Math.sin(o.pitch);
   }
 
   function setView(name, instant = false) {
-    const [pos, target] = views[name];
-    const to = { pos: new THREE.Vector3(...pos), look: new THREE.Vector3(...target) };
+    const [pos, target, place] = views[name];
+    // zoom (nur feste Ansichten, place.zoom): engerer Bildwinkel vom selben Standpunkt – Darts: die Scheibe groß von der Abwurflinie
+    const to = { pos: new THREE.Vector3(...pos), look: new THREE.Vector3(...target), zoom: place?.zoom ?? 1 };
     current = name;
-    orbit = FIXED.includes(name) ? null : orbitOf(to.pos, to.look);
+    orbit = FIXED.includes(name) ? null : orbitOf(to.pos, to.look, place);
     drag = null;
     if (instant) {
       camera.position.copy(to.pos);
       look.copy(to.look);
       camera.lookAt(look);
+      setZoom(to.zoom);
       fly = null;
       return;
     }
-    fly = { from: { pos: camera.position.clone(), look: look.clone() }, to, t: 0 };
+    fly = { from: { pos: camera.position.clone(), look: look.clone(), zoom: camera.zoom }, to, t: 0 };
+  }
+
+  function setZoom(zoom) {
+    if (camera.zoom === zoom) return;
+    camera.zoom = zoom;
+    camera.updateProjectionMatrix();
   }
 
   function update(dt) {
@@ -67,6 +85,7 @@ export function createCamera(canvas, views) {
       camera.position.lerpVectors(fly.from.pos, fly.to.pos, k);
       look.lerpVectors(fly.from.look, fly.to.look, k);
       camera.lookAt(look);
+      if (fly.from.zoom !== fly.to.zoom) setZoom(fly.from.zoom * (fly.to.zoom / fly.from.zoom) ** k); // gleichmäßig auf- bzw. abzoomen
       if (fly.t === 1) fly = null;
       return;
     }
@@ -74,15 +93,17 @@ export function createCamera(canvas, views) {
     const { now, goal, target } = orbit;
     const k = 1 - Math.exp(-dt * 14); // weich nachziehen
     for (const key of ['yaw', 'pitch', 'dist']) now[key] += (goal[key] - now[key]) * k;
+    if (orbit.focus) target.lerp(orbit.focus, 1 - Math.exp(-dt * 4)); // Blickziel wandert gemächlich mit (z. B. zum Golfball)
     orbit.pan.lerp(orbit.panGoal, k);
     const at = target.clone().add(orbit.pan);
-    at.x = THREE.MathUtils.clamp(at.x, -PAN_AREA, PAN_AREA);
-    at.z = THREE.MathUtils.clamp(at.z, -PAN_AREA, PAN_AREA);
+    const { pan: panArea, cam } = orbit.lim;
+    at.x = near(at.x, 0, panArea);
+    at.z = near(at.z, 1, panArea);
     const flatDist = now.dist * Math.cos(now.pitch);
     camera.position.set(
-      THREE.MathUtils.clamp(at.x + flatDist * Math.sin(now.yaw), -CAM_AREA, CAM_AREA),
+      near(at.x + flatDist * Math.sin(now.yaw), 0, cam),
       at.y + now.dist * Math.sin(now.pitch),
-      THREE.MathUtils.clamp(at.z + flatDist * Math.cos(now.yaw), -CAM_AREA, CAM_AREA),
+      near(at.z + flatDist * Math.cos(now.yaw), 1, cam),
     );
     camera.lookAt(at);
   }
@@ -97,8 +118,8 @@ export function createCamera(canvas, views) {
     orbit.panGoal.addScaledVector(right, -dx * perPixel).addScaledVector(ahead, (dy * perPixel) / Math.sin(pitch));
     // nicht weiter als der Blickpunkt darf (sonst hinge die Maus „fest“, bis man zurückzieht)
     const at = orbit.target.clone().add(orbit.panGoal);
-    orbit.panGoal.x = THREE.MathUtils.clamp(at.x, -PAN_AREA, PAN_AREA) - orbit.target.x;
-    orbit.panGoal.z = THREE.MathUtils.clamp(at.z, -PAN_AREA, PAN_AREA) - orbit.target.z;
+    orbit.panGoal.x = near(at.x, 0, orbit.lim.pan) - orbit.target.x;
+    orbit.panGoal.z = near(at.z, 1, orbit.lim.pan) - orbit.target.z;
   }
 
   const free = () => orbit && !fly;
@@ -147,7 +168,14 @@ export function createCamera(canvas, views) {
     update,
     // zurück zur Ansicht des Platzes (nach Drehen/Zoomen/Verschieben)
     resetView() {
-      if (orbit) setView(current);
+      if (!orbit) return;
+      const { focus } = orbit;
+      setView(current);
+      orbit.focus = focus; // Blick bleibt beim verfolgten Punkt
+    },
+    // Blickziel an einem Platz verschieben (Welt-Koordinaten), Drehung und Abstand bleiben – z. B. Minigolf: der Ball
+    focus(point) {
+      if (orbit) orbit.focus = point.clone();
     },
   };
 }

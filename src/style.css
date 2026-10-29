@@ -263,6 +263,13 @@ input.code::placeholder {
   text-shadow: 0 1px 4px #000, 0 0 10px #000;
 }
 
+/* Bedienhinweis mit dunklem Grund – auf hellen Orten (Bowlingbahn, Minigolf-Pflaster) sonst kaum lesbar */
+.dock p.muted {
+  padding: 2px 10px;
+  background: rgba(20, 13, 8, 0.6);
+  border-radius: 6px;
+}
+
 #status {
   margin-bottom: 10px;
   padding: 6px 10px;
@@ -982,4 +989,19 @@ input.name {
 .tisch-chaos .cheat-button {
   pointer-events: none;
   opacity: 0.45;
+}
+
+/* Abblenden beim Wechsel zu einem eigenen Ort außerhalb des Zimmers (room.js setView) */
+.fader {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+.fader.on {
+  opacity: 1;
 }

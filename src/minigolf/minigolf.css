@@ -1,0 +1,186 @@
+/* --- Minigolf: Seitenfeld (baut auf .sheet aus style.css auf) --- */
+
+.sheet.minigolf {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  bottom: auto;
+  max-height: calc(100% - 24px);
+}
+
+.sheet.minigolf > * {
+  flex-shrink: 0;
+}
+
+.mg-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.mg-head .brand {
+  font: bold 19px Georgia, serif;
+  letter-spacing: 0.04em;
+  color: #2f6b3a;
+}
+
+.sheet .mg-card {
+  table-layout: fixed;
+  font-size: 13px;
+}
+
+.sheet .mg-card th,
+.sheet .mg-card td {
+  padding: 3px 0;
+  text-align: center;
+}
+
+.sheet .mg-card thead th {
+  font-size: 11.5px;
+  color: rgba(42, 33, 24, 0.6);
+}
+
+.sheet .mg-card thead th:first-child {
+  width: 74px;
+}
+
+.sheet .mg-card .mg-name {
+  padding-right: 4px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet .mg-card .mg-total,
+.sheet .mg-card thead th:last-child {
+  width: 30px;
+  font-weight: bold;
+}
+
+.sheet .mg-card .now {
+  background: rgba(47, 107, 58, 0.14);
+}
+
+.sheet .mg-card tr.turn .mg-name {
+  font-weight: bold;
+  color: #2f6b3a;
+}
+
+.mg-status {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 14.5px;
+  text-align: center;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 4px;
+}
+
+.mg-log {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-height: 3em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13.5px;
+}
+
+.mg-log li:first-child {
+  font-weight: bold;
+}
+
+.mg-log li:not(:first-child) {
+  color: rgba(42, 33, 24, 0.65);
+}
+
+.mg-power {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.mg-power.idle {
+  opacity: 0.35;
+}
+
+.mg-bar {
+  flex: 1;
+  height: 10px;
+  overflow: hidden;
+  background: rgba(42, 33, 24, 0.12);
+  border-radius: 5px;
+}
+
+.mg-bar div {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #8fd18a, #e6c04a 60%, #d9573f);
+}
+
+.mg-claim {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  font-size: 14px;
+  background: rgba(217, 151, 63, 0.16);
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+}
+
+.mg-claim div {
+  display: flex;
+  gap: 4px;
+}
+
+.mg-claim button {
+  flex: 1;
+  padding: 4px 0;
+}
+
+.mg-tools {
+  display: flex;
+  gap: 6px;
+}
+
+.mg-level {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.mg-level select {
+  flex: 1;
+}
+
+.mg-end {
+  display: grid;
+  gap: 8px;
+}
+
+.mg-end h3 {
+  margin: 0;
+  color: #2f6b3a;
+}
+
+.mg-end p {
+  margin: 0;
+}
+
+.mg-rules {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px 8px 26px;
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.8);
+  background: rgba(42, 33, 24, 0.06);
+  border-radius: 6px;
+}

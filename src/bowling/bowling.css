@@ -1,0 +1,204 @@
+/* Bowling: Seitenfeld mit Spielzettel */
+.bw-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bw-head .brand {
+  font: bold 20px Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #b3261e;
+}
+
+.bw-player {
+  margin: 8px 0;
+  padding: 4px 6px 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.bw-player.turn {
+  border-color: #b3261e;
+  background: rgba(179, 38, 30, 0.07);
+}
+
+.bw-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.bw-name {
+  flex: 1;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bw-wins {
+  font-size: 12px;
+  color: rgba(42, 33, 24, 0.6);
+}
+
+.bw-total {
+  min-width: 2.4em;
+  font: bold 18px Georgia, serif;
+  text-align: right;
+}
+
+.bw-frames {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr) 1.45fr;
+  border: 1px solid rgba(42, 33, 24, 0.5);
+}
+
+.bw-f {
+  border-right: 1px solid rgba(42, 33, 24, 0.35);
+}
+
+.bw-f:last-child {
+  border-right: 0;
+}
+
+.bw-f.now {
+  background: rgba(217, 151, 63, 0.25);
+}
+
+.bw-m {
+  display: flex;
+  justify-content: flex-end;
+  height: 15px;
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.bw-m span {
+  width: 11px;
+  text-align: center;
+  border-left: 1px solid rgba(42, 33, 24, 0.25);
+  border-bottom: 1px solid rgba(42, 33, 24, 0.25);
+}
+
+.bw-t {
+  height: 17px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 17px;
+  text-align: center;
+}
+
+.bw-status {
+  font-weight: 600;
+}
+
+.bw-last {
+  font-size: 15px;
+  color: rgba(42, 33, 24, 0.75);
+}
+
+.bw-hint {
+  font-size: 14px;
+  color: #b3261e;
+}
+
+.bw-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+  font-size: 14px;
+  color: rgba(42, 33, 24, 0.75);
+}
+
+.bw-meter > span {
+  width: 3.4em;
+}
+
+.bw-meter.idle {
+  opacity: 0.35;
+}
+
+.bw-meter small {
+  width: 5.5em;
+  font-size: 12px;
+}
+
+.bw-bar {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(42, 33, 24, 0.12);
+  overflow: hidden;
+}
+
+.bw-bar div {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #8fd18a, #e6c04a 70%, #d9573f);
+}
+
+.bw-bar div.foul {
+  background: #c0281e;
+}
+
+.bw-bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  background: repeating-linear-gradient(45deg, rgba(192, 40, 30, 0.45) 0 3px, transparent 3px 6px);
+}
+
+.bw-bar.hook div {
+  position: absolute;
+  top: 0;
+  background: #3d78c4;
+}
+
+.bw-bar.hook::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(42, 33, 24, 0.5);
+}
+
+.bw-claim p {
+  margin: 8px 0 4px;
+  font-weight: 600;
+}
+
+.bw-claim div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.bw-claim button {
+  min-width: 2.2em;
+  padding: 4px 6px;
+}
+
+.bw-level {
+  display: block;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.bw-rules {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: rgba(42, 33, 24, 0.7);
+}
+
+.bw-end h3 {
+  margin: 8px 0 4px;
+}

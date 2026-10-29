@@ -1,0 +1,110 @@
+/* Air-Hockey: Seitenfeld */
+.ah-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ah-players {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.ah-players li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 2px 10px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.ah-players li.me {
+  border-color: var(--accent);
+  background: rgba(217, 151, 63, 0.12);
+}
+
+.ah-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: inset -2px -2px 3px rgba(0, 0, 0, 0.35);
+}
+
+.ah-name {
+  font-weight: 600;
+}
+
+.ah-score {
+  grid-row: span 2;
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ah-wins {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ah-status {
+  font-weight: 600;
+}
+
+.ah-clock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.ah-clock.idle {
+  opacity: 0.35;
+}
+
+.ah-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.ah-bar div {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #8fd18a, #e6c04a 60%, #d9573f);
+}
+
+.ah-level {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.ah-log {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.ah-rules {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.ah-end h3 {
+  margin: 8px 0 4px;
+}
