@@ -37,10 +37,11 @@ const VIEWS = {
   // Gast an der Seite (Farbe neben der des Hosts): links (−x, Teller hinter dem Brett) bzw. rechts (+x, Teller vorn)
   maednL: [[-0.6, TABLE_TOP + 0.62, 0.02], [0.05, TABLE_TOP, 0.07]],
   maednR: [[0.8, TABLE_TOP + 0.7, -0.02], [0.1, TABLE_TOP, -0.06]],
-  // Billard: eigener, langer Tisch (Längsseite entlang x) – Blick von der Stirnseite, Host an der Kopfseite (−x),
-  // Gast an der Fußseite (+x). Das Blickziel folgt dann der weißen Kugel (billard/index.js → room.focus).
-  billard0: [[-1.15, TABLE_TOP + 0.75, 0], [-0.3, TABLE_TOP + 0.03, 0]],
-  billard1: [[1.15, TABLE_TOP + 0.75, 0], [0.3, TABLE_TOP + 0.03, 0]],
+  // Billard: eigener, langer Tisch (Längsseite entlang x) – feste Vogelperspektive (camera.js FIXED), die Längsseite
+  // quer im Bild. Die Kamera hängt über der Zimmerdecke (die ist von oben unsichtbar), sonst passt der Tisch nicht ins Bild.
+  // 0,32 m zur Seite = Tisch links neben dem Seitenfeld. Host: Kopfseite (−x) links, Gast umgekehrt (Ablage oben).
+  billard0: [[0.32, TABLE_TOP + 2.63, 0.04], [0.32, TABLE_TOP + 0.03, 0.03]],
+  billard1: [[-0.32, TABLE_TOP + 2.63, 0.02], [-0.32, TABLE_TOP + 0.03, 0.03]],
   // Mühle: Brett 32 cm, die eigenen Steine liegen davor – Blick etwas nach rechts, links neben das Seitenfeld
   muehle0: [[0, TABLE_TOP + 0.55, 0.5], [0.08, TABLE_TOP, 0.03]],
   muehle1: [[0, TABLE_TOP + 0.55, -0.5], [-0.08, TABLE_TOP, -0.03]],
@@ -110,7 +111,7 @@ export function createRoom(canvas) {
   const tableTop = new THREE.Group(); // hier legen Spiele ihre Sachen ab
   tableTop.position.y = TABLE_TOP;
   table.add(tableTop);
-  const { spot, hemi, shadeGlow } = addLights(scene);
+  const { spot, hemi, shadeGlow, shade } = addLights(scene);
   // Zimmer-Stil und Tageszeit (designs.js) tauschen Texturen, Farben und Licht dieser Teile
   const designs = createDesigns(scene, {
     ...roomLook, table: top, tableWood: top.map, spot, hemi, glowing: [...roomLook.glowing, shadeGlow],
@@ -171,7 +172,6 @@ export function createRoom(canvas) {
     tableTop,
     setView: view.setView,
     resetView: view.resetView,
-    focus: view.focus,
     rayFrom,
     // Punkt in der Welt → Bildschirmpunkt { x, y } in CSS-Pixeln (z. B. Billard: Richtung des Queues), null wenn hinter der Kamera
     toScreen(point) {
@@ -188,9 +188,11 @@ export function createRoom(canvas) {
       dust.group.visible = s.dust;
       confettiOn = s.confetti;
     },
-    // Spieltisch und Stühle zeigen oder (beim Billardtisch) ausblenden – was auf dem Tisch liegt, bleibt
+    // Spieltisch und Stühle zeigen oder (beim Billardtisch) ausblenden – was auf dem Tisch liegt, bleibt.
+    // Die Hängelampe auch: Billard sieht von oben drauf, sie hinge mitten im Bild (ihr Licht bleibt)
     setFurniture(visible) {
       for (const child of table.children) if (child !== tableTop) child.visible = visible;
+      shade.visible = visible;
     },
     // Sieg-Konfetti an der Tischkante vor diesem Spieler (0 = Host auf +z)
     celebrate(player) {
@@ -350,5 +352,5 @@ function addLights(scene) {
   spot.shadow.bias = -0.0002;
   spot.shadow.normalBias = 0.002;
   scene.add(spot, spot.target);
-  return { spot, hemi, shadeGlow };
+  return { spot, hemi, shadeGlow, shade };
 }

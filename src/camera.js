@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 
 const FLY_S = 1.4;
-const FIXED = ['shelf', 'table']; // hier bleibt die Kamera stehen
+const FIXED = ['shelf', 'table', 'billard0', 'billard1']; // hier bleibt die Kamera stehen (Billard: von oben)
 const PITCH = [0.3, 1.35]; // Blick von oben, Bogenmaß: ab 17° (sonst Stuhllehnen im Bild) bis 77°
 const DIST = [0.25, 1.6]; // Meter vom Blickziel
 const Y_MAX = 1.6; // höchste Kamerahöhe – die Hängelampe hängt ab 1,70 m
@@ -31,7 +31,7 @@ export function createCamera(canvas, views) {
     const offset = pos.clone().sub(target);
     const dist = offset.length();
     const at = { yaw: Math.atan2(offset.x, offset.z), pitch: Math.asin(offset.y / dist), dist };
-    // pan = Verschiebung des Blickpunkts (Mausrad gedrückt), zusätzlich zum Blickziel – das wandert beim Billard mit der Kugel
+    // pan = Verschiebung des Blickpunkts (Mausrad gedrückt), zusätzlich zum Blickziel
     return { target: target.clone(), now: { ...at }, goal: at, pan: new THREE.Vector3(), panGoal: new THREE.Vector3() };
   }
 
@@ -74,7 +74,6 @@ export function createCamera(canvas, views) {
     const { now, goal, target } = orbit;
     const k = 1 - Math.exp(-dt * 14); // weich nachziehen
     for (const key of ['yaw', 'pitch', 'dist']) now[key] += (goal[key] - now[key]) * k;
-    if (orbit.focus) target.lerp(orbit.focus, 1 - Math.exp(-dt * 4)); // Blickziel wandert gemächlich mit (z. B. zur weißen Kugel)
     orbit.pan.lerp(orbit.panGoal, k);
     const at = target.clone().add(orbit.pan);
     at.x = THREE.MathUtils.clamp(at.x, -PAN_AREA, PAN_AREA);
@@ -148,14 +147,7 @@ export function createCamera(canvas, views) {
     update,
     // zurück zur Ansicht des Platzes (nach Drehen/Zoomen/Verschieben)
     resetView() {
-      if (!orbit) return;
-      const { focus } = orbit;
-      setView(current);
-      orbit.focus = focus; // Billard: Blick bleibt bei der weißen Kugel
-    },
-    // Blickziel an einem Platz verschieben (Welt-Koordinaten), Drehung und Abstand bleiben – z. B. Billard: weiße Kugel
-    focus(point) {
-      if (orbit) orbit.focus = point.clone();
+      if (orbit) setView(current);
     },
   };
 }

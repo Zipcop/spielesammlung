@@ -12,6 +12,7 @@ const { L, W } = TABLE;
 const PULL = 0.25; // m – so weit steht der Queue bei voller Kraft hinter der Weißen
 const SEND_EVERY = 8; // 30 Updates pro Sekunde an den Mitspieler
 const RAIL = 0.11; // Holzrahmen
+const RAIL_H = 0.055; // Höhe des Holzrahmens – Oberkante 1 cm tiefer eingelassen: BED_Y + RAIL_H − 0,01
 const TRAY = { y: -0.17, z: W / 2 + CUSHION + RAIL + 0.04 }; // Ablage der versenkten Kugeln an der Längsseite
 const COLORS = { 1: '#f2c018', 2: '#1c4fbf', 3: '#d42020', 4: '#5b2a86', 5: '#f2701b', 6: '#1c7a3c', 7: '#7a1b1b', 8: '#141414' };
 const UP = new THREE.Vector3(0, 1, 0);
@@ -153,8 +154,16 @@ export function createBillardBoard(parent, { onStream }) {
     if (!show) return;
     const dir = new THREE.Vector3(Math.cos(aim.angle), 0, -Math.sin(aim.angle));
     const start = new THREE.Vector3(p[0], BED_Y + R, p[1]);
-    cue.position.copy(start).addScaledVector(dir, -(R + 0.012 + aim.power * PULL));
-    cue.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir.clone().setY(0.09).normalize());
+    const back = R + 0.012 + aim.power * PULL; // Spitze so weit hinter der Kugelmitte
+    cue.position.copy(start).addScaledVector(dir, -back);
+    // Hinten so steil anheben, dass der Queue über Bande und Rahmen geht (sonst steckt er bei Kugeln nah an der Bande im Holz):
+    // edge = Abstand von der Spitze nach hinten bis zur Bandenkante; dort muss die Queue-Mitte auf Höhe need sein.
+    // Reicht die Neigung nicht (Kugel ganz nah an der Bande), setzt die Spitze höher an – trifft die Kugel oberhalb der Mitte
+    const edge = Math.min(...[[p[0], -dir.x, L / 2], [p[1], -dir.z, W / 2]].map(([v, d, half]) => (d ? (Math.sign(d) * half - v) / d : Infinity))) - back;
+    const need = BED_Y + RAIL_H - 0.01 + 0.009; // Rahmen-Oberkante + halbe Dicke der Spitze + Luft
+    const slope = Math.min(Math.max(0.09, (need - start.y) / Math.max(edge, 0.001)), 1.2);
+    cue.position.y = Math.max(start.y, need - slope * Math.max(edge, 0));
+    cue.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir.clone().setY(slope).normalize());
     const hit = firstHit(start, dir);
     guide.set(start, hit.point, hit.ball !== null ? hit.ghost : null, hit.ballDir);
   }
@@ -325,7 +334,7 @@ function buildTable(group) {
     add(new THREE.BoxGeometry(CUSHION, ch, W - 2 * CORNER), cushionMat, s * (L / 2 + CUSHION / 2), BED_Y + ch / 2, 0);
   }
   // Holzrahmen
-  const rh = 0.055;
+  const rh = RAIL_H;
   for (const s of [-1, 1]) {
     add(new THREE.BoxGeometry(outerL, rh, RAIL), wood, 0, BED_Y + rh / 2 - 0.01, s * (W / 2 + CUSHION + RAIL / 2));
     add(new THREE.BoxGeometry(RAIL, rh, W + 2 * CUSHION), wood, s * (L / 2 + CUSHION + RAIL / 2), BED_Y + rh / 2 - 0.01, 0);

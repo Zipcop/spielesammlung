@@ -160,8 +160,6 @@ export function startBillard({ room, board, canvas, me, send, onLeave, ask, leve
       },
     });
     if (!charging) panel.setPower(myTurn() && !placingNow() ? 0 : null);
-    // Kamera schaut zur weißen Kugel, sobald alles liegt (beim „Ball in Hand“ auf die Tischmitte)
-    if (!rolling && !board.busy()) room.focus(board.toWorld(state.positions[0] ?? [0, 0]));
     statusShown = statusText();
   }
 
