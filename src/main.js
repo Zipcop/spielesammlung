@@ -524,5 +524,14 @@ room.onFrame(() => {
 
 show('shelf');
 
+// Ladebildschirm (index.html) erst wegnehmen, wenn das Spielzimmer ein paar Bilder gezeigt hat – das erste baut die Shader
+let loadFrames = 0;
+const stopLoadWatch = room.onFrame(() => {
+  if (++loadFrames < 3) return;
+  stopLoadWatch();
+  $('loader').classList.add('done');
+  setTimeout(() => $('loader').remove(), 700);
+});
+
 // Installierbare App (PWA): Offline-Speicher nur in der gebauten Fassung – beim Entwickeln stünde er Änderungen im Weg
 if (import.meta.env.PROD && 'serviceWorker' in navigator) navigator.serviceWorker.register(`sw.js?v=${__BUILD__}`);

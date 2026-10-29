@@ -9,8 +9,95 @@
     <link rel="icon" type="image/png" href="icons/favicon-48.png" />
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
     <meta name="theme-color" content="#140d08" />
+    <!-- Ladebildschirm: steht hier direkt, damit er schon da ist, bevor Stil und Skript geladen sind.
+         Er deckt alles ab, bis das Spielzimmer die ersten Bilder gezeigt hat (main.js nimmt ihn weg). -->
+    <style>
+      #loader {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 22px;
+        background: radial-gradient(ellipse at 50% 42%, #3a2414 0%, #140d08 62%);
+        color: #f3e6d3;
+        font: 16px/1.5 Georgia, 'Times New Roman', serif;
+        transition: opacity 0.6s ease;
+      }
+      #loader.done {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #loader .dice {
+        display: flex;
+        gap: 18px;
+        height: 72px;
+        align-items: flex-end;
+      }
+      #loader svg {
+        width: 56px;
+        height: 56px;
+        filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
+        animation: loader-roll 1.4s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+      }
+      #loader svg + svg {
+        animation-delay: 0.7s;
+      }
+      @keyframes loader-roll {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        35% { transform: translateY(-16px) rotate(-12deg); }
+        65%, 99.99% { transform: translateY(0) rotate(180deg); } /* 180° sieht bei 5 und 3 Augen gleich aus → kein Sprung */
+      }
+      #loader h1 {
+        margin: 0;
+        font-weight: normal;
+        font-size: 30px;
+        letter-spacing: 0.06em;
+        color: #d9973f;
+      }
+      #loader p {
+        margin: -14px 0 0;
+        color: #bfa98c;
+      }
+      #loader .bar {
+        width: 200px;
+        height: 3px;
+        border-radius: 2px;
+        background: rgba(217, 151, 63, 0.2);
+        overflow: hidden;
+      }
+      #loader .bar::after {
+        content: '';
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 2px;
+        background: #d9973f;
+        animation: loader-bar 1.3s ease-in-out infinite;
+      }
+      @keyframes loader-bar {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(250%); }
+      }
+    </style>
   </head>
   <body>
+    <div id="loader" role="status" aria-label="Spielesammlung wird geladen">
+      <div class="dice" aria-hidden="true">
+        <svg viewBox="0 0 56 56">
+          <rect x="2" y="2" width="52" height="52" rx="10" fill="#f4eddc" />
+          <g fill="#2a2118"><circle cx="16" cy="16" r="4.6" /><circle cx="40" cy="16" r="4.6" /><circle cx="28" cy="28" r="4.6" /><circle cx="16" cy="40" r="4.6" /><circle cx="40" cy="40" r="4.6" /></g>
+        </svg>
+        <svg viewBox="0 0 56 56">
+          <rect x="2" y="2" width="52" height="52" rx="10" fill="#d9973f" />
+          <g fill="#2a2118"><circle cx="17" cy="17" r="4.6" /><circle cx="28" cy="28" r="4.6" /><circle cx="39" cy="39" r="4.6" /></g>
+        </svg>
+      </div>
+      <h1>Spielesammlung</h1>
+      <p>Das Spielzimmer wird aufgebaut …</p>
+      <div class="bar"></div>
+    </div>
     <canvas id="scene"></canvas>
 
     <!-- Einstellungen und Ansicht (oben links, immer erreichbar) -->

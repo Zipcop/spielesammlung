@@ -111,7 +111,6 @@
 
 .c2d-piece.dragging {
   z-index: 2;
-  scale: 1.12;
 }
 
 /* Plakette der Zuganalyse oben rechts am Zielfeld */

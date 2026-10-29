@@ -256,6 +256,11 @@ export function createFlatBoard({ me = 0, onClick, onDrop, onHover } = {}) {
     const el = sq && ui.selected === sq && els.get(sq);
     if (el) {
       drag = { from: sq, el, x: e.clientX, y: e.clientY, moving: false, over: null };
+      const r = boardEl.getBoundingClientRect(); // Feld statt Figur messen: Die Figur kann gerade noch gleiten
+      const s = r.width / 8;
+      const { x, y } = squareXY(sq, flipped);
+      el.style.transformOrigin = `${e.clientX - r.left - x * s}px ${e.clientY - r.top - y * s}px`; // gepackter Punkt
+      for (const a of el.getAnimations()) a.finish(); // gleitet sie noch (gleich wieder gepackt), läge die Animation über dem Ziehen
       root.setPointerCapture(e.pointerId);
     }
     drawMarks();
@@ -276,10 +281,8 @@ export function createFlatBoard({ me = 0, onClick, onDrop, onHover } = {}) {
         drag.el.classList.add('dragging');
       }
       if (!drag.moving) return;
-      const r = boardEl.getBoundingClientRect();
-      const s = r.width / 8;
-      const { x, y } = squareXY(drag.from, flipped);
-      drag.el.style.transform = `translate(${e.clientX - r.left - (x + 0.5) * s}px, ${e.clientY - r.top - (y + 0.5) * s}px)`;
+      // Weg seit dem Greifen: Die Figur bleibt mit dem gepackten Punkt unter der Maus (Vergrößern um genau diesen Punkt)
+      drag.el.style.transform = `translate(${e.clientX - drag.x}px, ${e.clientY - drag.y}px) scale(1.12)`;
       root.style.cursor = 'grabbing';
       const over = squareOf(e);
       if (over !== drag.over) {
